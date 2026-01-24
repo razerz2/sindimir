@@ -79,7 +79,7 @@
             }
             .content {
                 flex: 1;
-                padding: 32px;
+                padding: 0 32px 32px;
                 margin-left: 260px;
                 height: 100vh;
                 overflow-y: auto;
@@ -87,12 +87,33 @@
             .admin-topbar {
                 position: sticky;
                 top: 0;
-                z-index: 20;
-                background: var(--content-bg);
-                padding: 16px 0;
+                z-index: 40;
+                background: transparent;
+                margin-top: 0;
+                padding: 0;
+                border-bottom-left-radius: 12px;
+                border-bottom-right-radius: 12px;
+                border-top-left-radius: 0;
+                border-top-right-radius: 0;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            }
+            .admin-topbar-inner {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1rem;
+                background: var(--card-bg);
+                padding: 0.65rem 1rem;
             }
             .content header {
-                margin-bottom: 20px;
+                margin-bottom: 0;
+            }
+            .page-header {
+                margin-bottom: 0;
+                padding-bottom: 2.5rem;
+            }
+            .admin-content {
+                padding-top: 2rem;
             }
             .page-title {
                 margin: 0;
@@ -296,7 +317,7 @@
             </aside>
             <main class="content">
                 <div class="admin-topbar">
-                    <div class="flex items-center justify-between gap-4 rounded-2xl border border-[var(--border-color)] bg-[var(--card-bg)] p-4 shadow-sm">
+                <div class="admin-topbar-inner flex items-center justify-between gap-4">
                         <div class="text-sm font-semibold text-[var(--content-text)] opacity-80">
                             Painel administrativo
                         </div>
@@ -356,14 +377,16 @@
                         </div>
                     </div>
                 </div>
-                <header>
-                    <h2 class="page-title">@yield('title')</h2>
-                    @hasSection('subtitle')
-                        <p class="page-subtitle">@yield('subtitle')</p>
-                    @endif
-                </header>
-                <div class="content-card">
-                    @yield('content')
+                <div class="admin-content">
+                    <header class="page-header">
+                        <h2 class="page-title">@yield('title')</h2>
+                        @hasSection('subtitle')
+                            <p class="page-subtitle">@yield('subtitle')</p>
+                        @endif
+                    </header>
+                    <div class="content-card">
+                        @yield('content')
+                    </div>
                 </div>
             </main>
         </div>

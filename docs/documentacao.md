@@ -10,8 +10,8 @@ e area do aluno.
 
 ## Acesso e perfis
 
-- `admin`: area administrativa (`/admin`).
-- `aluno`: area do aluno (`/aluno`).
+- `admin`: area administrativa (`/admin`) com login em `/admin/login`.
+- `aluno`: area do aluno (`/aluno`) com login em `/aluno/login`.
 
 O controle de acesso e feito por middleware e policies.
 
@@ -106,6 +106,11 @@ Tabela `configuracoes` (via tela de configuracoes do admin):
 - smtp.from_name
 
 Essas chaves complementam os valores de `config/app.php` e `config/mail.php`.
+
+## Navegacao administrativa
+
+- O item "Envio de notificacoes" abre a tela de disparo de comunicacoes.
+- Auditoria nao fica mais no menu lateral; o acesso e feito pela tela de configuracoes.
 
 ## WhatsApp
 

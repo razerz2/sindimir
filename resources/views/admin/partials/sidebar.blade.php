@@ -37,19 +37,13 @@
         </svg>
         Usuarios
     </a>
-    <a class="nav-link {{ request()->routeIs('admin.auditoria.*') ? 'active' : '' }}" href="{{ route('admin.auditoria.index') }}">
-        <svg class="h-5 w-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-            <path d="M4 5h16v14H4z" />
-            <path d="M8 9h8M8 13h8M8 17h5" />
-        </svg>
-        Auditoria
-    </a>
     <a class="nav-link {{ request()->routeIs('admin.notificacoes.*') ? 'active' : '' }}" href="{{ route('admin.notificacoes.index') }}">
         <svg class="h-5 w-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-            <path d="M4 4h16v4h-1v9c0 1.1-.9 2-2 2h-10c-1.1 0-2-.9-2-2v-9h-1z" />
-            <path d="M12 14l4-4-4-4-4 4z" />
+            <path d="M12 4c1.104 0 2 .896 2 2s-.896 2-2 2-2-.896-2-2 .896-2 2-2z" />
+            <path d="M4 8h16v8c0 3-3 4-8 4s-8-1-8-4V8z" />
+            <path d="M4 8l8 5 8-5" />
         </svg>
-        Notificações
+        Envio de notificações
     </a>
     <a class="nav-link {{ request()->routeIs('admin.relatorios.*') ? 'active' : '' }}" href="{{ route('admin.relatorios.index') }}">
         <svg class="h-5 w-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">

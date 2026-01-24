@@ -173,9 +173,9 @@
                     <span>Sindimir</span>
                 </a>
                 <nav class="nav-links">
-                    <a href="{{ route('public.home') }}">Inicio</a>
-                    <a href="{{ route('public.cursos') }}">Cursos</a>
-                    <a href="{{ route('public.cpf') }}">Inscricao</a>
+                <a href="{{ route('public.home') }}">Início</a>
+                <a href="{{ route('public.cursos') }}">Cursos</a>
+                <a href="{{ route('public.cpf') }}">Inscrição</a>
                     <a href="#contato">Contato</a>
                 </nav>
             </div>
