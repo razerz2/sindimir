@@ -1,0 +1,12 @@
+<?php
+
+namespace App\Enums;
+
+enum NotificationType: string
+{
+    case CURSO_DISPONIVEL = 'CURSO_DISPONIVEL';
+    case VAGA_ABERTA = 'VAGA_ABERTA';
+    case LEMBRETE_CURSO = 'LEMBRETE_CURSO';
+    case MATRICULA_CONFIRMADA = 'MATRICULA_CONFIRMADA';
+    case LISTA_ESPERA_CHAMADA = 'LISTA_ESPERA_CHAMADA';
+}
