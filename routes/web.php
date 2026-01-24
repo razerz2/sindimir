@@ -40,6 +40,11 @@ Route::prefix('admin')->group(function () {
         ->name('logout');
 });
 
+Route::prefix('aluno')->middleware('guest')->group(function () {
+    Route::get('/login', [LoginController::class, 'show'])->name('aluno.login');
+    Route::post('/login', [LoginController::class, 'store'])->name('aluno.login.store');
+});
+
 Route::middleware(['auth', 'role:admin'])
     ->prefix('admin')
     ->name('admin.')
