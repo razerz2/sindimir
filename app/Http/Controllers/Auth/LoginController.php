@@ -12,9 +12,14 @@ use Illuminate\View\View;
 
 class LoginController extends Controller
 {
-    public function show(): View
+    public function show(Request $request): View
     {
-        return view('auth.login');
+        $routeName = $request->route()?->getName();
+        $view = $routeName === 'aluno.login'
+            ? 'auth.login-aluno'
+            : 'auth.login-admin';
+
+        return view($view);
     }
 
     public function store(Request $request): RedirectResponse
