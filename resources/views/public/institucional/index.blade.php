@@ -1,34 +1,18 @@
-@extends('layouts.public')
-
-@php($wrapContent = false)
+@extends('layouts.public', ['wrapContent' => false])
 
 @section('title')
     {{ $metaTitle ?? 'Institucional' }}
 @endsection
 
-@php
-    $bgImage = null;
-    $overlay = 'rgba(255,255,255,0.85)';
-    $position = 'center';
-    $size = 'cover';
-
-    if (function_exists('config_db')) {
-        $bgImage = config_db('tema.background_main_imagem');
-        $overlay = config_db('tema.background_main_overlay', $overlay);
-        $position = config_db('tema.background_main_posicao', $position);
-        $size = config_db('tema.background_main_tamanho', $size);
-    }
-@endphp
-
 @section('content')
     <main
-        @if(!empty($bgImage))
+        @if(!empty($themeBackgroundImage))
             style="
                 background-image:
-                    linear-gradient({{ $overlay }}, {{ $overlay }}),
-                    url('{{ asset($bgImage) }}');
-                background-size: {{ $size }};
-                background-position: {{ $position }};
+                    linear-gradient({{ $themeBackgroundOverlay }}, {{ $themeBackgroundOverlay }}),
+                    url('{{ asset($themeBackgroundImage) }}');
+                background-size: {{ $themeBackgroundSize }};
+                background-position: {{ $themeBackgroundPosition }};
                 background-repeat: no-repeat;
             "
         @endif

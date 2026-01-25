@@ -37,6 +37,30 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         view()->share('themeCssVariables', app(ThemeService::class)->getCssVariables());
+        $themeFavicon = null;
+        $themeLogo = null;
+        $themeBackgroundImage = null;
+        $themeBackgroundOverlay = 'rgba(255,255,255,0.85)';
+        $themeBackgroundPosition = 'center';
+        $themeBackgroundSize = 'cover';
+
+        if (function_exists('config_db')) {
+            $themeFavicon = config_db('tema.favicon');
+            $themeLogo = config_db('tema.logo');
+            $themeBackgroundImage = config_db('tema.background_main_imagem');
+            $themeBackgroundOverlay = config_db('tema.background_main_overlay', $themeBackgroundOverlay);
+            $themeBackgroundPosition = config_db('tema.background_main_posicao', $themeBackgroundPosition);
+            $themeBackgroundSize = config_db('tema.background_main_tamanho', $themeBackgroundSize);
+        }
+
+        view()->share(compact(
+            'themeFavicon',
+            'themeLogo',
+            'themeBackgroundImage',
+            'themeBackgroundOverlay',
+            'themeBackgroundPosition',
+            'themeBackgroundSize'
+        ));
 
         Curso::observe(AuditoriaObserver::class);
         Categoria::observe(AuditoriaObserver::class);

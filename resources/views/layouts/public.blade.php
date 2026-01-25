@@ -4,9 +4,8 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>@yield('title', 'Sindimir')</title>
-        @php($favicon = config_db('tema.favicon'))
-        @if ($favicon)
-            <link rel="icon" href="{{ asset($favicon) }}">
+        @if (!empty($themeFavicon))
+            <link rel="icon" href="{{ asset($themeFavicon) }}">
         @endif
         <style>
             :root {
@@ -186,8 +185,7 @@
         <header>
             <div class="container navbar">
                 <a class="nav-brand" href="{{ route('public.home') }}">
-                    @php($logo = config_db('tema.logo'))
-                    <img src="{{ $logo ? asset($logo) : asset('assets/images/logo-default.png') }}" alt="Sindimir">
+                    <img src="{{ $themeLogo ? asset($themeLogo) : asset('assets/images/logo-default.png') }}" alt="Sindimir">
                     <span>Sindimir</span>
                 </a>
                 <nav class="nav-links">
@@ -222,22 +220,15 @@
                 </nav>
             </div>
         </header>
-        @php
-            $bgImage = config_db('tema.background_main_imagem');
-            $overlay = config_db('tema.background_main_overlay', 'rgba(255,255,255,0.85)');
-            $position = config_db('tema.background_main_posicao', 'center');
-            $size = config_db('tema.background_main_tamanho', 'cover');
-        @endphp
-        @php($wrapContent = $wrapContent ?? true)
-        @if ($wrapContent)
+        @if ($wrapContent ?? true)
             <main
-                @if($bgImage)
+                @if(!empty($themeBackgroundImage))
                     style="
                         background-image:
-                            linear-gradient({{ $overlay }}, {{ $overlay }}),
-                            url('{{ asset($bgImage) }}');
-                        background-size: {{ $size }};
-                        background-position: {{ $position }};
+                            linear-gradient({{ $themeBackgroundOverlay ?? 'rgba(255,255,255,0.85)' }}, {{ $themeBackgroundOverlay ?? 'rgba(255,255,255,0.85)' }}),
+                            url('{{ asset($themeBackgroundImage) }}');
+                        background-size: {{ $themeBackgroundSize ?? 'cover' }};
+                        background-position: {{ $themeBackgroundPosition ?? 'center' }};
                         background-repeat: no-repeat;
                     "
                 @endif
