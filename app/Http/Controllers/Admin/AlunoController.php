@@ -15,6 +15,7 @@ use App\Http\Requests\Admin\AlunoStoreRequest;
 use App\Http\Requests\Admin\AlunoUpdateRequest;
 use App\Models\Aluno;
 use App\Models\Deficiencia;
+use App\Models\Estado;
 use App\Models\User;
 use App\Services\AlunoService;
 use Illuminate\Http\RedirectResponse;
@@ -30,6 +31,7 @@ class AlunoController extends Controller
     public function index(): View
     {
         $alunos = Aluno::query()
+            ->with(['municipio', 'estadoResidencia'])
             ->latest()
             ->paginate(15);
 
@@ -56,7 +58,7 @@ class AlunoController extends Controller
 
     public function show(Aluno $aluno): View
     {
-        $aluno->load(['deficiencias', 'user']);
+        $aluno->load(['deficiencias', 'user', 'municipio', 'estadoResidencia']);
 
         return view('admin.alunos.show', compact('aluno'));
     }
@@ -97,6 +99,12 @@ class AlunoController extends Controller
         $usuarios = User::query()
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
+        $estadoSelecionadoId = $aluno?->estado_residencia_id;
+        $estados = Estado::query()
+            ->where('ativo', true)
+            ->when($estadoSelecionadoId, fn ($query) => $query->orWhereKey($estadoSelecionadoId))
+            ->orderBy('nome')
+            ->get(['id', 'nome', 'uf']);
 
         $selects = [
             'sexo' => Sexo::cases(),
@@ -109,6 +117,6 @@ class AlunoController extends Controller
             'tipo_entidade_origem' => TipoEntidadeOrigem::cases(),
         ];
 
-        return view($view, compact('aluno', 'deficiencias', 'usuarios', 'selects'));
+        return view($view, compact('aluno', 'deficiencias', 'usuarios', 'selects', 'estados'));
     }
 }

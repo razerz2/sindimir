@@ -41,6 +41,7 @@ se dividem em perfil de administrador e aluno.
 - `NotificationService`
 - `PublicInscricaoService`
 - `ReminderService`
+- `SiteSectionService`
 - `ThemeService`
 - `WhatsAppService`
 
@@ -51,6 +52,7 @@ se dividem em perfil de administrador e aluno.
 - Templates são persistidos em `notification_templates`, permitindo conteúdo e assunto personalizados por canal.
 - Tema: cores default definidas em `config/app.php` e override via tabela `configuracoes`.
 - Auditoria: eventos de criacao/alteracao registrados via `AuditoriaObserver`.
+- Home institucional: layout fixo com slots definidos por slug na tabela `site_sections`.
 
 ## Processos assincronos
 

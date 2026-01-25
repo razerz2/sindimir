@@ -13,6 +13,7 @@ use App\Enums\TipoEntidadeOrigem;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PublicAlunoStoreRequest;
 use App\Models\Deficiencia;
+use App\Models\Estado;
 use App\Models\NotificationLink;
 use App\Services\PublicInscricaoService;
 use Illuminate\Http\RedirectResponse;
@@ -65,7 +66,12 @@ class InscricaoController extends Controller
             'tipo_entidade_origem' => TipoEntidadeOrigem::cases(),
         ];
 
-        return view('public.cadastro-aluno', compact('deficiencias', 'selects'));
+        $estados = Estado::query()
+            ->where('ativo', true)
+            ->orderBy('nome')
+            ->get(['id', 'nome', 'uf']);
+
+        return view('public.cadastro-aluno', compact('deficiencias', 'selects', 'estados'));
     }
 
     public function cadastroStore(PublicAlunoStoreRequest $request): RedirectResponse

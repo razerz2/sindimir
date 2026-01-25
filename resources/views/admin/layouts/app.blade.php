@@ -4,6 +4,10 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>@yield('title', 'Admin') - Sindimir</title>
+        @php($favicon = config_db('tema.favicon'))
+        @if ($favicon)
+            <link rel="icon" href="{{ asset($favicon) }}">
+        @endif
         @vite(['resources/css/app.css'])
         <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
         <style>

@@ -1,5 +1,6 @@
 <div class="sidebar-brand">
-    <img src="{{ asset('assets/images/logo-default.png') }}" alt="Sindimir">
+    @php($logo = config_db('tema.logo'))
+    <img src="{{ $logo ? asset($logo) : asset('assets/images/logo-default.png') }}" alt="Sindimir">
     <span>Admin Sindimir</span>
 </div>
 <nav>
@@ -51,5 +52,19 @@
             <path d="M8 9h8M8 13h8M8 17h5" />
         </svg>
         Relatórios
+    </a>
+    <a class="nav-link {{ request()->routeIs('admin.site.*') ? 'active' : '' }}" href="{{ route('admin.site.index') }}">
+        <svg class="h-5 w-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M4 5h16v14H4z" />
+            <path d="M8 9h8M8 13h8M8 17h5" />
+        </svg>
+        Conteúdo Institucional
+    </a>
+    <a class="nav-link {{ request()->routeIs('admin.configuracoes.*') || request()->routeIs('admin.catalogo.*') ? 'active' : '' }}" href="{{ route('admin.configuracoes.index') }}">
+        <svg class="h-5 w-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M12 8a4 4 0 1 0 0 8" />
+            <path d="M4 12h2m12 0h2M12 4v2m0 12v2M6.5 6.5l1.4 1.4m8.2 8.2l1.4 1.4m0-11l-1.4 1.4m-8.2 8.2l-1.4 1.4" />
+        </svg>
+        Configurações
     </a>
 </nav>

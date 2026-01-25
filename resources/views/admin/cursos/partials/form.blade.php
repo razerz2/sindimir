@@ -20,11 +20,14 @@
             rows="4"
             wrapper-class="md:col-span-2"
         />
-        <x-admin.input
-            id="categoria"
-            name="categoria"
+        <x-admin.select
+            id="categoria_id"
+            name="categoria_id"
             label="Categoria"
-            :value="$curso->categoria ?? ''"
+            :options="$categorias->map(fn ($categoria) => ['value' => $categoria->id, 'label' => $categoria->nome])->all()"
+            :selected="$curso->categoria_id ?? null"
+            placeholder="Selecione uma categoria"
+            required
         />
         <x-admin.input
             id="validade"

@@ -24,7 +24,7 @@ padrao atuais sao:
 
 ## Banco de dados
 
-Por padrao o projeto usa SQLite em `database/database.sqlite`.
+Por padrao o projeto usa MySQL.
 
 ## Configuracoes em banco
 
@@ -52,6 +52,16 @@ Tabela `configuracoes` (via tela de configuracoes do admin):
 - smtp.encryption
 - smtp.from_email
 - smtp.from_name
+- site.meta_title
+- site.meta_description
+- site.footer.titulo
+- site.footer.descricao
+- site.footer.contato_titulo
+- site.footer.contato_email
+- site.footer.contato_telefone
+- site.footer.endereco_titulo
+- site.footer.endereco_linha1
+- site.footer.endereco_linha2
 
 Essas chaves complementam os valores de `config/app.php` e `config/mail.php`.
 

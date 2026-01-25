@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CursoStoreRequest;
 use App\Http\Requests\Admin\CursoUpdateRequest;
+use App\Models\Categoria;
 use App\Models\Curso;
 use App\Services\CursoService;
 use Illuminate\Http\RedirectResponse;
@@ -20,6 +21,7 @@ class CursoController extends Controller
     public function index(): View
     {
         $cursos = Curso::query()
+            ->with('categoria')
             ->latest()
             ->paginate(15);
 
@@ -28,7 +30,12 @@ class CursoController extends Controller
 
     public function create(): View
     {
-        return view('admin.cursos.create');
+        $categorias = Categoria::query()
+            ->where('ativo', true)
+            ->orderBy('nome')
+            ->get();
+
+        return view('admin.cursos.create', compact('categorias'));
     }
 
     public function store(CursoStoreRequest $request): RedirectResponse
@@ -47,7 +54,12 @@ class CursoController extends Controller
 
     public function edit(Curso $curso): View
     {
-        return view('admin.cursos.edit', compact('curso'));
+        $categorias = Categoria::query()
+            ->where('ativo', true)
+            ->orderBy('nome')
+            ->get();
+
+        return view('admin.cursos.edit', compact('curso', 'categorias'));
     }
 
     public function update(CursoUpdateRequest $request, Curso $curso): RedirectResponse

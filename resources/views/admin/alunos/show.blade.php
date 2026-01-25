@@ -15,8 +15,10 @@
     <p><strong>Nome da mãe:</strong> {{ $aluno->nome_mae ?? '-' }}</p>
     <p><strong>Endereço:</strong> {{ $aluno->endereco ?? '-' }}</p>
     <p><strong>Bairro:</strong> {{ $aluno->bairro ?? '-' }}</p>
-    <p><strong>UF (residência):</strong> {{ $aluno->uf_residencia ?? '-' }}</p>
-    <p><strong>Município:</strong> {{ $aluno->municipio ?? '-' }}</p>
+    <p><strong>UF (residência):</strong>
+        {{ $aluno->estadoResidencia ? $aluno->estadoResidencia->nome . ' (' . $aluno->estadoResidencia->uf . ')' : '-' }}
+    </p>
+    <p><strong>Município:</strong> {{ $aluno->municipio?->nome ?? '-' }}</p>
     <p><strong>CEP:</strong> {{ $aluno->cep ?? '-' }}</p>
     <p><strong>E-mail:</strong> {{ $aluno->email ?? '-' }}</p>
     <p><strong>Celular:</strong> {{ $aluno->celular ?? '-' }}</p>
@@ -40,8 +42,8 @@
         {{ $aluno->deficiencias->isEmpty() ? '-' : $aluno->deficiencias->pluck('nome')->implode(', ') }}
     </p>
 
-    <div>
-        <a href="{{ route('admin.alunos.edit', $aluno) }}">Editar</a>
-        <a href="{{ route('admin.alunos.index') }}">Voltar</a>
+    <div class="mt-6 flex flex-wrap gap-2">
+        <a class="btn btn-primary" href="{{ route('admin.alunos.edit', $aluno) }}">Editar</a>
+        <a class="btn btn-ghost" href="{{ route('admin.alunos.index') }}">Voltar</a>
     </div>
 @endsection

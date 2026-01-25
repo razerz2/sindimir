@@ -1,6 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\CategoriaController;
+use App\Http\Controllers\Admin\EstadoController;
+use App\Http\Controllers\Admin\MediaAssetController;
+use App\Http\Controllers\Admin\MunicipioController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\RelatorioAuditoriaController;
 use App\Http\Controllers\Admin\RelatorioCursoController;
@@ -9,7 +13,10 @@ use App\Http\Controllers\Admin\RelatorioInscricaoController;
 use App\Http\Controllers\Admin\RelatorioListaEsperaController;
 use App\Http\Controllers\Admin\RelatorioMatriculaController;
 use App\Http\Controllers\Admin\RelatorioNotificacaoController;
+use App\Http\Controllers\Admin\SiteSectionController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Public\ContatoController;
 
 Route::get('/', [\App\Http\Controllers\Public\PublicController::class, 'index'])
     ->name('public.home');
@@ -18,6 +25,10 @@ Route::get('/institucional', [\App\Http\Controllers\Public\PublicController::cla
     ->name('public.institucional');
 Route::get('/cursos', [\App\Http\Controllers\Public\PublicController::class, 'cursos'])
     ->name('public.cursos');
+Route::get('/contato', [ContatoController::class, 'index'])
+    ->name('public.contato');
+Route::post('/contato', [ContatoController::class, 'enviar'])
+    ->name('public.contato.enviar');
 
 Route::get('/inscricao/cpf', [\App\Http\Controllers\Public\InscricaoController::class, 'cpfForm'])
     ->name('public.cpf');
@@ -29,6 +40,9 @@ Route::post('/inscricao/cadastro', [\App\Http\Controllers\Public\InscricaoContro
     ->name('public.cadastro.store');
 Route::get('/inscricao/token/{token}', [\App\Http\Controllers\Public\InscricaoController::class, 'tokenRedirect'])
     ->name('public.inscricao.token');
+
+Route::get('/catalogos/estados/{estado}/municipios', [MunicipioController::class, 'byEstado'])
+    ->name('public.catalogo.estados.municipios');
 
 Route::prefix('admin')->group(function () {
     Route::middleware('guest')->group(function () {
@@ -54,10 +68,28 @@ Route::middleware(['auth', 'role:admin'])
         Route::get('/dashboard', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])
             ->name('dashboard');
         Route::resource('/cursos', \App\Http\Controllers\Admin\CursoController::class);
+        Route::resource('/catalogos/categorias', CategoriaController::class)
+            ->names('catalogo.categorias')
+            ->parameters(['categorias' => 'categoria']);
+        Route::post('/catalogos/categorias/{categoria}/toggle', [CategoriaController::class, 'toggle'])
+            ->name('catalogo.categorias.toggle');
+        Route::resource('/catalogos/estados', EstadoController::class)
+            ->names('catalogo.estados')
+            ->parameters(['estados' => 'estado']);
+        Route::post('/catalogos/estados/{estado}/toggle', [EstadoController::class, 'toggle'])
+            ->name('catalogo.estados.toggle');
+        Route::resource('/catalogos/municipios', MunicipioController::class)
+            ->names('catalogo.municipios')
+            ->parameters(['municipios' => 'municipio']);
+        Route::post('/catalogos/municipios/{municipio}/toggle', [MunicipioController::class, 'toggle'])
+            ->name('catalogo.municipios.toggle');
+        Route::get('/catalogos/estados/{estado}/municipios', [MunicipioController::class, 'byEstado'])
+            ->name('catalogo.estados.municipios');
         Route::resource('/eventos', \App\Http\Controllers\Admin\EventoCursoController::class)
             ->parameters(['eventos' => 'evento']);
         Route::resource('/alunos', \App\Http\Controllers\Admin\AlunoController::class);
-        Route::view('/usuarios', 'admin.usuarios.index')->name('usuarios.index');
+        Route::resource('/usuarios', UserController::class)
+            ->only(['index', 'show', 'edit', 'update', 'destroy']);
         Route::get('/configuracoes', [\App\Http\Controllers\Admin\ConfiguracaoController::class, 'index'])
             ->name('configuracoes.index');
         Route::post('/configuracoes', [\App\Http\Controllers\Admin\ConfiguracaoController::class, 'update'])
@@ -100,6 +132,21 @@ Route::middleware(['auth', 'role:admin'])
             ->name('relatorios.auditoria.export');
         Route::view('/relatorios', 'admin.relatorios.index')
             ->name('relatorios.index');
+        Route::get('site', [SiteSectionController::class, 'index'])
+            ->name('site.index');
+        Route::resource('site/sections', SiteSectionController::class)
+            ->names('site.sections')
+            ->parameters(['sections' => 'section']);
+        Route::post('site/sections/reorder', [SiteSectionController::class, 'reorder'])
+            ->name('site.sections.reorder');
+        Route::post('site/sections/{section}/duplicate', [SiteSectionController::class, 'duplicate'])
+            ->name('site.sections.duplicate');
+        Route::post('site/sections/{section}/toggle', [SiteSectionController::class, 'toggle'])
+            ->name('site.sections.toggle');
+        Route::get('site/media', [MediaAssetController::class, 'index'])
+            ->name('site.media.index');
+        Route::post('site/media', [MediaAssetController::class, 'store'])
+            ->name('site.media.store');
     });
 
 Route::middleware(['auth', 'role:aluno'])

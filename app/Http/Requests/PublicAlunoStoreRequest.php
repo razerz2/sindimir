@@ -45,8 +45,19 @@ class PublicAlunoStoreRequest extends FormRequest
             'nome_mae' => ['nullable', 'string', 'max:255'],
             'endereco' => ['nullable', 'string', 'max:255'],
             'bairro' => ['nullable', 'string', 'max:255'],
-            'uf_residencia' => ['nullable', 'string', 'size:2'],
-            'municipio' => ['nullable', 'string', 'max:255'],
+            'estado_residencia_id' => [
+                'required',
+                'integer',
+                Rule::exists('estados', 'id')->where('ativo', true),
+            ],
+            'municipio_id' => [
+                'required',
+                'integer',
+                Rule::exists('municipios', 'id')->where(function ($query) {
+                    $query->where('estado_id', $this->input('estado_residencia_id'))
+                        ->where('ativo', true);
+                }),
+            ],
             'cep' => ['nullable', 'string', 'max:10'],
             'email' => ['nullable', 'email', 'max:255'],
             'celular' => ['nullable', 'string', 'max:20'],

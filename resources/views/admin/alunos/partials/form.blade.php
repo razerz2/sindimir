@@ -41,6 +41,12 @@
         ['value' => '0', 'label' => 'Nao'],
     ];
     $booleanToOption = fn ($value) => is_null($value) ? null : ($value ? '1' : '0');
+    $estadoOptions = $estados->map(fn ($estado) => [
+        'value' => $estado->id,
+        'label' => "{$estado->nome} ({$estado->uf})",
+    ])->all();
+    $estadoSelecionado = old('estado_residencia_id', $aluno->estado_residencia_id ?? '');
+    $municipioSelecionado = old('municipio_id', $aluno->municipio_id ?? '');
 @endphp
 
 <div class="space-y-8">
@@ -150,18 +156,23 @@
                 label="Bairro"
                 :value="$aluno->bairro ?? ''"
             />
-            <x-admin.input
-                id="municipio"
-                name="municipio"
-                label="Municipio"
-                :value="$aluno->municipio ?? ''"
-            />
-            <x-admin.input
-                id="uf_residencia"
-                name="uf_residencia"
+            <x-admin.select
+                id="estado_residencia_id"
+                name="estado_residencia_id"
                 label="UF (residencia)"
-                :value="$aluno->uf_residencia ?? ''"
-                placeholder="UF"
+                :options="$estadoOptions"
+                :selected="$estadoSelecionado"
+                placeholder="Selecione"
+                required
+            />
+            <x-admin.select
+                id="municipio_id"
+                name="municipio_id"
+                label="Municipio"
+                :options="[]"
+                :selected="$municipioSelecionado"
+                placeholder="Selecione o estado"
+                required
             />
             <x-admin.input
                 id="cep"
@@ -345,3 +356,65 @@
         </div>
     </div>
 </div>
+
+<input type="hidden" id="municipios_fetch_url" value="{{ route('admin.catalogo.estados.municipios', ['estado' => 'STATE_ID']) }}">
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const estadoSelect = document.getElementById('estado_residencia_id');
+        const municipioSelect = document.getElementById('municipio_id');
+        const urlTemplate = document.getElementById('municipios_fetch_url')?.value || '';
+        let municipioSelecionado = '{{ $municipioSelecionado }}';
+
+        if (!estadoSelect || !municipioSelect || !urlTemplate) {
+            return;
+        }
+
+        const resetMunicipios = (placeholder) => {
+            municipioSelect.innerHTML = '';
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = placeholder;
+            municipioSelect.appendChild(option);
+        };
+
+        const loadMunicipios = (estadoId) => {
+            if (!estadoId) {
+                resetMunicipios('Selecione o estado');
+                return;
+            }
+
+            resetMunicipios('Carregando...');
+
+            const url = urlTemplate.replace('STATE_ID', estadoId);
+            fetch(url)
+                .then((response) => response.json())
+                .then((data) => {
+                    resetMunicipios('Selecione');
+                    data.forEach((municipio) => {
+                        const option = document.createElement('option');
+                        option.value = municipio.id;
+                        option.textContent = municipio.nome;
+                        if (municipioSelecionado && String(municipio.id) === String(municipioSelecionado)) {
+                            option.selected = true;
+                        }
+                        municipioSelect.appendChild(option);
+                    });
+                })
+                .catch(() => {
+                    resetMunicipios('Erro ao carregar');
+                });
+        };
+
+        estadoSelect.addEventListener('change', (event) => {
+            municipioSelecionado = '';
+            loadMunicipios(event.target.value);
+        });
+
+        if (estadoSelect.value) {
+            loadMunicipios(estadoSelect.value);
+        } else {
+            resetMunicipios('Selecione o estado');
+        }
+    });
+</script>

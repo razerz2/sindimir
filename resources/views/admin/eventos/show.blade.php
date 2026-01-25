@@ -12,8 +12,8 @@
     <p><strong>Turno:</strong> {{ $evento->turno?->value ? ucfirst(str_replace('_', ' ', $evento->turno->value)) : '-' }}</p>
     <p><strong>Status:</strong> {{ $evento->ativo ? 'Ativo' : 'Inativo' }}</p>
 
-    <div>
-        <a href="{{ route('admin.eventos.edit', $evento) }}">Editar</a>
-        <a href="{{ route('admin.eventos.index') }}">Voltar</a>
+    <div class="mt-6 flex flex-wrap gap-2">
+        <a class="btn btn-primary" href="{{ route('admin.eventos.edit', $evento) }}">Editar</a>
+        <a class="btn btn-ghost" href="{{ route('admin.eventos.index') }}">Voltar</a>
     </div>
 @endsection

@@ -1,5 +1,5 @@
 @props([
-    'id',
+    'id' => null,
     'name',
     'label',
     'value' => null,
@@ -9,15 +9,19 @@
     'wrapperClass' => '',
 ])
 
+@php
+    $fieldId = $id ?? str_replace(['[', ']'], '_', $name);
+@endphp
+
 <div class="flex flex-col gap-2 {{ $wrapperClass }}">
-    <label for="{{ $id }}" class="text-sm font-semibold text-[var(--content-text)]">
+    <label for="{{ $fieldId }}" class="text-sm font-semibold text-[var(--content-text)]">
         {{ $label }}
         @if ($required)
             <span class="text-red-500">*</span>
         @endif
     </label>
     <textarea
-        id="{{ $id }}"
+        id="{{ $fieldId }}"
         name="{{ $name }}"
         rows="{{ $rows }}"
         @if ($placeholder) placeholder="{{ $placeholder }}" @endif

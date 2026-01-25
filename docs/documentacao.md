@@ -8,6 +8,18 @@ Aplicacao Laravel 12 para gerenciamento de cursos, inscricoes e alunos. Ha
 area publica (institucional, cursos e inscricao por CPF), area administrativa
 e area do aluno.
 
+## Funcionalidades
+
+- Publico: pagina institucional, lista de cursos, inscricao por CPF e cadastro com token.
+- Admin: dashboard com indicadores, gestao de cursos, eventos e alunos.
+- Admin: usuarios, configuracoes do sistema, tema, SMTP e provedores WhatsApp.
+- Admin: envio de notificacoes (email/WhatsApp) com templates e preview.
+- Admin: CMS institucional com sections fixas da home, ordenacao e estilos visuais.
+- Admin: relatorios (cursos, eventos, matriculas, inscricoes, lista de espera, auditoria).
+- Aluno: dashboard, perfil, inscricoes, historico e preferencias.
+- Automacoes: fila de envios, rate limit de notificacoes e links com validade.
+- Agendamentos: expiracao de matriculas, chamadas da lista de espera e lembretes.
+
 ## Acesso e perfis
 
 - `admin`: area administrativa (`/admin`) com login em `/admin/login`.
@@ -20,7 +32,7 @@ O controle de acesso e feito por middleware e policies.
 - PHP 8.2+
 - Composer
 - Node.js 18+
-- SQLite (arquivo em `database/database.sqlite`)
+- MySQL 8+
 
 ## Setup rapido
 
@@ -75,8 +87,8 @@ Os valores podem ser sobrescritos via `ADMIN_NAME`, `ADMIN_EMAIL`,
 
 ## Banco de dados
 
-Por padrao o projeto usa SQLite em `database/database.sqlite`. A fila usa o
-driver `database` por padrao (tabela `jobs`).
+Por padrao o projeto usa MySQL. A fila usa o driver `database` por padrao
+(tabela `jobs`).
 
 ## Configuracoes em banco
 
@@ -104,6 +116,16 @@ Tabela `configuracoes` (via tela de configuracoes do admin):
 - smtp.encryption
 - smtp.from_email
 - smtp.from_name
+- site.meta_title
+- site.meta_description
+- site.footer.titulo
+- site.footer.descricao
+- site.footer.contato_titulo
+- site.footer.contato_email
+- site.footer.contato_telefone
+- site.footer.endereco_titulo
+- site.footer.endereco_linha1
+- site.footer.endereco_linha2
 
 Essas chaves complementam os valores de `config/app.php` e `config/mail.php`.
 
@@ -111,6 +133,33 @@ Essas chaves complementam os valores de `config/app.php` e `config/mail.php`.
 
 - O item "Envio de notificacoes" abre a tela de disparo de comunicacoes.
 - Auditoria nao fica mais no menu lateral; o acesso e feito pela tela de configuracoes.
+- Conteudo institucional fica no menu e abre a gestao de sections da home.
+
+## CMS institucional (home fixa)
+
+A home institucional possui layout fixo e renderizacao por slots definidos por slug.
+Esses slugs sao contrato do layout e nao devem ser alterados:
+
+- hero
+- sobre
+- solucoes
+- diferenciais
+- contato
+
+Tipos esperados por slot:
+
+- hero: `hero_com_resultados`
+- sobre: `cards_grid`
+- solucoes: `cards_grid`
+- diferenciais: `cards_grid`
+- contato: `cta_card`
+
+Regras:
+
+- Nao criar novas sections para a home.
+- Slug e tipo sao fixos para os slots acima.
+- A edicao fica restrita ao conteudo interno de cada section.
+- A ordenacao pode ser ajustada via admin.
 
 ## WhatsApp
 

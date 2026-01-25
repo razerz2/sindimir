@@ -7,7 +7,9 @@ use App\Enums\NotificationType;
 use App\Models\NotificationTemplate;
 use App\Services\ConfiguracaoService;
 use App\Services\ThemeService;
+use App\Services\SiteSectionService;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -22,6 +24,14 @@ class ConfiguracaoController extends Controller
 
     public function index(): View
     {
+        $smtpHost = $this->resolveSetting('smtp.host', config('mail.mailers.smtp.host'));
+        $smtpPort = $this->resolveSetting('smtp.port', config('mail.mailers.smtp.port'));
+        $smtpUsername = $this->resolveSetting('smtp.username', config('mail.mailers.smtp.username'));
+        $smtpPassword = $this->resolveSetting('smtp.password', config('mail.mailers.smtp.password'));
+        $smtpEncryption = $this->resolveSetting('smtp.encryption', config('mail.mailers.smtp.encryption'));
+        $smtpFromEmail = $this->resolveSetting('smtp.from_email', config('mail.from.address'));
+        $smtpFromName = $this->resolveSetting('smtp.from_name', config('mail.from.name'));
+
         $settings = [
             'sistema_nome' => $this->configuracaoService->get('sistema.nome', config('app.name', 'Sindimir')),
             'sistema_email' => $this->configuracaoService->get('sistema.email_padrao', config('mail.from.address')),
@@ -29,17 +39,34 @@ class ConfiguracaoController extends Controller
             'notificacao_email_ativo' => (bool) $this->configuracaoService->get('notificacao.email_ativo', true),
             'notificacao_whatsapp_ativo' => (bool) $this->configuracaoService->get('notificacao.whatsapp_ativo', false),
             'tema_cor_destaque' => $this->configuracaoService->get('tema.cor_destaque', null),
+            'tema_logo' => $this->configuracaoService->get('tema.logo', null),
+            'tema_favicon' => $this->configuracaoService->get('tema.favicon', null),
+            'tema_background_main_imagem' => $this->configuracaoService->get('tema.background_main_imagem', null),
+            'tema_background_main_overlay' => $this->configuracaoService->get('tema.background_main_overlay', 'rgba(255,255,255,0.85)'),
+            'tema_background_main_posicao' => $this->configuracaoService->get('tema.background_main_posicao', 'center'),
+            'tema_background_main_tamanho' => $this->configuracaoService->get('tema.background_main_tamanho', 'cover'),
+            'footer_titulo' => $this->configuracaoService->get('site.footer.titulo', 'Sindimir'),
+            'footer_descricao' => $this->configuracaoService->get(
+                'site.footer.descricao',
+                'Solucoes digitais para capacitacao, eventos e desenvolvimento do setor metal mecanico.'
+            ),
+            'footer_contato_titulo' => $this->configuracaoService->get('site.footer.contato_titulo', 'Contato'),
+            'footer_contato_email' => $this->configuracaoService->get('site.footer.contato_email', 'contato@sindimir.org'),
+            'footer_contato_telefone' => $this->configuracaoService->get('site.footer.contato_telefone', '(00) 0000-0000'),
+            'footer_endereco_titulo' => $this->configuracaoService->get('site.footer.endereco_titulo', 'Endereco'),
+            'footer_endereco_linha1' => $this->configuracaoService->get('site.footer.endereco_linha1', 'Rua da Industria, 1000'),
+            'footer_endereco_linha2' => $this->configuracaoService->get('site.footer.endereco_linha2', 'Distrito Industrial'),
             'whatsapp_provedor' => $this->configuracaoService->get('whatsapp.provedor', null),
             'whatsapp_token' => $this->configuracaoService->get('whatsapp.token', null),
             'whatsapp_phone_number_id' => $this->configuracaoService->get('whatsapp.phone_number_id', null),
             'whatsapp_webhook_url' => $this->configuracaoService->get('whatsapp.webhook_url', null),
-            'smtp_host' => $this->configuracaoService->get('smtp.host', config('mail.mailers.smtp.host')),
-            'smtp_port' => $this->configuracaoService->get('smtp.port', config('mail.mailers.smtp.port')),
-            'smtp_username' => $this->configuracaoService->get('smtp.username', config('mail.mailers.smtp.username')),
-            'smtp_password' => $this->configuracaoService->get('smtp.password', null),
-            'smtp_encryption' => $this->configuracaoService->get('smtp.encryption', config('mail.mailers.smtp.encryption')),
-            'smtp_from_email' => $this->configuracaoService->get('smtp.from_email', config('mail.from.address')),
-            'smtp_from_name' => $this->configuracaoService->get('smtp.from_name', config('mail.from.name')),
+            'smtp_host' => $smtpHost,
+            'smtp_port' => $smtpPort,
+            'smtp_username' => $smtpUsername,
+            'smtp_password' => $smtpPassword,
+            'smtp_encryption' => $smtpEncryption,
+            'smtp_from_email' => $smtpFromEmail,
+            'smtp_from_name' => $smtpFromName,
             'auto_lembrete_ativo' => (bool) $this->configuracaoService->get('notificacao.auto.lembrete.ativo', true),
             'auto_lembrete_email' => (bool) $this->configuracaoService->get('notificacao.auto.lembrete.canal.email', true),
             'auto_lembrete_whatsapp' => (bool) $this->configuracaoService->get('notificacao.auto.lembrete.canal.whatsapp', false),
@@ -84,6 +111,15 @@ class ConfiguracaoController extends Controller
             'tema_cor_primaria' => ['required', 'string', 'max:20'],
             'tema_cor_secundaria' => ['required', 'string', 'max:20'],
             'tema_cor_destaque' => ['nullable', 'string', 'max:20'],
+            'tema_logo' => ['nullable', 'image', 'max:2048'],
+            'tema_logo_remover' => ['nullable', 'boolean'],
+            'tema_favicon' => ['nullable', 'mimes:png,ico,svg', 'max:1024'],
+            'tema_favicon_remover' => ['nullable', 'boolean'],
+            'tema_background_main_imagem' => ['nullable', 'image', 'max:2048'],
+            'tema_background_main_imagem_remover' => ['nullable', 'boolean'],
+            'tema_background_main_overlay' => ['nullable', 'string', 'max:60'],
+            'tema_background_main_posicao' => ['nullable', 'string', 'max:40'],
+            'tema_background_main_tamanho' => ['nullable', 'string', 'max:40'],
             'notificacao_email_ativo' => ['nullable', 'boolean'],
             'notificacao_whatsapp_ativo' => ['nullable', 'boolean'],
             'whatsapp_provedor' => ['nullable', 'string', 'in:meta,zapi'],
@@ -97,6 +133,14 @@ class ConfiguracaoController extends Controller
             'smtp_encryption' => ['nullable', 'string', 'in:tls,ssl'],
             'smtp_from_email' => ['nullable', 'email', 'max:120'],
             'smtp_from_name' => ['nullable', 'string', 'max:120'],
+            'footer_titulo' => ['required', 'string', 'max:120'],
+            'footer_descricao' => ['required', 'string', 'max:500'],
+            'footer_contato_titulo' => ['required', 'string', 'max:120'],
+            'footer_contato_email' => ['nullable', 'email', 'max:120'],
+            'footer_contato_telefone' => ['nullable', 'string', 'max:40'],
+            'footer_endereco_titulo' => ['required', 'string', 'max:120'],
+            'footer_endereco_linha1' => ['required', 'string', 'max:200'],
+            'footer_endereco_linha2' => ['required', 'string', 'max:200'],
             'templates' => ['array'],
             'templates.*.email.assunto' => ['nullable', 'string', 'max:200'],
             'templates.*.email.conteudo' => ['nullable', 'string', 'max:4000'],
@@ -128,6 +172,41 @@ class ConfiguracaoController extends Controller
         $this->configuracaoService->set('tema.cor_secundaria', $data['tema_cor_secundaria'], 'Cor secundaria do tema');
         $temaDestaque = (string) ($data['tema_cor_destaque'] ?? '');
         $this->configuracaoService->set('tema.cor_destaque', $temaDestaque, 'Cor de destaque');
+
+        $removeLogo = $request->boolean('tema_logo_remover');
+        if ($removeLogo) {
+            $this->configuracaoService->set('tema.logo', null, 'Logo do tema');
+        } elseif ($request->hasFile('tema_logo')) {
+            $path = $request->file('tema_logo')->store('tema', 'public');
+            $publicPath = 'storage/' . $path;
+            $this->configuracaoService->set('tema.logo', $publicPath, 'Logo do tema');
+        }
+
+        $removeFavicon = $request->boolean('tema_favicon_remover');
+        if ($removeFavicon) {
+            $this->configuracaoService->set('tema.favicon', null, 'Favicon do tema');
+        } elseif ($request->hasFile('tema_favicon')) {
+            $path = $request->file('tema_favicon')->store('tema', 'public');
+            $publicPath = 'storage/' . $path;
+            $this->configuracaoService->set('tema.favicon', $publicPath, 'Favicon do tema');
+        }
+
+        $overlay = (string) ($data['tema_background_main_overlay'] ?? 'rgba(255,255,255,0.85)');
+        $position = (string) ($data['tema_background_main_posicao'] ?? 'center');
+        $size = (string) ($data['tema_background_main_tamanho'] ?? 'cover');
+        $this->configuracaoService->set('tema.background_main_overlay', $overlay, 'Overlay fundo institucional');
+        $this->configuracaoService->set('tema.background_main_posicao', $position, 'Posicao fundo institucional');
+        $this->configuracaoService->set('tema.background_main_tamanho', $size, 'Tamanho fundo institucional');
+
+        $removeBgImage = $request->boolean('tema_background_main_imagem_remover');
+        if ($removeBgImage) {
+            $this->configuracaoService->set('tema.background_main_imagem', null, 'Imagem fundo institucional');
+        } elseif ($request->hasFile('tema_background_main_imagem')) {
+            $path = $request->file('tema_background_main_imagem')->store('tema', 'public');
+            $publicPath = 'storage/' . $path;
+            $this->configuracaoService->set('tema.background_main_imagem', $publicPath, 'Imagem fundo institucional');
+        }
+
         $this->configuracaoService->set('notificacao.email_ativo', (bool) $request->boolean('notificacao_email_ativo'), 'Notificacao por email');
         $this->configuracaoService->set('notificacao.whatsapp_ativo', (bool) $request->boolean('notificacao_whatsapp_ativo'), 'Notificacao por WhatsApp');
         $whatsappProvedor = (string) ($data['whatsapp_provedor'] ?? '');
@@ -154,6 +233,14 @@ class ConfiguracaoController extends Controller
         $this->configuracaoService->set('smtp.encryption', $smtpEncryption, 'SMTP criptografia');
         $this->configuracaoService->set('smtp.from_email', $smtpFromEmail, 'SMTP remetente');
         $this->configuracaoService->set('smtp.from_name', $smtpFromName, 'SMTP nome remetente');
+        $this->configuracaoService->set('site.footer.titulo', $data['footer_titulo'], 'Footer titulo');
+        $this->configuracaoService->set('site.footer.descricao', $data['footer_descricao'], 'Footer descricao');
+        $this->configuracaoService->set('site.footer.contato_titulo', $data['footer_contato_titulo'], 'Footer contato titulo');
+        $this->configuracaoService->set('site.footer.contato_email', $data['footer_contato_email'] ?? '', 'Footer contato email');
+        $this->configuracaoService->set('site.footer.contato_telefone', $data['footer_contato_telefone'] ?? '', 'Footer contato telefone');
+        $this->configuracaoService->set('site.footer.endereco_titulo', $data['footer_endereco_titulo'], 'Footer endereco titulo');
+        $this->configuracaoService->set('site.footer.endereco_linha1', $data['footer_endereco_linha1'], 'Footer endereco linha 1');
+        $this->configuracaoService->set('site.footer.endereco_linha2', $data['footer_endereco_linha2'], 'Footer endereco linha 2');
 
         $this->configuracaoService->set('notificacao.auto.lembrete.ativo', (bool) $request->boolean('auto_lembrete_ativo'), 'Auto lembrete ativo');
         $this->configuracaoService->set('notificacao.auto.lembrete.canal.email', (bool) $request->boolean('auto_lembrete_email'), 'Auto lembrete email');
@@ -175,6 +262,7 @@ class ConfiguracaoController extends Controller
         $this->configuracaoService->set('notificacao.auto.curso_disponivel.canal.whatsapp', (bool) $request->boolean('auto_curso_whatsapp'), 'Auto curso disponivel WhatsApp');
 
         $this->syncNotificationTemplates($data['templates'] ?? [], $data['template_type'] ?? null);
+        Cache::forget(SiteSectionService::CACHE_KEY);
 
         return redirect()
             ->route('admin.configuracoes.index')
@@ -223,5 +311,16 @@ class ConfiguracaoController extends Controller
                 );
             }
         }
+    }
+
+    private function resolveSetting(string $chave, mixed $default = null): mixed
+    {
+        $value = $this->configuracaoService->get($chave, null);
+
+        if ($value === null || $value === '') {
+            return $default;
+        }
+
+        return $value;
     }
 }

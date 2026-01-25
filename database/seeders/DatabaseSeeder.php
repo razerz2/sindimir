@@ -17,5 +17,7 @@ class DatabaseSeeder extends Seeder
         $this->call(AdminUserSeeder::class);
         $this->call(ConfiguracaoSeeder::class);
         $this->call(NotificationTemplateSeeder::class);
+        $this->call(SiteSectionsDefaultSeeder::class);
+        $this->call(EstadosMunicipiosMatoGrossoDoSulSeeder::class);
     }
 }

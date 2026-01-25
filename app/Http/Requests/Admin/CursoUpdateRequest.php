@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\Curso;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class CursoUpdateRequest extends FormRequest
 {
@@ -21,7 +22,11 @@ class CursoUpdateRequest extends FormRequest
         return [
             'nome' => ['required', 'string', 'max:255'],
             'descricao' => ['nullable', 'string'],
-            'categoria' => ['nullable', 'string', 'max:255'],
+            'categoria_id' => [
+                'required',
+                'integer',
+                Rule::exists('categorias', 'id')->where('ativo', true),
+            ],
             'validade' => ['nullable', 'date'],
             'limite_vagas' => ['required', 'integer', 'min:0'],
             'ativo' => ['nullable', 'boolean'],

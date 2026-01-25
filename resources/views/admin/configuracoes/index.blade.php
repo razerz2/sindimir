@@ -3,7 +3,7 @@
 @section('title', 'Configurações')
 
 @section('content')
-    <form action="{{ route('admin.configuracoes.update') }}" method="POST" class="space-y-6">
+    <form action="{{ route('admin.configuracoes.update') }}" method="POST" class="space-y-6" enctype="multipart/form-data">
         @csrf
 
         @if (session('status'))
@@ -14,10 +14,12 @@
             <div class="mb-6 flex flex-wrap gap-2">
                 <button class="btn btn-ghost tab-button active" type="button" data-tab="geral">Geral</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="tema">Tema</button>
+                <button class="btn btn-ghost tab-button" type="button" data-tab="catalogo">Catálogos</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="notificacoes">Notificacoes</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="auto-notificacoes">Notificações Automáticas</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="whatsapp">WhatsApp</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="email">E-mail (SMTP)</button>
+                <button class="btn btn-ghost tab-button" type="button" data-tab="footer">Footer</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="auditoria">Auditoria</button>
             </div>
 
@@ -69,6 +71,124 @@
                         label="Cor de destaque"
                         :value="$settings['tema_cor_destaque'] ?? ''"
                     />
+                </div>
+                <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <x-admin.input
+                        id="tema_logo"
+                        name="tema_logo"
+                        label="Logo do site"
+                        type="file"
+                        hint="Formatos aceitos: JPG, PNG, WEBP. Tamanho máximo: 2MB."
+                    />
+                    <x-admin.input
+                        id="tema_favicon"
+                        name="tema_favicon"
+                        label="Favicon"
+                        type="file"
+                        hint="Formatos aceitos: PNG, ICO ou SVG. Tamanho máximo: 1MB."
+                    />
+                    <x-admin.input
+                        id="tema_background_main_imagem"
+                        name="tema_background_main_imagem"
+                        label="Imagem de fundo institucional"
+                        type="file"
+                        hint="Formatos aceitos: JPG, PNG, WEBP. Tamanho máximo: 2MB."
+                    />
+                    <x-admin.input
+                        id="tema_background_main_overlay"
+                        name="tema_background_main_overlay"
+                        label="Overlay do fundo (RGBA)"
+                        :value="$settings['tema_background_main_overlay'] ?? 'rgba(255,255,255,0.85)'"
+                        hint="Ex: rgba(255,255,255,0.85)"
+                    />
+                    <x-admin.input
+                        id="tema_background_main_posicao"
+                        name="tema_background_main_posicao"
+                        label="Posição do fundo"
+                        :value="$settings['tema_background_main_posicao'] ?? 'center'"
+                        hint="Ex: center, top, bottom"
+                    />
+                    <x-admin.input
+                        id="tema_background_main_tamanho"
+                        name="tema_background_main_tamanho"
+                        label="Tamanho do fundo"
+                        :value="$settings['tema_background_main_tamanho'] ?? 'cover'"
+                        hint="Ex: cover, contain"
+                    />
+                </div>
+                @if (!empty($settings['tema_logo']) || !empty($settings['tema_favicon']))
+                    <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                        @if (!empty($settings['tema_logo']))
+                            <div class="space-y-3">
+                                <div class="overflow-hidden rounded-xl border border-[var(--border-color)] bg-white p-4">
+                                    <img
+                                        src="{{ asset($settings['tema_logo']) }}"
+                                        alt="Pré-visualização do logo"
+                                        class="h-16 w-auto object-contain"
+                                    >
+                                </div>
+                                <x-admin.checkbox
+                                    id="tema_logo_remover"
+                                    name="tema_logo_remover"
+                                    label="Remover logo atual"
+                                    :checked="false"
+                                />
+                            </div>
+                        @endif
+                        @if (!empty($settings['tema_favicon']))
+                            <div class="space-y-3">
+                                <div class="inline-flex items-center gap-3 rounded-xl border border-[var(--border-color)] bg-white p-4">
+                                    <img
+                                        src="{{ asset($settings['tema_favicon']) }}"
+                                        alt="Pré-visualização do favicon"
+                                        class="h-10 w-10 object-contain"
+                                    >
+                                    <span class="text-xs text-slate-500">Pré-visualização</span>
+                                </div>
+                                <x-admin.checkbox
+                                    id="tema_favicon_remover"
+                                    name="tema_favicon_remover"
+                                    label="Remover favicon atual"
+                                    :checked="false"
+                                />
+                            </div>
+                        @endif
+                    </div>
+                @endif
+                @if (!empty($settings['tema_background_main_imagem']))
+                    <div class="mt-4 space-y-3">
+                        <div class="overflow-hidden rounded-xl border border-[var(--border-color)]">
+                            <img
+                                src="{{ asset($settings['tema_background_main_imagem']) }}"
+                                alt="Pré-visualização do fundo institucional"
+                                class="h-36 w-full object-cover"
+                            >
+                        </div>
+                        <x-admin.checkbox
+                            id="tema_background_main_imagem_remover"
+                            name="tema_background_main_imagem_remover"
+                            label="Remover imagem atual"
+                            :checked="false"
+                        />
+                    </div>
+                @endif
+            </div>
+
+            <div class="tab-panel hidden" data-tab-panel="catalogo">
+                <h3 class="section-title">Catálogos</h3>
+                <p class="text-sm text-slate-500">
+                    Gerencie dados auxiliares usados em cadastros e relatórios.
+                </p>
+                <div class="mt-4 flex flex-wrap gap-3">
+                    <a class="btn btn-ghost" href="{{ route('admin.catalogo.categorias.index') }}">
+                        Categorias de curso
+                    </a>
+                    <a class="btn btn-ghost" href="{{ route('admin.catalogo.estados.index') }}">
+                        Estados (UF)
+                    </a>
+                    <a class="btn btn-ghost" href="{{ route('admin.catalogo.municipios.index') }}">
+                        Municípios
+                    </a>
                 </div>
             </div>
 
@@ -419,6 +539,70 @@
                         name="smtp_from_name"
                         label="Nome do remetente"
                         :value="$settings['smtp_from_name'] ?? ''"
+                    />
+                </div>
+            </div>
+
+            <div class="tab-panel hidden" data-tab-panel="footer">
+                <h3 class="section-title">Footer</h3>
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <x-admin.input
+                        id="footer_titulo"
+                        name="footer_titulo"
+                        label="Titulo"
+                        :value="$settings['footer_titulo'] ?? ''"
+                        required
+                    />
+                    <x-admin.input
+                        id="footer_contato_titulo"
+                        name="footer_contato_titulo"
+                        label="Titulo de contato"
+                        :value="$settings['footer_contato_titulo'] ?? ''"
+                        required
+                    />
+                    <x-admin.input
+                        id="footer_contato_email"
+                        name="footer_contato_email"
+                        label="E-mail de contato"
+                        type="email"
+                        :value="$settings['footer_contato_email'] ?? ''"
+                    />
+                    <x-admin.input
+                        id="footer_contato_telefone"
+                        name="footer_contato_telefone"
+                        label="Telefone de contato"
+                        :value="$settings['footer_contato_telefone'] ?? ''"
+                    />
+                    <x-admin.input
+                        id="footer_endereco_titulo"
+                        name="footer_endereco_titulo"
+                        label="Titulo de endereco"
+                        :value="$settings['footer_endereco_titulo'] ?? ''"
+                        required
+                    />
+                    <x-admin.input
+                        id="footer_endereco_linha1"
+                        name="footer_endereco_linha1"
+                        label="Endereco linha 1"
+                        :value="$settings['footer_endereco_linha1'] ?? ''"
+                        required
+                    />
+                    <x-admin.input
+                        id="footer_endereco_linha2"
+                        name="footer_endereco_linha2"
+                        label="Endereco linha 2"
+                        :value="$settings['footer_endereco_linha2'] ?? ''"
+                        required
+                    />
+                </div>
+                <div class="mt-4">
+                    <x-admin.textarea
+                        id="footer_descricao"
+                        name="footer_descricao"
+                        label="Descricao"
+                        rows="3"
+                        :value="$settings['footer_descricao'] ?? ''"
+                        required
                     />
                 </div>
             </div>

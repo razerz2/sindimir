@@ -4,6 +4,10 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>@yield('title', 'Sindimir')</title>
+        @php($favicon = config_db('tema.favicon'))
+        @if ($favicon)
+            <link rel="icon" href="{{ asset($favicon) }}">
+        @endif
         <style>
             :root {
                 color-scheme: light;
@@ -62,6 +66,15 @@
                 gap: 18px;
                 font-weight: 600;
                 font-size: 0.95rem;
+            }
+            .nav-links a {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .nav-icon {
+                width: 16px;
+                height: 16px;
             }
             main {
                 padding: 48px 0 64px;
@@ -144,9 +157,13 @@
                 opacity: 0.9;
             }
             footer {
-                background: var(--card);
-                border-top: 1px solid var(--border);
+                background: #0f3d2e;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
                 padding: 36px 0;
+                color: #ffffff;
+            }
+            footer .muted {
+                color: rgba(255, 255, 255, 0.8);
             }
             .footer-grid {
                 display: grid;
@@ -169,22 +186,69 @@
         <header>
             <div class="container navbar">
                 <a class="nav-brand" href="{{ route('public.home') }}">
-                    <img src="{{ asset('assets/images/logo-default.png') }}" alt="Sindimir">
+                    @php($logo = config_db('tema.logo'))
+                    <img src="{{ $logo ? asset($logo) : asset('assets/images/logo-default.png') }}" alt="Sindimir">
                     <span>Sindimir</span>
                 </a>
                 <nav class="nav-links">
-                <a href="{{ route('public.home') }}">Início</a>
-                <a href="{{ route('public.cursos') }}">Cursos</a>
-                <a href="{{ route('public.cpf') }}">Inscrição</a>
-                    <a href="#contato">Contato</a>
+                    <a href="{{ route('public.home') }}">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                            <path d="M3 12l9-8 9 8" />
+                            <path d="M9 21V9h6v12" />
+                        </svg>
+                        Início
+                    </a>
+                    <a href="{{ route('public.cursos') }}">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                            <path d="M4 6h16M4 12h16M4 18h10" />
+                        </svg>
+                        Cursos
+                    </a>
+                    <a href="{{ route('public.cpf') }}">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                            <path d="M7 7h10v10H7z" />
+                            <path d="M9 5h6M9 19h6" />
+                            <path d="M10 9h4M10 12h4M10 15h3" />
+                        </svg>
+                        Inscrição
+                    </a>
+                    <a href="{{ route('public.contato') }}">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                            <path d="M4 6h16v12H4z" />
+                            <path d="M4 6l8 7 8-7" />
+                        </svg>
+                        Contato
+                    </a>
                 </nav>
             </div>
         </header>
-        <main>
-            <div class="container">
-                @yield('content')
-            </div>
-        </main>
+        @php
+            $bgImage = config_db('tema.background_main_imagem');
+            $overlay = config_db('tema.background_main_overlay', 'rgba(255,255,255,0.85)');
+            $position = config_db('tema.background_main_posicao', 'center');
+            $size = config_db('tema.background_main_tamanho', 'cover');
+        @endphp
+        @php($wrapContent = $wrapContent ?? true)
+        @if ($wrapContent)
+            <main
+                @if($bgImage)
+                    style="
+                        background-image:
+                            linear-gradient({{ $overlay }}, {{ $overlay }}),
+                            url('{{ asset($bgImage) }}');
+                        background-size: {{ $size }};
+                        background-position: {{ $position }};
+                        background-repeat: no-repeat;
+                    "
+                @endif
+            >
+                <div class="container">
+                    @yield('content')
+                </div>
+            </main>
+        @else
+            @yield('content')
+        @endif
         @yield('footer')
     </body>
 </html>

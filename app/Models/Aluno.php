@@ -10,6 +10,8 @@ use App\Enums\Sexo;
 use App\Enums\SimNaoNaoDeclarada;
 use App\Enums\SituacaoParticipante;
 use App\Enums\TipoEntidadeOrigem;
+use App\Models\Estado;
+use App\Models\Municipio;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -36,8 +38,8 @@ class Aluno extends Model
         'nome_mae',
         'endereco',
         'bairro',
-        'uf_residencia',
-        'municipio',
+        'estado_residencia_id',
+        'municipio_id',
         'cep',
         'email',
         'celular',
@@ -98,5 +100,15 @@ class Aluno extends Model
     public function listaEspera(): HasMany
     {
         return $this->hasMany(ListaEspera::class);
+    }
+
+    public function estadoResidencia(): BelongsTo
+    {
+        return $this->belongsTo(Estado::class, 'estado_residencia_id');
+    }
+
+    public function municipio(): BelongsTo
+    {
+        return $this->belongsTo(Municipio::class);
     }
 }
