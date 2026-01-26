@@ -15,6 +15,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\PublicAlunoStoreRequest;
 use App\Models\Deficiencia;
 use App\Models\Estado;
+use App\Models\EventoCurso;
 use App\Models\Matricula;
 use App\Models\NotificationLink;
 use App\Services\MatriculaService;
