@@ -30,7 +30,14 @@
         <div class="card">
             <h2>Cancelar matrícula</h2>
             <p>Se precisar, você pode cancelar sua matrícula a qualquer momento.</p>
-            <form method="POST" action="{{ route('public.matricula.cancelar', ['token' => request()->route('token')]) }}">
+            <form
+                method="POST"
+                action="{{ route('public.matricula.cancelar', ['token' => request()->route('token')]) }}"
+                data-confirm="Deseja realmente cancelar sua matrícula? Esta ação é irreversível."
+                data-confirm-title="Confirmar cancelamento"
+                data-confirm-button="Cancelar matrícula"
+                data-cancel-button="Voltar"
+            >
                 @csrf
                 <button type="submit" class="btn outline">Cancelar matrícula</button>
             </form>

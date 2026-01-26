@@ -532,7 +532,7 @@ class InscricaoController extends Controller
             ->where('token', $token)
             ->first();
 
-        if (! $link || ! $link->isValid() || $link->notification_type !== NotificationType::MATRICULA_CONFIRMADA->value) {
+        if (! $link || ! $link->isValid()) {
             return redirect()
                 ->route('public.cursos')
                 ->with('status', 'Link de matrícula inválido ou expirado.');
@@ -618,7 +618,6 @@ class InscricaoController extends Controller
         $this->matriculaService->cancelarMatricula($matricula);
 
         return redirect()
-            ->route('public.cursos')
-            ->with('status', 'Matrícula cancelada com sucesso.');
+            ->route('public.matricula.visualizar', ['token' => $link->token]);
     }
 }
