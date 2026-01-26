@@ -27,7 +27,9 @@ class NotificationService
     {
         $datas = 'Datas definidas pela equipe.';
         $vagasDisponiveis = (int) $curso->limite_vagas;
-        $linkUrl = route('public.cursos');
+        $linkUrl = $notificationType === NotificationType::INSCRICAO_CONFIRMAR
+            ? route('public.inscricao.confirmar', ['token' => 'preview'])
+            : route('public.cursos');
         $context = $this->buildTemplateContext($aluno, $curso, $linkUrl, $datas, $vagasDisponiveis);
 
         $emailTemplate = $this->getTemplate($notificationType, 'email');
@@ -38,10 +40,10 @@ class NotificationService
             : "Convite para {$curso->nome}";
         $corpoEmail = $emailTemplate
             ? $this->renderTemplate($emailTemplate->conteudo, $context)
-            : $this->buildFallbackMessage($aluno, $curso, $linkUrl, $datas, $vagasDisponiveis);
+            : $this->buildFallbackMessage($aluno, $curso, $linkUrl, $datas, $vagasDisponiveis, $notificationType);
         $textoWhatsApp = $whatsappTemplate
             ? $this->renderTemplate($whatsappTemplate->conteudo, $context)
-            : $this->buildFallbackMessage($aluno, $curso, $linkUrl, $datas, $vagasDisponiveis);
+            : $this->buildFallbackMessage($aluno, $curso, $linkUrl, $datas, $vagasDisponiveis, $notificationType);
 
         return [
             'assunto_email' => $assunto,
@@ -56,7 +58,10 @@ class NotificationService
     public function disparar(
         iterable $alunos,
         Curso|EventoCurso $destino,
-        NotificationType $notificationType = NotificationType::CURSO_DISPONIVEL
+        NotificationType $notificationType = NotificationType::CURSO_DISPONIVEL,
+        ?bool $forcarEmail = null,
+        ?bool $forcarWhatsApp = null,
+        ?int $validadeMinutos = null
     ): void
     {
         $destinoEvento = $destino instanceof EventoCurso ? $destino->loadMissing('curso') : null;
@@ -70,12 +75,15 @@ class NotificationService
 
         $vagasDisponiveis = $this->contarVagas($curso, $destinoEvento);
         $datas = $this->formatarDatas($destinoEvento);
-        $emailAtivo = (bool) $this->configuracaoService->get('notificacao.email_ativo', true);
-        $whatsappAtivo = (bool) $this->configuracaoService->get('notificacao.whatsapp_ativo', false);
+        [$emailAtivo, $whatsappAtivo] = $this->resolveCanaisAtivos($forcarEmail, $forcarWhatsApp);
+
+        if (! $emailAtivo && ! $whatsappAtivo) {
+            return;
+        }
 
         foreach ($colecaoAlunos as $aluno) {
-            $link = $this->linkService->resolve($aluno, $curso, $destinoEvento, $notificationType);
-            $linkUrl = route('public.inscricao.token', ['token' => $link->token]);
+            $link = $this->linkService->resolve($aluno, $curso, $destinoEvento, $notificationType, $validadeMinutos);
+            $linkUrl = $this->resolveLinkUrl($link, $notificationType);
             $context = $this->buildTemplateContext($aluno, $curso, $linkUrl, $datas, $vagasDisponiveis);
 
             $emailTemplate = $this->getTemplate($notificationType, 'email');
@@ -86,50 +94,47 @@ class NotificationService
                 : "Convite para {$curso->nome}";
         $mensagemEmail = $emailTemplate
             ? $this->renderTemplate($emailTemplate->conteudo, $context)
-            : $this->buildFallbackMessage($aluno, $curso, $linkUrl, $datas, $vagasDisponiveis);
+            : $this->buildFallbackMessage($aluno, $curso, $linkUrl, $datas, $vagasDisponiveis, $notificationType);
         $mensagemWhatsApp = $whatsappTemplate
             ? $this->renderTemplate($whatsappTemplate->conteudo, $context)
-            : $this->buildFallbackMessage($aluno, $curso, $linkUrl, $datas, $vagasDisponiveis);
+            : $this->buildFallbackMessage($aluno, $curso, $linkUrl, $datas, $vagasDisponiveis, $notificationType);
 
             if ($emailAtivo) {
-                if ($aluno->email) {
-                    if ($this->isRateLimited($aluno, $curso, $notificationType, 'email')) {
-                        $this->logAttempt('email', 'blocked', 'Limite diário atingido.', $aluno, $curso, $destinoEvento, $link, $notificationType);
-                    } else {
-                        SendEmailNotificationJob::dispatch(
-                            $aluno->id,
-                            $aluno->email,
-                            $aluno->nome_completo,
-                            $curso->id,
-                            $destinoEvento?->id,
-                            $link->id,
-                            $notificationType->value,
-                            $assunto,
-                            $mensagemEmail
-                        );
-                    }
+                if (! $this->isValidEmail($aluno->email)) {
+                    $this->logAttempt('email', 'blocked', 'Email inválido ou não cadastrado.', $aluno, $curso, $destinoEvento, $link, $notificationType);
+                } elseif ($this->isRateLimited($aluno, $curso, $destinoEvento, $notificationType, 'email')) {
+                    $this->logAttempt('email', 'blocked', 'Limite diário atingido.', $aluno, $curso, $destinoEvento, $link, $notificationType);
                 } else {
-                    $this->logAttempt('email', 'failed', 'Email do aluno não cadastrado.', $aluno, $curso, $destinoEvento, $link, $notificationType);
+                    SendEmailNotificationJob::dispatch(
+                        $aluno->id,
+                        $aluno->email,
+                        $aluno->nome_completo,
+                        $curso->id,
+                        $destinoEvento?->id,
+                        $link->id,
+                        $notificationType->value,
+                        $assunto,
+                        $mensagemEmail
+                    );
                 }
             }
 
             if ($whatsappAtivo) {
-                if ($aluno->celular) {
-                    if ($this->isRateLimited($aluno, $curso, $notificationType, 'whatsapp')) {
-                        $this->logAttempt('whatsapp', 'blocked', 'Limite diário atingido.', $aluno, $curso, $destinoEvento, $link, $notificationType);
-                    } else {
-                        SendWhatsAppNotificationJob::dispatch(
-                            $aluno->id,
-                            $aluno->celular,
-                            $curso->id,
-                            $destinoEvento?->id,
-                            $link->id,
-                            $notificationType->value,
-                            $mensagemWhatsApp
-                        );
-                    }
+                $numeroNormalizado = $this->normalizeWhatsapp($aluno->celular);
+                if (! $numeroNormalizado) {
+                    $this->logAttempt('whatsapp', 'blocked', 'WhatsApp inválido ou não cadastrado.', $aluno, $curso, $destinoEvento, $link, $notificationType);
+                } elseif ($this->isRateLimited($aluno, $curso, $destinoEvento, $notificationType, 'whatsapp')) {
+                    $this->logAttempt('whatsapp', 'blocked', 'Limite diário atingido.', $aluno, $curso, $destinoEvento, $link, $notificationType);
                 } else {
-                    $this->logAttempt('whatsapp', 'failed', 'WhatsApp do aluno não cadastrado.', $aluno, $curso, $destinoEvento, $link, $notificationType);
+                    SendWhatsAppNotificationJob::dispatch(
+                        $aluno->id,
+                        $numeroNormalizado,
+                        $curso->id,
+                        $destinoEvento?->id,
+                        $link->id,
+                        $notificationType->value,
+                        $mensagemWhatsApp
+                    );
                 }
             }
         }
@@ -157,7 +162,7 @@ class NotificationService
         }
 
         $confirmadas = $evento->matriculas()
-            ->where('status', StatusMatricula::Confirmada)
+            ->whereIn('status', [StatusMatricula::Confirmada, StatusMatricula::Pendente])
             ->count();
 
         return max(0, $limite - $confirmadas);
@@ -184,19 +189,82 @@ class NotificationService
         Curso $curso,
         string $linkUrl,
         string $datas,
-        int $vagasDisponiveis
+        int $vagasDisponiveis,
+        NotificationType $notificationType
     ): string {
-        $linhas = [
-            "Olá {$aluno->nome_completo},",
-            '',
-            "Curso: {$curso->nome}",
-            "Datas: {$datas}",
-            "Vagas disponíveis: {$vagasDisponiveis}",
-            '',
-            "Garanta sua vaga: {$linkUrl}",
-        ];
+        $linhas = match ($notificationType) {
+            NotificationType::EVENTO_CANCELADO => [
+                "Olá {$aluno->nome_completo},",
+                '',
+                "O evento do curso {$curso->nome} foi cancelado.",
+                "Datas: {$datas}",
+                '',
+                "Mais informações: {$linkUrl}",
+            ],
+            NotificationType::INSCRICAO_CONFIRMAR => [
+                "Olá {$aluno->nome_completo},",
+                '',
+                "Sua inscrição no curso {$curso->nome} precisa ser confirmada.",
+                "Datas: {$datas}",
+                '',
+                "Confirme sua participação: {$linkUrl}",
+            ],
+            NotificationType::LISTA_ESPERA_CHAMADA => [
+                "Olá {$aluno->nome_completo},",
+                '',
+                "Uma vaga foi liberada para o curso {$curso->nome}.",
+                "Datas: {$datas}",
+                '',
+                "Garanta sua vaga: {$linkUrl}",
+            ],
+            NotificationType::MATRICULA_CONFIRMADA => [
+                "Olá {$aluno->nome_completo},",
+                '',
+                "Sua matrícula no curso {$curso->nome} foi confirmada.",
+                "Datas: {$datas}",
+                '',
+                "Acompanhe pelo sistema: {$linkUrl}",
+            ],
+            default => [
+                "Olá {$aluno->nome_completo},",
+                '',
+                "Curso: {$curso->nome}",
+                "Datas: {$datas}",
+                "Vagas disponíveis: {$vagasDisponiveis}",
+                '',
+                "Garanta sua vaga: {$linkUrl}",
+            ],
+        };
 
         return implode(PHP_EOL, array_filter($linhas));
+    }
+
+    /**
+     * @return array{bool, bool}
+     */
+    private function resolveCanaisAtivos(?bool $forcarEmail, ?bool $forcarWhatsApp): array
+    {
+        $emailAtivo = (bool) $this->configuracaoService->get('notificacao.email_ativo', true);
+        $whatsappAtivo = (bool) $this->configuracaoService->get('notificacao.whatsapp_ativo', false);
+
+        if ($forcarEmail !== null) {
+            $emailAtivo = $emailAtivo && $forcarEmail;
+        }
+
+        if ($forcarWhatsApp !== null) {
+            $whatsappAtivo = $whatsappAtivo && $forcarWhatsApp;
+        }
+
+        return [$emailAtivo, $whatsappAtivo];
+    }
+
+    private function resolveLinkUrl(NotificationLink $link, NotificationType $notificationType): string
+    {
+        $route = $notificationType === NotificationType::INSCRICAO_CONFIRMAR
+            ? 'public.inscricao.confirmar'
+            : 'public.inscricao.token';
+
+        return route($route, ['token' => $link->token]);
     }
 
     /**
@@ -249,21 +317,67 @@ class NotificationService
         ]);
     }
 
+    private function isValidEmail(?string $email): bool
+    {
+        if (! $email) {
+            return false;
+        }
+
+        return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+    }
+
+    private function normalizeWhatsapp(?string $celular): ?string
+    {
+        if (! $celular) {
+            return null;
+        }
+
+        $digits = preg_replace('/\D+/', '', $celular ?? '');
+
+        if ($digits === '') {
+            return null;
+        }
+
+        $numeroSemPais = str_starts_with($digits, '55') ? substr($digits, 2) : $digits;
+
+        if (! preg_match('/^\d{10,11}$/', $numeroSemPais)) {
+            return null;
+        }
+
+        return '55' . $numeroSemPais;
+    }
+
     private function isRateLimited(
         Aluno $aluno,
         Curso $curso,
+        ?EventoCurso $evento,
         NotificationType $notificationType,
         string $canal
     ): bool {
-        $count = NotificationLog::query()
+        $rateLimitAtivo = (bool) $this->configuracaoService->get('notificacao.rate_limit.ativo', true);
+        if (! $rateLimitAtivo) {
+            return false;
+        }
+
+        $limiteDiario = (int) $this->configuracaoService->get('notificacao.rate_limit.limite_diario', 2);
+        if ($limiteDiario <= 0) {
+            return false;
+        }
+
+        $query = NotificationLog::query()
             ->where('aluno_id', $aluno->id)
             ->where('curso_id', $curso->id)
             ->where('notification_type', $notificationType->value)
             ->where('canal', $canal)
             ->where('status', '!=', 'blocked')
-            ->whereDate('created_at', CarbonImmutable::today())
-            ->count();
+            ->whereDate('created_at', CarbonImmutable::today());
 
-        return $count >= 2;
+        if ($evento) {
+            $query->where('evento_curso_id', $evento->id);
+        }
+
+        $count = $query->count();
+
+        return $count >= $limiteDiario;
     }
 }

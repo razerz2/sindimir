@@ -245,6 +245,9 @@
                                 x-on:change="loadType()"
                             >
                                 <option value="">Selecione um tipo</option>
+                                <option value="EVENTO_CRIADO">Evento criado</option>
+                                <option value="EVENTO_CANCELADO">Evento cancelado</option>
+                                <option value="INSCRICAO_CONFIRMAR">Confirmacao de inscricao</option>
                                 <option value="CURSO_DISPONIVEL">Curso disponível</option>
                                 <option value="VAGA_ABERTA">Vaga aberta</option>
                                 <option value="LEMBRETE_CURSO">Lembrete de curso</option>
@@ -351,6 +354,26 @@
                         label="Token / API Key"
                         :value="$settings['whatsapp_token'] ?? ''"
                     />
+                    <div id="whatsapp_client_token_field">
+                        <x-admin.input
+                            id="whatsapp_client_token"
+                            name="whatsapp_client_token"
+                            label="Client-Token (Z-API)"
+                            :value="$settings['whatsapp_client_token'] ?? ''"
+                        />
+                    </div>
+                    <x-admin.input
+                        id="whatsapp_base_url"
+                        name="whatsapp_base_url"
+                        label="Base URL (Z-API)"
+                        :value="$settings['whatsapp_base_url'] ?? ''"
+                    />
+                    <x-admin.input
+                        id="whatsapp_instance"
+                        name="whatsapp_instance"
+                        label="Instance (Z-API)"
+                        :value="$settings['whatsapp_instance'] ?? ''"
+                    />
                     <x-admin.input
                         id="whatsapp_phone_number_id"
                         name="whatsapp_phone_number_id"
@@ -363,6 +386,57 @@
                         label="Webhook URL"
                         :value="$settings['whatsapp_webhook_url'] ?? ''"
                     />
+                </div>
+
+                <div class="mt-6 rounded-xl border border-dashed border-slate-200 bg-white p-4">
+                    <h4 class="text-sm font-semibold text-slate-700">Teste de envio</h4>
+                    <p class="text-xs text-slate-500">
+                        Envie uma mensagem rápida para validar a configuração do provedor.
+                    </p>
+                    @if (! $whatsappReady)
+                        <p class="mt-2 text-xs text-amber-600">
+                            Configure o provedor e salve antes de testar o envio.
+                        </p>
+                    @endif
+                    @if (session('whatsapp_test_status'))
+                        @php($testStatus = session('whatsapp_test_status'))
+                        <div class="mt-3 rounded-xl border p-3 text-xs {{ $testStatus['type'] === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700' }}">
+                            {{ $testStatus['message'] }}
+                        </div>
+                    @endif
+                    <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <x-admin.input
+                            id="whatsapp_test_numero"
+                            name="whatsapp_test_numero"
+                            label="Número"
+                            placeholder="Ex: 5567999999999"
+                            :disabled="! $whatsappReady"
+                        />
+                        <div class="flex flex-col gap-2 md:col-span-2">
+                            <label for="whatsapp_test_mensagem" class="text-sm font-semibold text-[var(--content-text)]">Mensagem</label>
+                            <textarea
+                                id="whatsapp_test_mensagem"
+                                name="whatsapp_test_mensagem"
+                                rows="3"
+                                @if (! $whatsappReady) disabled @endif
+                                class="w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 @error('whatsapp_test_mensagem') border-red-500 @enderror"
+                            >{{ old('whatsapp_test_mensagem') }}</textarea>
+                            @error('whatsapp_test_mensagem')
+                                <p class="text-xs text-red-500">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+                    <div class="mt-4 flex justify-end">
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
+                            formaction="{{ route('admin.configuracoes.whatsapp.testar') }}"
+                            formmethod="POST"
+                            @if (! $whatsappReady) disabled @endif
+                        >
+                            Testar envio
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -378,8 +452,28 @@
 
                 <div class="mt-6 space-y-6">
                     <div class="rounded-xl border border-slate-200 bg-white p-4">
+                        <h4 class="text-sm font-semibold text-slate-700">Rate limit diário</h4>
+                        <p class="text-xs text-slate-500">Controla o limite de notificações por aluno/tipo/canal ao dia.</p>
+                        <div class="mt-3 grid gap-4 md:grid-cols-3">
+                            <x-admin.checkbox
+                                name="rate_limit_ativo"
+                                label="Ativar"
+                                :checked="$settings['rate_limit_ativo'] ?? true"
+                            />
+                            <x-admin.input
+                                id="rate_limit_limite_diario"
+                                name="rate_limit_limite_diario"
+                                label="Limite diário"
+                                type="number"
+                                :value="$settings['rate_limit_limite_diario'] ?? 2"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-200 bg-white p-4">
                         <h4 class="text-sm font-semibold text-slate-700">Lembrete de curso</h4>
                         <p class="text-xs text-slate-500">Usa o tipo <code>LEMBRETE_CURSO</code>.</p>
+                        <p class="text-xs text-slate-500">Envia um lembrete automático para alunos confirmados alguns dias antes do evento.</p>
                         <div class="mt-3 grid gap-4 md:grid-cols-3">
                             <x-admin.checkbox
                                 name="auto_lembrete_ativo"
@@ -413,8 +507,62 @@
                     </div>
 
                     <div class="rounded-xl border border-slate-200 bg-white p-4">
+                        <h4 class="text-sm font-semibold text-slate-700">Evento criado</h4>
+                        <p class="text-xs text-slate-500">Usa o tipo <code>EVENTO_CRIADO</code>.</p>
+                        <p class="text-xs text-slate-500">Notifica todos os alunos cadastrados quando um novo evento é criado.</p>
+                        <div class="mt-3 grid gap-4 md:grid-cols-3">
+                            <x-admin.checkbox
+                                name="auto_evento_criado_ativo"
+                                label="Ativar"
+                                :checked="$settings['auto_evento_criado_ativo'] ?? false"
+                            />
+                            <x-admin.checkbox
+                                name="auto_evento_criado_email"
+                                label="Email"
+                                :checked="$settings['auto_evento_criado_email'] ?? true"
+                            />
+                            <x-admin.checkbox
+                                name="auto_evento_criado_whatsapp"
+                                label="WhatsApp"
+                                :checked="$settings['auto_evento_criado_whatsapp'] ?? false"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-200 bg-white p-4">
+                        <h4 class="text-sm font-semibold text-slate-700">Confirmacao de inscricao</h4>
+                        <p class="text-xs text-slate-500">Usa o tipo <code>INSCRICAO_CONFIRMAR</code>.</p>
+                        <p class="text-xs text-slate-500">Envia o link de confirmação para o aluno concluir a inscrição no evento.</p>
+                        <div class="mt-3 grid gap-4 md:grid-cols-3">
+                            <x-admin.checkbox
+                                name="auto_confirmacao_ativo"
+                                label="Ativar"
+                                :checked="$settings['auto_confirmacao_ativo'] ?? true"
+                            />
+                            <x-admin.checkbox
+                                name="auto_confirmacao_email"
+                                label="Email"
+                                :checked="$settings['auto_confirmacao_email'] ?? true"
+                            />
+                            <x-admin.checkbox
+                                name="auto_confirmacao_whatsapp"
+                                label="WhatsApp"
+                                :checked="$settings['auto_confirmacao_whatsapp'] ?? false"
+                            />
+                            <x-admin.input
+                                id="auto_confirmacao_tempo_limite"
+                                name="auto_confirmacao_tempo_limite"
+                                label="Prazo de confirmação (horas)"
+                                type="number"
+                                :value="$settings['auto_confirmacao_tempo_limite'] ?? 24"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-200 bg-white p-4">
                         <h4 class="text-sm font-semibold text-slate-700">Matrícula confirmada</h4>
                         <p class="text-xs text-slate-500">Usa o tipo <code>MATRICULA_CONFIRMADA</code>.</p>
+                        <p class="text-xs text-slate-500">Confirma ao aluno que sua matrícula foi aprovada no evento.</p>
                         <div class="mt-3 grid gap-4 md:grid-cols-3">
                             <x-admin.checkbox
                                 name="auto_matricula_ativo"
@@ -437,6 +585,7 @@
                     <div class="rounded-xl border border-slate-200 bg-white p-4">
                         <h4 class="text-sm font-semibold text-slate-700">Vaga aberta (lista de espera)</h4>
                         <p class="text-xs text-slate-500">Usa o tipo <code>LISTA_ESPERA_CHAMADA</code>.</p>
+                        <p class="text-xs text-slate-500">Informa alunos da lista de espera quando uma vaga fica disponível.</p>
                         <div class="mt-3 grid gap-4 md:grid-cols-3">
                             <x-admin.checkbox
                                 name="auto_vaga_ativo"
@@ -453,12 +602,45 @@
                                 label="WhatsApp"
                                 :checked="$settings['auto_vaga_whatsapp'] ?? false"
                             />
+                            <x-admin.select
+                                id="auto_vaga_modo"
+                                name="auto_vaga_modo"
+                                label="Modo de envio"
+                                :options="[
+                                    ['value' => 'todos', 'label' => 'Notificar todos'],
+                                    ['value' => 'sequencial', 'label' => 'Sequencial'],
+                                ]"
+                                :selected="$settings['auto_vaga_modo'] ?? 'sequencial'"
+                            />
                             <x-admin.input
                                 id="auto_vaga_tempo_limite"
                                 name="auto_vaga_tempo_limite"
-                                label="Tempo limite (horas)"
+                                label="Intervalo entre envios (minutos)"
                                 type="number"
-                                :value="$settings['auto_vaga_tempo_limite'] ?? 24"
+                                :value="$settings['auto_vaga_tempo_limite'] ?? 60"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-200 bg-white p-4">
+                        <h4 class="text-sm font-semibold text-slate-700">Cancelamento de evento</h4>
+                        <p class="text-xs text-slate-500">Usa o tipo <code>EVENTO_CANCELADO</code>.</p>
+                        <p class="text-xs text-slate-500">Avisa inscritos e lista de espera sobre o cancelamento do evento.</p>
+                        <div class="mt-3 grid gap-4 md:grid-cols-3">
+                            <x-admin.checkbox
+                                name="auto_evento_cancelado_ativo"
+                                label="Ativar"
+                                :checked="$settings['auto_evento_cancelado_ativo'] ?? true"
+                            />
+                            <x-admin.checkbox
+                                name="auto_evento_cancelado_email"
+                                label="Email"
+                                :checked="$settings['auto_evento_cancelado_email'] ?? true"
+                            />
+                            <x-admin.checkbox
+                                name="auto_evento_cancelado_whatsapp"
+                                label="WhatsApp"
+                                :checked="$settings['auto_evento_cancelado_whatsapp'] ?? false"
                             />
                         </div>
                     </div>
@@ -466,6 +648,7 @@
                     <div class="rounded-xl border border-slate-200 bg-white p-4">
                         <h4 class="text-sm font-semibold text-slate-700">Curso disponível</h4>
                         <p class="text-xs text-slate-500">Usa o tipo <code>CURSO_DISPONIVEL</code>.</p>
+                        <p class="text-xs text-slate-500">Divulga a abertura de inscrições para cursos disponíveis.</p>
                         <div class="mt-3 grid gap-4 md:grid-cols-3">
                             <x-admin.checkbox
                                 name="auto_curso_ativo"
@@ -671,6 +854,22 @@
                 panels.forEach((panel) => {
                     panel.classList.toggle('hidden', panel.dataset.tabPanel !== tab);
                 });
+            }
+
+            const whatsappProvider = document.getElementById('whatsapp_provedor');
+            const whatsappClientTokenField = document.getElementById('whatsapp_client_token_field');
+
+            function toggleWhatsappClientToken() {
+                if (!whatsappProvider || !whatsappClientTokenField) {
+                    return;
+                }
+
+                whatsappClientTokenField.classList.toggle('hidden', whatsappProvider.value !== 'zapi');
+            }
+
+            if (whatsappProvider) {
+                whatsappProvider.addEventListener('change', toggleWhatsappClientToken);
+                toggleWhatsappClientToken();
             }
 
             buttons.forEach((button) => {

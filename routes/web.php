@@ -40,6 +40,8 @@ Route::post('/inscricao/cadastro', [\App\Http\Controllers\Public\InscricaoContro
     ->name('public.cadastro.store');
 Route::get('/inscricao/token/{token}', [\App\Http\Controllers\Public\InscricaoController::class, 'tokenRedirect'])
     ->name('public.inscricao.token');
+Route::get('/inscricao/confirmar/{token}', [\App\Http\Controllers\Public\InscricaoController::class, 'confirmarInscricao'])
+    ->name('public.inscricao.confirmar');
 
 Route::get('/catalogos/estados/{estado}/municipios', [MunicipioController::class, 'byEstado'])
     ->name('public.catalogo.estados.municipios');
@@ -85,8 +87,20 @@ Route::middleware(['auth', 'role:admin'])
             ->name('catalogo.municipios.toggle');
         Route::get('/catalogos/estados/{estado}/municipios', [MunicipioController::class, 'byEstado'])
             ->name('catalogo.estados.municipios');
+        Route::get('/eventos/{evento}/inscritos', [\App\Http\Controllers\Admin\EventoCursoController::class, 'inscritos'])
+            ->name('eventos.inscritos');
         Route::resource('/eventos', \App\Http\Controllers\Admin\EventoCursoController::class)
             ->parameters(['eventos' => 'evento']);
+        Route::post('/matriculas/{matricula}/cancelar', [\App\Http\Controllers\Admin\MatriculaController::class, 'cancelar'])
+            ->name('matriculas.cancelar');
+        Route::post('/lista-espera/{lista}/subir', [\App\Http\Controllers\Admin\ListaEsperaController::class, 'subir'])
+            ->name('lista-espera.subir');
+        Route::post('/lista-espera/{lista}/descer', [\App\Http\Controllers\Admin\ListaEsperaController::class, 'descer'])
+            ->name('lista-espera.descer');
+        Route::post('/lista-espera/{lista}/inscrever', [\App\Http\Controllers\Admin\ListaEsperaController::class, 'inscrever'])
+            ->name('lista-espera.inscrever');
+        Route::delete('/lista-espera/{lista}', [\App\Http\Controllers\Admin\ListaEsperaController::class, 'remover'])
+            ->name('lista-espera.remover');
         Route::resource('/alunos', \App\Http\Controllers\Admin\AlunoController::class);
         Route::resource('/usuarios', UserController::class)
             ->only(['index', 'show', 'edit', 'update', 'destroy']);
@@ -94,6 +108,8 @@ Route::middleware(['auth', 'role:admin'])
             ->name('configuracoes.index');
         Route::post('/configuracoes', [\App\Http\Controllers\Admin\ConfiguracaoController::class, 'update'])
             ->name('configuracoes.update');
+        Route::post('/configuracoes/whatsapp/testar', [\App\Http\Controllers\Admin\ConfiguracaoController::class, 'testarWhatsapp'])
+            ->name('configuracoes.whatsapp.testar');
         Route::get('/auditoria', [\App\Http\Controllers\Admin\AuditoriaController::class, 'index'])
             ->name('auditoria.index');
         Route::get('/notificacoes', [NotificationController::class, 'index'])

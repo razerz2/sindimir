@@ -12,12 +12,15 @@ use App\Enums\SituacaoParticipante;
 use App\Enums\TipoEntidadeOrigem;
 use App\Models\Estado;
 use App\Models\Municipio;
+use App\Support\Cpf;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Aluno extends Model
 {
@@ -110,5 +113,22 @@ class Aluno extends Model
     public function municipio(): BelongsTo
     {
         return $this->belongsTo(Municipio::class);
+    }
+
+    protected function cpf(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value) => Cpf::normalize($value),
+        );
+    }
+
+    public function scopeWhereCpf(Builder $query, string $cpf): Builder
+    {
+        $cpf = Cpf::normalize($cpf);
+
+        return $query->whereRaw(
+            "REPLACE(REPLACE(REPLACE(cpf, '.', ''), '-', ''), ' ', '') = ?",
+            [$cpf]
+        );
     }
 }

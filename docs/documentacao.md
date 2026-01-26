@@ -1,31 +1,31 @@
-# Documentacao Unica Sindimir
+# Documentação Única Sindimir
 
-Documento consolidado com visao geral, configuracao e operacao do sistema.
+Documento consolidado com visão geral, configuração e operação do sistema.
 
-## Visao geral
+## Visão geral
 
-Aplicacao Laravel 12 para gerenciamento de cursos, inscricoes e alunos. Ha
-area publica (institucional, cursos e inscricao por CPF), area administrativa
-e area do aluno.
+Aplicação Laravel 12 para gerenciamento de cursos, inscrições e alunos. Há
+área pública (institucional, cursos e inscrição por CPF), área administrativa
+e área do aluno.
 
 ## Funcionalidades
 
-- Publico: pagina institucional, lista de cursos, inscricao por CPF e cadastro com token.
-- Admin: dashboard com indicadores, gestao de cursos, eventos e alunos.
-- Admin: usuarios, configuracoes do sistema, tema, SMTP e provedores WhatsApp.
-- Admin: envio de notificacoes (email/WhatsApp) com templates e preview.
-- Admin: CMS institucional com sections fixas da home, ordenacao e estilos visuais.
-- Admin: relatorios (cursos, eventos, matriculas, inscricoes, lista de espera, auditoria).
-- Aluno: dashboard, perfil, inscricoes, historico e preferencias.
+- Público: página institucional, lista de cursos, inscrição por CPF e cadastro com token.
+- Admin: dashboard com indicadores, gestão de cursos, eventos e alunos.
+- Admin: usuários, configurações do sistema, tema, SMTP e provedores WhatsApp.
+- Admin: envio de notificações (email/WhatsApp) com templates e preview.
+- Admin: CMS institucional com sections fixas da home, ordenação e estilos visuais.
+- Admin: relatórios (cursos, eventos, matrículas, inscrições, lista de espera, auditoria).
+- Aluno: dashboard, perfil, inscrições, histórico e preferências.
 - Automacoes: fila de envios, rate limit de notificacoes e links com validade.
-- Agendamentos: expiracao de matriculas, chamadas da lista de espera e lembretes.
+- Agendamentos: expiração de matrículas, chamadas da lista de espera e lembretes.
 
 ## Acesso e perfis
 
-- `admin`: area administrativa (`/admin`) com login em `/admin/login`.
-- `aluno`: area do aluno (`/aluno`) com login em `/aluno/login`.
+- `admin`: área administrativa (`/admin`) com login em `/admin/login`.
+- `aluno`: área do aluno (`/aluno`) com login em `/aluno/login`.
 
-O controle de acesso e feito por middleware e policies.
+O controle de acesso é feito por middleware e policies.
 
 ## Requisitos
 
@@ -34,7 +34,7 @@ O controle de acesso e feito por middleware e policies.
 - Node.js 18+
 - MySQL 8+
 
-## Setup rapido
+## Setup rápido
 
 ```bash
 composer run setup
@@ -57,15 +57,15 @@ php artisan pail --timeout=0
 npm run dev
 ```
 
-## Operacao (producao)
+## Operação (produção)
 
 - `php artisan migrate --seed`
 - `php artisan queue:work`
 - `php artisan schedule:run` via cron (a cada minuto)
 
-## Usuario administrador
+## Usuário administrador
 
-O usuario admin padrao e criado pelo seeder:
+O usuário admin padrão é criado pelo seeder:
 
 - Email: `admin@sindimir.local`
 - Senha: `admin123`
@@ -73,7 +73,7 @@ O usuario admin padrao e criado pelo seeder:
 Os valores podem ser sobrescritos via `ADMIN_NAME`, `ADMIN_EMAIL`,
 `ADMIN_PASSWORD` no `.env`.
 
-## Variaveis de ambiente principais
+## Variáveis de ambiente principais
 
 - APP_NAME, APP_URL, APP_ENV, APP_DEBUG, APP_LOCALE
 - ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD
@@ -83,16 +83,17 @@ Os valores podem ser sobrescritos via `ADMIN_NAME`, `ADMIN_EMAIL`,
 - QUEUE_CONNECTION
 - MAIL_MAILER, MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM_ADDRESS, MAIL_FROM_NAME
 - WHATSAPP_ZAPI_ENABLED, WHATSAPP_ZAPI_BASE_URL, WHATSAPP_ZAPI_TOKEN, WHATSAPP_ZAPI_INSTANCE
+- WHATSAPP_ZAPI_CLIENT_TOKEN
 - WHATSAPP_META_ENABLED, WHATSAPP_META_BASE_URL, WHATSAPP_META_TOKEN, WHATSAPP_META_PHONE_NUMBER_ID
 
 ## Banco de dados
 
-Por padrao o projeto usa MySQL. A fila usa o driver `database` por padrao
+Por padrão o projeto usa MySQL. A fila usa o driver `database` por padrão
 (tabela `jobs`).
 
-## Configuracoes em banco
+## Configurações em banco
 
-Tabela `configuracoes` (via tela de configuracoes do admin):
+Tabela `configuracoes` (via tela de configurações do admin):
 
 - sistema.nome
 - sistema.email_padrao
@@ -105,8 +106,15 @@ Tabela `configuracoes` (via tela de configuracoes do admin):
 - tema.cor_texto
 - tema.cor_borda
 - tema.cor_destaque
+- tema.logo
+- tema.favicon
+- tema.background_main_imagem
+- tema.background_main_overlay
+- tema.background_main_posicao
+- tema.background_main_tamanho
 - whatsapp.provedor
 - whatsapp.token
+- whatsapp.client_token
 - whatsapp.phone_number_id
 - whatsapp.webhook_url
 - smtp.host
@@ -129,16 +137,29 @@ Tabela `configuracoes` (via tela de configuracoes do admin):
 
 Essas chaves complementam os valores de `config/app.php` e `config/mail.php`.
 
-## Navegacao administrativa
+## Tema (público)
 
-- O item "Envio de notificacoes" abre a tela de disparo de comunicacoes.
-- Auditoria nao fica mais no menu lateral; o acesso e feito pela tela de configuracoes.
-- Conteudo institucional fica no menu e abre a gestao de sections da home.
+As variáveis de tema usadas na área pública são compartilhadas globalmente no
+Blade via `AppServiceProvider`, evitando uso de `@php` nas views. Variaveis
+disponiveis:
+
+- `$themeFavicon`
+- `$themeLogo`
+- `$themeBackgroundImage`
+- `$themeBackgroundOverlay`
+- `$themeBackgroundPosition`
+- `$themeBackgroundSize`
+
+## Navegação administrativa
+
+- O item "Envio de notificações" abre a tela de disparo de comunicações.
+- Auditoria não fica mais no menu lateral; o acesso é feito pela tela de configurações.
+- Conteúdo institucional fica no menu e abre a gestão de sections da home.
 
 ## CMS institucional (home fixa)
 
-A home institucional possui layout fixo e renderizacao por slots definidos por slug.
-Esses slugs sao contrato do layout e nao devem ser alterados:
+A home institucional possui layout fixo e renderização por slots definidos por slug.
+Esses slugs são contrato do layout e não devem ser alterados:
 
 - hero
 - sobre
@@ -156,10 +177,10 @@ Tipos esperados por slot:
 
 Regras:
 
-- Nao criar novas sections para a home.
-- Slug e tipo sao fixos para os slots acima.
-- A edicao fica restrita ao conteudo interno de cada section.
-- A ordenacao pode ser ajustada via admin.
+- Não criar novas sections para a home.
+- Slug e tipo são fixos para os slots acima.
+- A edição fica restrita ao conteúdo interno de cada section.
+- A ordenação pode ser ajustada via admin.
 
 ## WhatsApp
 
@@ -175,31 +196,35 @@ Se nenhum provedor estiver ativo, o envio de WhatsApp falhara.
 - Disparo via `POST /admin/notificacoes/disparar` (autorizações `auth` + `role:admin`). Informe `curso_id` ou `evento_curso_id` e, quando for curso único, a lista de `aluno_ids`. Para eventos, a lista pode vir vazia e o sistema usará as matrículas confirmadas.
 - `NotificationService` monta assunto/mensagem com nome do aluno, nome do curso, datas do evento (quando houver), vagas disponíveis e link exclusivo.
 - Os templates são configurados por tipo (select “Tipo de notificação”) e editados separadamente para Email e WhatsApp; se não houver template para um tipo, a UI mostra aviso.
-- Cada disparo registra um `NotificationType` (`CURSO_DISPONIVEL`, `VAGA_ABERTA`, `LEMBRETE_CURSO`, `MATRICULA_CONFIRMADA`, `LISTA_ESPERA_CHAMADA`) em `notificacao_links` e `notificacao_logs`, mantendo a lógica atual intacta.
+- Cada disparo registra um `NotificationType` (`EVENTO_CRIADO`, `EVENTO_CANCELADO`, `INSCRICAO_CONFIRMAR`, `CURSO_DISPONIVEL`, `VAGA_ABERTA`, `LEMBRETE_CURSO`, `MATRICULA_CONFIRMADA`, `LISTA_ESPERA_CHAMADA`) em `notificacao_links` e `notificacao_logs`, mantendo a lógica atual intacta.
 - Templates dinâmicos residem em `notification_templates` (notification_type + canal) e podem usar variáveis como `{{aluno_nome}}`, `{{curso_nome}}`, `{{datas}}`, `{{vagas}}`, `{{link}}`.
 - Cada canal respeita um rate limit: um aluno não recebe mais de 2 notificações do mesmo tipo para o mesmo curso por dia; tentativas bloqueadas aparecem como `status = blocked` em `notificacao_logs`.
 - Há um endpoint `POST /admin/notificacoes/preview` (auth + role:admin) que recebe `aluno_id`, `curso_id` e `notification_type` e retorna o assunto/corpo de email e o texto WhatsApp renderizados sem enfileirar jobs.
-- Links são gerados pela tabela `notificacao_links` e valem por `NOTIFICATION_LINK_VALIDITY_MINUTES` (padrão 1440). O acesso público ocorre em `/inscricao/token/{token}` e redireciona para o formulário de cadastro.
+- Links são gerados pela tabela `notificacao_links` e valem por `NOTIFICATION_LINK_VALIDITY_MINUTES` (padrão 1440). O acesso público ocorre em `/inscricao/token/{token}` (inscrição) e `/inscricao/confirmar/{token}` (confirmação).
 - Jobs `SendEmailNotificationJob` e `SendWhatsAppNotificationJob` disparam as notificações com `QUEUE_CONNECTION=database` e gravam um registro em `notificacao_logs` com canal, status e eventual erro.
+- O prazo de confirmação é configurado em `notificacao.auto.inscricao_confirmacao.tempo_limite_horas` (padrão 24).
+- A lista de espera suporta modos `todos` e `sequencial` em `notificacao.auto.lista_espera.modo`, com intervalo de envio em `notificacao.auto.lista_espera.intervalo_minutos`.
+- Inscrições em eventos geram notificação de confirmação (`INSCRICAO_CONFIRMAR`); se não confirmadas até o prazo, a matrícula expira e a lista de espera é acionada.
+- Cancelamentos de evento disparam notificações para inscritos e lista de espera (`EVENTO_CANCELADO`).
 
 ## Arquitetura interna
 
-- Controllers finos, focados em orquestracao e responses.
+- Controllers finos, focados em orquestração e responses.
 - Services concentram regras de negocio e integracoes.
 - Models representam entidades e relacionamentos.
-- Policies garantem autorizacao por papel.
+- Policies garantem autorização por papel.
 - Middleware aplica controle de acesso por papel.
 - Observers registram auditoria automaticamente.
 - Jobs enviam notificacoes por email e WhatsApp.
 - Enums centralizam valores de dominio.
 
-## Processos assincronos
+## Processos assíncronos
 
 - Fila baseada em banco de dados para envio de email e WhatsApp.
 - Jobs: `SendEmailNotificationJob` e `SendWhatsAppNotificationJob`.
 
 ## Agendamentos
 
-- Expirar matriculas vencidas (hora em hora).
+- Expirar matrículas vencidas (hora em hora).
 - Chamar lista de espera por evento (hora em hora).
-- Enviar lembretes de cursos (diario no horario configurado).
+- Enviar lembretes de cursos (diário no horário configurado).

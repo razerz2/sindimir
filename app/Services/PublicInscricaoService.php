@@ -3,13 +3,16 @@
 namespace App\Services;
 
 use App\Models\Aluno;
+use App\Support\Cpf;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class PublicInscricaoService
 {
-    public function __construct(private readonly AlunoService $alunoService)
-    {
+    public function __construct(
+        private readonly AlunoService $alunoService,
+        private readonly MatriculaService $matriculaService
+    ) {
     }
 
     /**
@@ -17,8 +20,10 @@ class PublicInscricaoService
      */
     public function resolverPorCpf(string $cpf): array
     {
+        $cpf = Cpf::normalize($cpf);
+
         $aluno = Aluno::query()
-            ->where('cpf', $cpf)
+            ->whereCpf($cpf)
             ->first();
 
         if (! $aluno) {
@@ -43,9 +48,13 @@ class PublicInscricaoService
 
     public function cadastrarAluno(array $data, array $deficiencias = [], ?string $descricaoDeficiencia = null): Aluno
     {
+        $cpf = Cpf::normalize($data['cpf']);
+
+        $data['cpf'] = $cpf;
+
         return DB::transaction(function () use ($data, $deficiencias, $descricaoDeficiencia) {
             $aluno = Aluno::query()
-                ->where('cpf', $data['cpf'])
+            ->whereCpf($data['cpf'])
                 ->lockForUpdate()
                 ->first();
 
@@ -59,5 +68,13 @@ class PublicInscricaoService
 
             return $this->alunoService->create($data, $deficiencias, $descricaoDeficiencia);
         });
+    }
+
+    /**
+     * @return array{tipo: string, registro: \App\Models\Matricula|\App\Models\ListaEspera}
+     */
+    public function inscreverAlunoNoEvento(Aluno $aluno, int $eventoCursoId): array
+    {
+        return $this->matriculaService->solicitarInscricao($aluno->id, $eventoCursoId);
     }
 }

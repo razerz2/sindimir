@@ -7,6 +7,7 @@ use App\Models\Categoria;
 use App\Models\Curso;
 use App\Models\Estado;
 use App\Models\EventoCurso;
+use App\Models\ListaEspera;
 use App\Models\Matricula;
 use App\Models\Municipio;
 use App\Models\SiteSection;
@@ -15,6 +16,7 @@ use App\Policies\CategoriaPolicy;
 use App\Policies\CursoPolicy;
 use App\Policies\EstadoPolicy;
 use App\Policies\EventoCursoPolicy;
+use App\Policies\ListaEsperaPolicy;
 use App\Policies\MatriculaPolicy;
 use App\Policies\MunicipioPolicy;
 use App\Policies\SiteSectionPolicy;
@@ -34,6 +36,7 @@ class AuthServiceProvider extends ServiceProvider
         EventoCurso::class => EventoCursoPolicy::class,
         Aluno::class => AlunoPolicy::class,
         Matricula::class => MatriculaPolicy::class,
+        ListaEspera::class => ListaEsperaPolicy::class,
         Municipio::class => MunicipioPolicy::class,
         SiteSection::class => SiteSectionPolicy::class,
     ];

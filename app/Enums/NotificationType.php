@@ -4,6 +4,9 @@ namespace App\Enums;
 
 enum NotificationType: string
 {
+    case EVENTO_CRIADO = 'EVENTO_CRIADO';
+    case EVENTO_CANCELADO = 'EVENTO_CANCELADO';
+    case INSCRICAO_CONFIRMAR = 'INSCRICAO_CONFIRMAR';
     case CURSO_DISPONIVEL = 'CURSO_DISPONIVEL';
     case VAGA_ABERTA = 'VAGA_ABERTA';
     case LEMBRETE_CURSO = 'LEMBRETE_CURSO';

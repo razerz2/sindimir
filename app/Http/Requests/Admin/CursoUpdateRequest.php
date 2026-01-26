@@ -37,6 +37,7 @@ class CursoUpdateRequest extends FormRequest
     {
         $this->merge([
             'ativo' => $this->boolean('ativo'),
+            'validade' => $this->input('validade') ?: null,
         ]);
     }
 }

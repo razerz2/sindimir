@@ -25,7 +25,7 @@
                         {{ $evento->turno?->value ? ucfirst(str_replace('_', ' ', $evento->turno->value)) : 'Não informado' }}
                     </p>
                     <div style="margin-top: 12px;">
-                        <a class="btn primary" href="{{ route('public.cpf') }}">Inscrever-se</a>
+                        <a class="btn primary" href="{{ route('public.cpf', ['evento_curso_id' => $evento->id]) }}">Inscrever-se</a>
                     </div>
                 </div>
             @empty

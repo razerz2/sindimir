@@ -420,5 +420,6 @@
                 });
             });
         </script>
+        @include('partials.dialog')
     </body>
 </html>

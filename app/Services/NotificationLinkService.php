@@ -16,7 +16,8 @@ class NotificationLinkService
         Aluno $aluno,
         Curso $curso,
         ?EventoCurso $evento = null,
-        NotificationType $type = NotificationType::CURSO_DISPONIVEL
+        NotificationType $type = NotificationType::CURSO_DISPONIVEL,
+        ?int $validadeMinutos = null
     ): NotificationLink
     {
         $query = NotificationLink::query()
@@ -31,7 +32,7 @@ class NotificationLinkService
 
         $link = $query->first();
 
-        if ($link && $link->isValid()) {
+        if ($link && $link->isValid() && $link->notification_type === $type->value) {
             return $link;
         }
 
@@ -46,7 +47,7 @@ class NotificationLinkService
             [
                 'token' => (string) Str::uuid(),
                 'expires_at' => CarbonImmutable::now()->addMinutes(
-                    (int) config('app.notification.link_validade_minutos', 1440)
+                    $validadeMinutos ?? (int) config('app.notification.link_validade_minutos', 1440)
                 ),
                 'notification_type' => $type->value,
             ]

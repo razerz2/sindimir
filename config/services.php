@@ -40,13 +40,16 @@ return [
             'enabled' => env('WHATSAPP_ZAPI_ENABLED', false),
             'base_url' => env('WHATSAPP_ZAPI_BASE_URL'),
             'token' => env('WHATSAPP_ZAPI_TOKEN'),
+            'client_token' => env('WHATSAPP_ZAPI_CLIENT_TOKEN'),
             'instance' => env('WHATSAPP_ZAPI_INSTANCE'),
+            'verify_ssl' => env('WHATSAPP_ZAPI_VERIFY_SSL', true),
         ],
         'meta' => [
             'enabled' => env('WHATSAPP_META_ENABLED', false),
             'base_url' => env('WHATSAPP_META_BASE_URL', 'https://graph.facebook.com/v21.0'),
             'token' => env('WHATSAPP_META_TOKEN'),
             'phone_number_id' => env('WHATSAPP_META_PHONE_NUMBER_ID'),
+            'verify_ssl' => env('WHATSAPP_META_VERIFY_SSL', true),
         ],
     ],
 

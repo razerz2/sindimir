@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Enums\NotificationType;
 use App\Models\NotificationTemplate;
 use App\Services\ConfiguracaoService;
+use App\Services\WhatsAppService;
 use App\Services\ThemeService;
 use App\Services\SiteSectionService;
 use Illuminate\Support\Facades\Schema;
@@ -18,7 +19,8 @@ class ConfiguracaoController extends Controller
 {
     public function __construct(
         private readonly ConfiguracaoService $configuracaoService,
-        private readonly ThemeService $themeService
+        private readonly ThemeService $themeService,
+        private readonly WhatsAppService $whatsAppService
     ) {
     }
 
@@ -31,6 +33,8 @@ class ConfiguracaoController extends Controller
         $smtpEncryption = $this->resolveSetting('smtp.encryption', config('mail.mailers.smtp.encryption'));
         $smtpFromEmail = $this->resolveSetting('smtp.from_email', config('mail.from.address'));
         $smtpFromName = $this->resolveSetting('smtp.from_name', config('mail.from.name'));
+        $whatsappBaseUrl = $this->resolveSetting('whatsapp.base_url', config('services.whatsapp.zapi.base_url'));
+        $whatsappInstance = $this->resolveSetting('whatsapp.instance', config('services.whatsapp.zapi.instance'));
 
         $settings = [
             'sistema_nome' => $this->configuracaoService->get('sistema.nome', config('app.name', 'Sindimir')),
@@ -58,8 +62,11 @@ class ConfiguracaoController extends Controller
             'footer_endereco_linha2' => $this->configuracaoService->get('site.footer.endereco_linha2', 'Distrito Industrial'),
             'whatsapp_provedor' => $this->configuracaoService->get('whatsapp.provedor', null),
             'whatsapp_token' => $this->configuracaoService->get('whatsapp.token', null),
+            'whatsapp_client_token' => $this->configuracaoService->get('whatsapp.client_token', null),
             'whatsapp_phone_number_id' => $this->configuracaoService->get('whatsapp.phone_number_id', null),
             'whatsapp_webhook_url' => $this->configuracaoService->get('whatsapp.webhook_url', null),
+            'whatsapp_base_url' => $whatsappBaseUrl,
+            'whatsapp_instance' => $whatsappInstance,
             'smtp_host' => $smtpHost,
             'smtp_port' => $smtpPort,
             'smtp_username' => $smtpUsername,
@@ -72,16 +79,32 @@ class ConfiguracaoController extends Controller
             'auto_lembrete_whatsapp' => (bool) $this->configuracaoService->get('notificacao.auto.lembrete.canal.whatsapp', false),
             'auto_lembrete_dias_antes' => (int) $this->configuracaoService->get('notificacao.auto.lembrete.dias_antes', 2),
             'auto_lembrete_horario' => $this->configuracaoService->get('notificacao.auto.lembrete.horario', '08:00'),
+            'auto_evento_criado_ativo' => (bool) $this->configuracaoService->get('notificacao.auto.evento_criado.ativo', false),
+            'auto_evento_criado_email' => (bool) $this->configuracaoService->get('notificacao.auto.evento_criado.canal.email', true),
+            'auto_evento_criado_whatsapp' => (bool) $this->configuracaoService->get('notificacao.auto.evento_criado.canal.whatsapp', false),
+            'auto_confirmacao_ativo' => (bool) $this->configuracaoService->get('notificacao.auto.inscricao_confirmacao.ativo', true),
+            'auto_confirmacao_email' => (bool) $this->configuracaoService->get('notificacao.auto.inscricao_confirmacao.canal.email', true),
+            'auto_confirmacao_whatsapp' => (bool) $this->configuracaoService->get('notificacao.auto.inscricao_confirmacao.canal.whatsapp', false),
+            'auto_confirmacao_tempo_limite' => (int) $this->configuracaoService->get('notificacao.auto.inscricao_confirmacao.tempo_limite_horas', 24),
             'auto_matricula_ativo' => (bool) $this->configuracaoService->get('notificacao.auto.matricula_confirmada.ativo', true),
             'auto_matricula_email' => (bool) $this->configuracaoService->get('notificacao.auto.matricula_confirmada.canal.email', true),
             'auto_matricula_whatsapp' => (bool) $this->configuracaoService->get('notificacao.auto.matricula_confirmada.canal.whatsapp', false),
             'auto_vaga_ativo' => (bool) $this->configuracaoService->get('notificacao.auto.lista_espera.ativo', true),
             'auto_vaga_email' => (bool) $this->configuracaoService->get('notificacao.auto.lista_espera.canal.email', true),
             'auto_vaga_whatsapp' => (bool) $this->configuracaoService->get('notificacao.auto.lista_espera.canal.whatsapp', false),
-            'auto_vaga_tempo_limite' => (int) $this->configuracaoService->get('notificacao.auto.lista_espera.tempo_limite_horas', 24),
+            'auto_vaga_modo' => $this->configuracaoService->get('notificacao.auto.lista_espera.modo', 'sequencial'),
+            'auto_vaga_tempo_limite' => (int) $this->configuracaoService->get(
+                'notificacao.auto.lista_espera.intervalo_minutos',
+                (int) $this->configuracaoService->get('notificacao.auto.lista_espera.tempo_limite_horas', 60)
+            ),
+            'auto_evento_cancelado_ativo' => (bool) $this->configuracaoService->get('notificacao.auto.evento_cancelado.ativo', true),
+            'auto_evento_cancelado_email' => (bool) $this->configuracaoService->get('notificacao.auto.evento_cancelado.canal.email', true),
+            'auto_evento_cancelado_whatsapp' => (bool) $this->configuracaoService->get('notificacao.auto.evento_cancelado.canal.whatsapp', false),
             'auto_curso_ativo' => (bool) $this->configuracaoService->get('notificacao.auto.curso_disponivel.ativo', false),
             'auto_curso_email' => (bool) $this->configuracaoService->get('notificacao.auto.curso_disponivel.canal.email', true),
             'auto_curso_whatsapp' => (bool) $this->configuracaoService->get('notificacao.auto.curso_disponivel.canal.whatsapp', false),
+            'rate_limit_ativo' => (bool) $this->configuracaoService->get('notificacao.rate_limit.ativo', true),
+            'rate_limit_limite_diario' => (int) $this->configuracaoService->get('notificacao.rate_limit.limite_diario', 2),
         ];
 
         $theme = $this->themeService->getThemeColors();
@@ -95,11 +118,25 @@ class ConfiguracaoController extends Controller
                 ->groupBy('notification_type');
         }
 
-        $whatsappStatus = ($settings['whatsapp_provedor'] && $settings['whatsapp_token'])
-            ? 'Ativo'
-            : 'Pendente';
+        $whatsappStatus = 'Pendente';
+        if ($settings['whatsapp_provedor'] && $settings['whatsapp_token']) {
+            $whatsappStatus = $settings['whatsapp_provedor'] === 'zapi' && ! $settings['whatsapp_client_token']
+                ? 'Pendente'
+                : 'Ativo';
+        }
 
-        return view('admin.configuracoes.index', compact('settings', 'theme', 'whatsappStatus', 'templates'));
+        $whatsappReady = false;
+        if ($settings['whatsapp_provedor'] === 'zapi') {
+            $whatsappReady = ! empty($settings['whatsapp_token'])
+                && ! empty($settings['whatsapp_client_token'])
+                && ! empty($settings['whatsapp_base_url'])
+                && ! empty($settings['whatsapp_instance']);
+        }
+        if ($settings['whatsapp_provedor'] === 'meta') {
+            $whatsappReady = ! empty($settings['whatsapp_token']) && ! empty($settings['whatsapp_phone_number_id']);
+        }
+
+        return view('admin.configuracoes.index', compact('settings', 'theme', 'whatsappStatus', 'templates', 'whatsappReady'));
     }
 
     public function update(Request $request): RedirectResponse
@@ -124,8 +161,11 @@ class ConfiguracaoController extends Controller
             'notificacao_whatsapp_ativo' => ['nullable', 'boolean'],
             'whatsapp_provedor' => ['nullable', 'string', 'in:meta,zapi'],
             'whatsapp_token' => ['nullable', 'string', 'max:200'],
+            'whatsapp_client_token' => ['nullable', 'string', 'max:200'],
             'whatsapp_phone_number_id' => ['nullable', 'string', 'max:120'],
             'whatsapp_webhook_url' => ['nullable', 'url', 'max:200'],
+            'whatsapp_base_url' => ['nullable', 'url', 'max:200'],
+            'whatsapp_instance' => ['nullable', 'string', 'max:120'],
             'smtp_host' => ['nullable', 'string', 'max:120'],
             'smtp_port' => ['nullable', 'numeric'],
             'smtp_username' => ['nullable', 'string', 'max:120'],
@@ -153,16 +193,29 @@ class ConfiguracaoController extends Controller
             'auto_lembrete_whatsapp' => ['nullable', 'boolean'],
             'auto_lembrete_dias_antes' => ['nullable', 'integer', 'min:1', 'max:365'],
             'auto_lembrete_horario' => ['nullable', 'string', 'max:10'],
+            'auto_evento_criado_ativo' => ['nullable', 'boolean'],
+            'auto_evento_criado_email' => ['nullable', 'boolean'],
+            'auto_evento_criado_whatsapp' => ['nullable', 'boolean'],
+            'auto_confirmacao_ativo' => ['nullable', 'boolean'],
+            'auto_confirmacao_email' => ['nullable', 'boolean'],
+            'auto_confirmacao_whatsapp' => ['nullable', 'boolean'],
+            'auto_confirmacao_tempo_limite' => ['nullable', 'integer', 'min:1', 'max:168'],
             'auto_matricula_ativo' => ['nullable', 'boolean'],
             'auto_matricula_email' => ['nullable', 'boolean'],
             'auto_matricula_whatsapp' => ['nullable', 'boolean'],
             'auto_vaga_ativo' => ['nullable', 'boolean'],
             'auto_vaga_email' => ['nullable', 'boolean'],
             'auto_vaga_whatsapp' => ['nullable', 'boolean'],
-            'auto_vaga_tempo_limite' => ['nullable', 'integer', 'min:1', 'max:168'],
+            'auto_vaga_modo' => ['nullable', 'string', 'in:todos,sequencial'],
+            'auto_vaga_tempo_limite' => ['nullable', 'integer', 'min:5', 'max:1440'],
+            'auto_evento_cancelado_ativo' => ['nullable', 'boolean'],
+            'auto_evento_cancelado_email' => ['nullable', 'boolean'],
+            'auto_evento_cancelado_whatsapp' => ['nullable', 'boolean'],
             'auto_curso_ativo' => ['nullable', 'boolean'],
             'auto_curso_email' => ['nullable', 'boolean'],
             'auto_curso_whatsapp' => ['nullable', 'boolean'],
+            'rate_limit_ativo' => ['nullable', 'boolean'],
+            'rate_limit_limite_diario' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
         $this->configuracaoService->set('sistema.nome', $data['sistema_nome'], 'Nome do sistema');
@@ -211,13 +264,19 @@ class ConfiguracaoController extends Controller
         $this->configuracaoService->set('notificacao.whatsapp_ativo', (bool) $request->boolean('notificacao_whatsapp_ativo'), 'Notificacao por WhatsApp');
         $whatsappProvedor = (string) ($data['whatsapp_provedor'] ?? '');
         $whatsappToken = (string) ($data['whatsapp_token'] ?? '');
+        $whatsappClientToken = (string) ($data['whatsapp_client_token'] ?? '');
         $whatsappPhoneId = (string) ($data['whatsapp_phone_number_id'] ?? '');
         $whatsappWebhook = (string) ($data['whatsapp_webhook_url'] ?? '');
+        $whatsappBaseUrl = (string) ($data['whatsapp_base_url'] ?? '');
+        $whatsappInstance = (string) ($data['whatsapp_instance'] ?? '');
 
         $this->configuracaoService->set('whatsapp.provedor', $whatsappProvedor, 'Provedor WhatsApp');
         $this->configuracaoService->set('whatsapp.token', $whatsappToken, 'Token WhatsApp');
+        $this->configuracaoService->set('whatsapp.client_token', $whatsappClientToken, 'Client-Token WhatsApp');
         $this->configuracaoService->set('whatsapp.phone_number_id', $whatsappPhoneId, 'WhatsApp Phone Number ID');
         $this->configuracaoService->set('whatsapp.webhook_url', $whatsappWebhook, 'WhatsApp Webhook URL');
+        $this->configuracaoService->set('whatsapp.base_url', $whatsappBaseUrl, 'WhatsApp base URL');
+        $this->configuracaoService->set('whatsapp.instance', $whatsappInstance, 'WhatsApp instance');
         $smtpHost = (string) ($data['smtp_host'] ?? '');
         $smtpPort = (string) ($data['smtp_port'] ?? '');
         $smtpUsername = (string) ($data['smtp_username'] ?? '');
@@ -248,6 +307,15 @@ class ConfiguracaoController extends Controller
         $this->configuracaoService->set('notificacao.auto.lembrete.dias_antes', (int) ($data['auto_lembrete_dias_antes'] ?? 2), 'Auto lembrete dias antes');
         $this->configuracaoService->set('notificacao.auto.lembrete.horario', (string) ($data['auto_lembrete_horario'] ?? '08:00'), 'Auto lembrete horario');
 
+        $this->configuracaoService->set('notificacao.auto.evento_criado.ativo', (bool) $request->boolean('auto_evento_criado_ativo'), 'Auto evento criado ativo');
+        $this->configuracaoService->set('notificacao.auto.evento_criado.canal.email', (bool) $request->boolean('auto_evento_criado_email'), 'Auto evento criado email');
+        $this->configuracaoService->set('notificacao.auto.evento_criado.canal.whatsapp', (bool) $request->boolean('auto_evento_criado_whatsapp'), 'Auto evento criado WhatsApp');
+
+        $this->configuracaoService->set('notificacao.auto.inscricao_confirmacao.ativo', (bool) $request->boolean('auto_confirmacao_ativo'), 'Auto confirmacao inscricao ativo');
+        $this->configuracaoService->set('notificacao.auto.inscricao_confirmacao.canal.email', (bool) $request->boolean('auto_confirmacao_email'), 'Auto confirmacao inscricao email');
+        $this->configuracaoService->set('notificacao.auto.inscricao_confirmacao.canal.whatsapp', (bool) $request->boolean('auto_confirmacao_whatsapp'), 'Auto confirmacao inscricao WhatsApp');
+        $this->configuracaoService->set('notificacao.auto.inscricao_confirmacao.tempo_limite_horas', (int) ($data['auto_confirmacao_tempo_limite'] ?? 24), 'Auto confirmacao inscricao tempo limite');
+
         $this->configuracaoService->set('notificacao.auto.matricula_confirmada.ativo', (bool) $request->boolean('auto_matricula_ativo'), 'Auto matricula confirmada ativo');
         $this->configuracaoService->set('notificacao.auto.matricula_confirmada.canal.email', (bool) $request->boolean('auto_matricula_email'), 'Auto matricula email');
         $this->configuracaoService->set('notificacao.auto.matricula_confirmada.canal.whatsapp', (bool) $request->boolean('auto_matricula_whatsapp'), 'Auto matricula WhatsApp');
@@ -255,11 +323,23 @@ class ConfiguracaoController extends Controller
         $this->configuracaoService->set('notificacao.auto.lista_espera.ativo', (bool) $request->boolean('auto_vaga_ativo'), 'Auto lista espera ativo');
         $this->configuracaoService->set('notificacao.auto.lista_espera.canal.email', (bool) $request->boolean('auto_vaga_email'), 'Auto lista espera email');
         $this->configuracaoService->set('notificacao.auto.lista_espera.canal.whatsapp', (bool) $request->boolean('auto_vaga_whatsapp'), 'Auto lista espera WhatsApp');
-        $this->configuracaoService->set('notificacao.auto.lista_espera.tempo_limite_horas', (int) ($data['auto_vaga_tempo_limite'] ?? 24), 'Auto lista espera tempo limite');
+        $this->configuracaoService->set('notificacao.auto.lista_espera.modo', (string) ($data['auto_vaga_modo'] ?? 'sequencial'), 'Auto lista espera modo');
+        $this->configuracaoService->set('notificacao.auto.lista_espera.intervalo_minutos', (int) ($data['auto_vaga_tempo_limite'] ?? 60), 'Auto lista espera intervalo');
+
+        $this->configuracaoService->set('notificacao.auto.evento_cancelado.ativo', (bool) $request->boolean('auto_evento_cancelado_ativo'), 'Auto evento cancelado ativo');
+        $this->configuracaoService->set('notificacao.auto.evento_cancelado.canal.email', (bool) $request->boolean('auto_evento_cancelado_email'), 'Auto evento cancelado email');
+        $this->configuracaoService->set('notificacao.auto.evento_cancelado.canal.whatsapp', (bool) $request->boolean('auto_evento_cancelado_whatsapp'), 'Auto evento cancelado WhatsApp');
 
         $this->configuracaoService->set('notificacao.auto.curso_disponivel.ativo', (bool) $request->boolean('auto_curso_ativo'), 'Auto curso disponivel ativo');
         $this->configuracaoService->set('notificacao.auto.curso_disponivel.canal.email', (bool) $request->boolean('auto_curso_email'), 'Auto curso disponivel email');
         $this->configuracaoService->set('notificacao.auto.curso_disponivel.canal.whatsapp', (bool) $request->boolean('auto_curso_whatsapp'), 'Auto curso disponivel WhatsApp');
+
+        $this->configuracaoService->set('notificacao.rate_limit.ativo', (bool) $request->boolean('rate_limit_ativo'), 'Rate limit de notificacoes');
+        $this->configuracaoService->set(
+            'notificacao.rate_limit.limite_diario',
+            (int) ($data['rate_limit_limite_diario'] ?? 2),
+            'Rate limit diario de notificacoes'
+        );
 
         $this->syncNotificationTemplates($data['templates'] ?? [], $data['template_type'] ?? null);
         Cache::forget(SiteSectionService::CACHE_KEY);
@@ -267,6 +347,50 @@ class ConfiguracaoController extends Controller
         return redirect()
             ->route('admin.configuracoes.index')
             ->with('status', 'Configuracoes atualizadas com sucesso.');
+    }
+
+    public function testarWhatsapp(Request $request): RedirectResponse
+    {
+        if (! $this->whatsAppService->canTestSend()) {
+            return redirect()
+                ->route('admin.configuracoes.index')
+                ->with('whatsapp_test_status', [
+                    'type' => 'error',
+                    'message' => 'Configure um provedor WhatsApp antes de testar o envio.',
+                ]);
+        }
+
+        $data = $request->validate([
+            'whatsapp_test_numero' => ['required', 'string', 'max:30'],
+            'whatsapp_test_mensagem' => ['required', 'string', 'max:1000'],
+        ]);
+
+        try {
+            $payload = $this->whatsAppService->sendTest(
+                $data['whatsapp_test_numero'],
+                $data['whatsapp_test_mensagem']
+            );
+        } catch (\RuntimeException $exception) {
+            return redirect()
+                ->route('admin.configuracoes.index')
+                ->with('whatsapp_test_status', [
+                    'type' => 'error',
+                    'message' => $exception->getMessage(),
+                ]);
+        }
+
+        $message = 'Mensagem de teste enviada com sucesso.';
+        $response = $payload['response'] ?? null;
+        if ($response) {
+            $message .= ' Retorno: ' . json_encode($response, JSON_UNESCAPED_UNICODE);
+        }
+
+        return redirect()
+            ->route('admin.configuracoes.index')
+            ->with('whatsapp_test_status', [
+                'type' => 'success',
+                'message' => $message,
+            ]);
     }
 
     private function syncNotificationTemplates(array $templates, ?string $onlyType = null): void

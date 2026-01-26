@@ -49,8 +49,20 @@ class EventoCursoController extends Controller
     public function show(EventoCurso $evento): View
     {
         $evento->load('curso');
+        $resumoVagas = $this->eventoCursoService->resumoVagas($evento);
+        $inscritos = $this->eventoCursoService->inscritos($evento);
+        $listaEspera = $this->eventoCursoService->listaEspera($evento);
 
-        return view('admin.eventos.show', compact('evento'));
+        return view('admin.eventos.show', compact('evento', 'resumoVagas', 'inscritos', 'listaEspera'));
+    }
+
+    public function inscritos(EventoCurso $evento): View
+    {
+        $this->authorize('view', $evento);
+        $evento->load('curso');
+        $inscritos = $this->eventoCursoService->inscritos($evento);
+
+        return view('admin.eventos.inscritos', compact('evento', 'inscritos'));
     }
 
     public function edit(EventoCurso $evento): View

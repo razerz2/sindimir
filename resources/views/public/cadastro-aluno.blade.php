@@ -8,9 +8,15 @@
         <p class="section-subtitle">
             Preencha os dados abaixo para concluir seu cadastro e seguir com a inscrição.
         </p>
+        @if (session('status'))
+            <div class="card" style="margin-bottom: 16px;">
+                <p>{{ session('status') }}</p>
+            </div>
+        @endif
         <div class="content-card card">
             <form action="{{ route('public.cadastro.store') }}" method="POST" class="space-y-8 form">
                 @csrf
+                <input type="hidden" name="evento_curso_id" value="{{ old('evento_curso_id', request('evento_curso_id')) }}">
                 <div>
                     <h3 class="text-base font-semibold">Identificacao e vinculo</h3>
                     <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">

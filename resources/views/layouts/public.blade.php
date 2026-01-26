@@ -241,5 +241,6 @@
             @yield('content')
         @endif
         @yield('footer')
+        @include('partials.dialog')
     </body>
 </html>

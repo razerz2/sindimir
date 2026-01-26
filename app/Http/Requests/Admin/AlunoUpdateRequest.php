@@ -10,12 +10,15 @@ use App\Enums\Sexo;
 use App\Enums\SimNaoNaoDeclarada;
 use App\Enums\SituacaoParticipante;
 use App\Enums\TipoEntidadeOrigem;
+use App\Http\Requests\Concerns\NormalizesCpf;
 use App\Models\Aluno;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class AlunoUpdateRequest extends FormRequest
 {
+    use NormalizesCpf;
+
     public function authorize(): bool
     {
         $aluno = $this->route('aluno');
@@ -88,6 +91,7 @@ class AlunoUpdateRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
+            'cpf' => $this->normalizeCpf($this->input('cpf')),
             'estuda' => $this->boolean('estuda'),
             'trabalha' => $this->boolean('trabalha'),
             'recebe_bolsa_familia' => $this->boolean('recebe_bolsa_familia'),
