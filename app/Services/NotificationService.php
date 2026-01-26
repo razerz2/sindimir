@@ -468,10 +468,6 @@ class NotificationService
             $mensagem = $this->replaceMessageLinks($mensagem, $linkUrl);
         }
 
-        if ($notificationType === NotificationType::MATRICULA_CONFIRMADA) {
-            $mensagem = $this->normalizeMatriculaLink($mensagem);
-        }
-
         return $mensagem;
     }
 
@@ -505,22 +501,15 @@ class NotificationService
 
     private function replaceMessageLinks(string $mensagem, string $linkUrl): string
     {
-        $mensagem = preg_replace('/https?:\/\/\S+/i', $linkUrl, $mensagem);
-
-        return str_replace(
-            ['/inscricao/token/', '/inscricao/confirmar/', '/matricula/'],
-            $linkUrl,
-            $mensagem
-        );
-    }
-
-    private function normalizeMatriculaLink(string $mensagem): string
-    {
-        if ($mensagem === '' || ! str_contains($mensagem, '/inscricao/token/')) {
+        if ($mensagem === '') {
             return $mensagem;
         }
 
-        return str_replace('/inscricao/token/', '/matricula/', $mensagem);
+        if (! preg_match('/https?:\/\/\S+/i', $mensagem)) {
+            return $mensagem;
+        }
+
+        return preg_replace('/https?:\/\/\S+/i', $linkUrl, $mensagem);
     }
 
     private function getTemplate(NotificationType $type, string $canal): ?NotificationTemplate
