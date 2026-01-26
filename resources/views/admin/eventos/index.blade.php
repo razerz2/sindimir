@@ -60,7 +60,8 @@
                                     </svg>
                                     <span>Editar</span>
                                 </a>
-                                <form action="{{ route('admin.eventos.destroy', $evento) }}" method="POST" style="display:inline">
+                                <form action="{{ route('admin.eventos.destroy', $evento) }}" method="POST" style="display:inline"
+                                    data-confirm="Deseja realmente excluir este evento? Esta ação é irreversível.">
                                     @csrf
                                     @method('DELETE')
                                     <button class="btn btn-danger" type="submit">

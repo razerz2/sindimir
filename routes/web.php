@@ -42,6 +42,16 @@ Route::get('/inscricao/token/{token}', [\App\Http\Controllers\Public\InscricaoCo
     ->name('public.inscricao.token');
 Route::get('/inscricao/confirmar/{token}', [\App\Http\Controllers\Public\InscricaoController::class, 'confirmarInscricao'])
     ->name('public.inscricao.confirmar');
+Route::post('/inscricao/confirmar/{token}/sim', [\App\Http\Controllers\Public\InscricaoController::class, 'confirmarInscricaoSim'])
+    ->name('public.inscricao.confirmar.sim');
+Route::post('/inscricao/confirmar/{token}/nao', [\App\Http\Controllers\Public\InscricaoController::class, 'cancelarInscricaoNao'])
+    ->name('public.inscricao.confirmar.nao');
+Route::get('/inscricao/cancelada/{token}', [\App\Http\Controllers\Public\InscricaoController::class, 'cancelarInscricaoPagina'])
+    ->name('public.inscricao.cancelada');
+Route::get('/matricula/{token}', [\App\Http\Controllers\Public\InscricaoController::class, 'visualizarMatricula'])
+    ->name('public.matricula.visualizar');
+Route::post('/matricula/{token}/cancelar', [\App\Http\Controllers\Public\InscricaoController::class, 'cancelarMatriculaPublica'])
+    ->name('public.matricula.cancelar');
 
 Route::get('/catalogos/estados/{estado}/municipios', [MunicipioController::class, 'byEstado'])
     ->name('public.catalogo.estados.municipios');

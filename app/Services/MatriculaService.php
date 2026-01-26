@@ -9,6 +9,7 @@ use App\Models\Aluno;
 use App\Models\EventoCurso;
 use App\Models\ListaEspera;
 use App\Models\Matricula;
+use App\Models\NotificationLog;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -25,9 +26,13 @@ class MatriculaService
     /**
      * @return array{tipo: string, registro: Matricula|ListaEspera}
      */
-    public function solicitarInscricao(int $alunoId, int $eventoCursoId): array
+    public function solicitarInscricao(
+        int $alunoId,
+        int $eventoCursoId,
+        bool $enviarConfirmacaoNotificacao = true
+    ): array
     {
-        return DB::transaction(function () use ($alunoId, $eventoCursoId) {
+        return DB::transaction(function () use ($alunoId, $eventoCursoId, $enviarConfirmacaoNotificacao) {
             $evento = EventoCurso::query()
                 ->with('curso')
                 ->lockForUpdate()
@@ -102,15 +107,24 @@ class MatriculaService
                     'notificacao.auto.inscricao_confirmacao.tempo_limite_horas',
                     24
                 );
+                $diasAntesConfirmacao = (int) $this->configuracaoService->get(
+                    'notificacao.auto.inscricao_confirmacao.dias_antes',
+                    0
+                );
+                $enviarConfirmacaoAgora = $this->deveEnviarConfirmacaoAgora($evento, $diasAntesConfirmacao);
 
                 $matricula = Matricula::create([
                     'aluno_id' => $alunoId,
                     'evento_curso_id' => $eventoCursoId,
                     'status' => StatusMatricula::Pendente,
-                    'data_expiracao' => CarbonImmutable::now()->addHours(max(1, $tempoLimiteHoras)),
+                    'data_expiracao' => $enviarConfirmacaoAgora
+                        ? CarbonImmutable::now()->addHours(max(1, $tempoLimiteHoras))
+                        : null,
                 ]);
 
-                $this->notificarConfirmacaoInscricao($matricula, $evento, $tempoLimiteHoras);
+                if ($enviarConfirmacaoAgora && $enviarConfirmacaoNotificacao) {
+                    $this->notificarConfirmacaoInscricao($matricula, $evento, $tempoLimiteHoras);
+                }
 
                 return [
                     'tipo' => 'matricula',
@@ -381,6 +395,60 @@ class MatriculaService
         return $totalExpiradas;
     }
 
+    public function enviarConfirmacoesAgendadas(): int
+    {
+        $diasAntes = (int) $this->configuracaoService->get(
+            'notificacao.auto.inscricao_confirmacao.dias_antes',
+            0
+        );
+        if ($diasAntes <= 0) {
+            return 0;
+        }
+
+        $autoAtivo = (bool) $this->configuracaoService->get('notificacao.auto.inscricao_confirmacao.ativo', true);
+        if (! $autoAtivo) {
+            return 0;
+        }
+
+        $dataAlvo = CarbonImmutable::now()->addDays($diasAntes)->startOfDay();
+        $limite = $dataAlvo->endOfDay();
+        $tempoLimiteHoras = (int) $this->configuracaoService->get(
+            'notificacao.auto.inscricao_confirmacao.tempo_limite_horas',
+            24
+        );
+
+        $eventos = EventoCurso::query()
+            ->with([
+                'curso',
+                'matriculas' => function ($query) {
+                    $query->where('status', StatusMatricula::Pendente)
+                        ->with('aluno');
+                },
+            ])
+            ->whereBetween('data_inicio', [$dataAlvo, $limite])
+            ->where('ativo', true)
+            ->get();
+
+        $notificacoes = 0;
+
+        foreach ($eventos as $evento) {
+            foreach ($evento->matriculas as $matricula) {
+                if (! $matricula->aluno) {
+                    continue;
+                }
+
+                if ($this->confirmacaoJaEnviada($matricula, $evento)) {
+                    continue;
+                }
+
+                $this->notificarConfirmacaoInscricao($matricula, $evento, $tempoLimiteHoras);
+                $notificacoes++;
+            }
+        }
+
+        return $notificacoes;
+    }
+
     public function chamarListaEspera(EventoCurso $evento): int
     {
         return DB::transaction(function () use ($evento) {
@@ -553,6 +621,10 @@ class MatriculaService
             return;
         }
 
+        $matricula->update([
+            'data_expiracao' => CarbonImmutable::now()->addHours(max(1, $tempoLimiteHoras)),
+        ]);
+
         $aluno = Aluno::query()->find($matricula->aluno_id);
 
         if (! $aluno) {
@@ -571,6 +643,31 @@ class MatriculaService
             $whatsappAtivo,
             $validadeMinutos
         );
+    }
+
+    private function deveEnviarConfirmacaoAgora(EventoCurso $evento, int $diasAntes): bool
+    {
+        if ($diasAntes <= 0) {
+            return true;
+        }
+
+        if (! $evento->data_inicio) {
+            return true;
+        }
+
+        $limite = CarbonImmutable::now()->addDays($diasAntes)->endOfDay();
+
+        return $evento->data_inicio->endOfDay()->lessThanOrEqualTo($limite);
+    }
+
+    private function confirmacaoJaEnviada(Matricula $matricula, EventoCurso $evento): bool
+    {
+        return NotificationLog::query()
+            ->where('aluno_id', $matricula->aluno_id)
+            ->where('evento_curso_id', $evento->id)
+            ->where('notification_type', NotificationType::INSCRICAO_CONFIRMAR->value)
+            ->where('status', 'success')
+            ->exists();
     }
 
     private function notificarMatriculaConfirmada(Matricula $matricula, EventoCurso $evento): void

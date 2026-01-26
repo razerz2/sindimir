@@ -67,6 +67,7 @@ class NotificacoesExport
             NotificationType::EVENTO_CRIADO->value => 'Evento criado',
             NotificationType::EVENTO_CANCELADO->value => 'Evento cancelado',
             NotificationType::INSCRICAO_CONFIRMAR->value => 'Confirmacao de inscricao',
+            NotificationType::INSCRICAO_CANCELADA->value => 'Inscricao cancelada',
             NotificationType::CURSO_DISPONIVEL->value => 'Curso disponivel',
             NotificationType::VAGA_ABERTA->value => 'Vaga aberta',
             NotificationType::LEMBRETE_CURSO->value => 'Lembrete de curso',

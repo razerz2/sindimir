@@ -75,6 +75,6 @@ class PublicInscricaoService
      */
     public function inscreverAlunoNoEvento(Aluno $aluno, int $eventoCursoId): array
     {
-        return $this->matriculaService->solicitarInscricao($aluno->id, $eventoCursoId);
+        return $this->matriculaService->solicitarInscricao($aluno->id, $eventoCursoId, false);
     }
 }

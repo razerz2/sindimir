@@ -226,6 +226,7 @@
                             ],
                         ];
                     })->toArray();
+                    $templatePayload = array_replace_recursive($templateDefaults ?? [], $templatePayload);
                 @endphp
 
                 <div class="mt-6 space-y-4" x-data="templateEditor({{ json_encode($templatePayload) }})">
@@ -248,6 +249,7 @@
                                 <option value="EVENTO_CRIADO">Evento criado</option>
                                 <option value="EVENTO_CANCELADO">Evento cancelado</option>
                                 <option value="INSCRICAO_CONFIRMAR">Confirmacao de inscricao</option>
+                                <option value="INSCRICAO_CANCELADA">Inscricao cancelada</option>
                                 <option value="CURSO_DISPONIVEL">Curso disponível</option>
                                 <option value="VAGA_ABERTA">Vaga aberta</option>
                                 <option value="LEMBRETE_CURSO">Lembrete de curso</option>
@@ -316,7 +318,9 @@
                         <p class="mt-3 text-xs text-slate-500">
                             Variáveis disponíveis: <code>@{{aluno_nome}}</code>,
                             <code>@{{curso_nome}}</code>, <code>@{{datas}}</code>,
-                            <code>@{{vagas}}</code>, <code>@{{link}}</code>.
+                            <code>@{{horario}}</code>, <code>@{{carga_horaria}}</code>,
+                            <code>@{{turno}}</code>, <code>@{{vagas}}</code>,
+                            <code>@{{link}}</code>.
                         </p>
                         <div class="mt-4 flex items-center justify-between">
                             @if (session('status'))
@@ -548,6 +552,13 @@
                                 name="auto_confirmacao_whatsapp"
                                 label="WhatsApp"
                                 :checked="$settings['auto_confirmacao_whatsapp'] ?? false"
+                            />
+                            <x-admin.input
+                                id="auto_confirmacao_dias_antes"
+                                name="auto_confirmacao_dias_antes"
+                                label="Dias antes do evento"
+                                type="number"
+                                :value="$settings['auto_confirmacao_dias_antes'] ?? 0"
                             />
                             <x-admin.input
                                 id="auto_confirmacao_tempo_limite"

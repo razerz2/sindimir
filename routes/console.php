@@ -19,6 +19,10 @@ app()->booted(function () {
     })->hourly()->name('matriculas:expirar');
 
     $schedule->call(function (MatriculaService $matriculaService) {
+        $matriculaService->enviarConfirmacoesAgendadas();
+    })->dailyAt(config('app.scheduler.lembrete_horario'))->name('confirmacoes:enviar');
+
+    $schedule->call(function (MatriculaService $matriculaService) {
         EventoCurso::query()
             ->where('ativo', true)
             ->each(function (EventoCurso $evento) use ($matriculaService) {
