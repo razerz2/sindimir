@@ -41,7 +41,7 @@
                             <select id="sexo" name="sexo" class="input w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40">
                                 <option value="">Não informado</option>
                                 @foreach ($selects['sexo'] as $sexo)
-                                    <option value="{{ $sexo->value }}" {{ old('sexo') === $sexo->value ? 'selected' : '' }}>
+                                    <option value="{{ $sexo->value }}" {{ old('sexo') == $sexo->value ? 'selected' : '' }}>
                                         {{ ucfirst(str_replace('_', ' ', $sexo->value)) }}
                                     </option>
                                 @endforeach
@@ -131,7 +131,7 @@
                             <select id="estado_civil" name="estado_civil" class="input w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40">
                                 <option value="">Não informado</option>
                                 @foreach ($selects['estado_civil'] as $estado)
-                                    <option value="{{ $estado->value }}" {{ old('estado_civil') === $estado->value ? 'selected' : '' }}>
+                                    <option value="{{ $estado->value }}" {{ old('estado_civil') == $estado->value ? 'selected' : '' }}>
                                         {{ ucfirst(str_replace('_', ' ', $estado->value)) }}
                                     </option>
                                 @endforeach
@@ -142,7 +142,7 @@
                             <select id="raca_cor" name="raca_cor" class="input w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40">
                                 <option value="">Não informado</option>
                                 @foreach ($selects['raca_cor'] as $raca)
-                                    <option value="{{ $raca->value }}" {{ old('raca_cor') === $raca->value ? 'selected' : '' }}>
+                                    <option value="{{ $raca->value }}" {{ old('raca_cor') == $raca->value ? 'selected' : '' }}>
                                         {{ ucfirst(str_replace('_', ' ', $raca->value)) }}
                                     </option>
                                 @endforeach
@@ -153,7 +153,7 @@
                             <select id="escolaridade" name="escolaridade" class="input w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40">
                                 <option value="">Não informado</option>
                                 @foreach ($selects['escolaridade'] as $escolaridade)
-                                    <option value="{{ $escolaridade->value }}" {{ old('escolaridade') === $escolaridade->value ? 'selected' : '' }}>
+                                    <option value="{{ $escolaridade->value }}" {{ old('escolaridade') == $escolaridade->value ? 'selected' : '' }}>
                                         {{ ucfirst(str_replace('_', ' ', $escolaridade->value)) }}
                                     </option>
                                 @endforeach
@@ -164,7 +164,7 @@
                             <select id="renda_familiar" name="renda_familiar" class="input w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40">
                                 <option value="">Não informado</option>
                                 @foreach ($selects['renda_familiar'] as $renda)
-                                    <option value="{{ $renda->value }}" {{ old('renda_familiar') === $renda->value ? 'selected' : '' }}>
+                                    <option value="{{ $renda->value }}" {{ old('renda_familiar') == $renda->value ? 'selected' : '' }}>
                                         {{ ucfirst(str_replace('_', ' ', $renda->value)) }}
                                     </option>
                                 @endforeach
@@ -174,16 +174,16 @@
                             <label for="estuda" class="text-sm font-semibold text-[var(--content-text)]">Estuda?</label>
                             <select id="estuda" name="estuda" class="input w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40">
                                 <option value="">Não informado</option>
-                                <option value="1" {{ old('estuda') === '1' ? 'selected' : '' }}>Sim</option>
-                                <option value="0" {{ old('estuda') === '0' ? 'selected' : '' }}>Não</option>
+                                <option value="1" {{ old('estuda') == '1' ? 'selected' : '' }}>Sim</option>
+                                <option value="0" {{ old('estuda') == '0' ? 'selected' : '' }}>Não</option>
                             </select>
                         </div>
                         <div class="flex flex-col gap-2">
                             <label for="trabalha" class="text-sm font-semibold text-[var(--content-text)]">Trabalha?</label>
                             <select id="trabalha" name="trabalha" class="input w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40">
                                 <option value="">Não informado</option>
-                                <option value="1" {{ old('trabalha') === '1' ? 'selected' : '' }}>Sim</option>
-                                <option value="0" {{ old('trabalha') === '0' ? 'selected' : '' }}>Não</option>
+                                <option value="1" {{ old('trabalha') == '1' ? 'selected' : '' }}>Sim</option>
+                                <option value="0" {{ old('trabalha') == '0' ? 'selected' : '' }}>Não</option>
                             </select>
                         </div>
                         <div class="flex flex-col gap-2 lg:col-span-2">
@@ -191,7 +191,7 @@
                             <select id="situacao_participante" name="situacao_participante" class="input w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40">
                                 <option value="">Não informado</option>
                                 @foreach ($selects['situacao_participante'] as $situacao)
-                                    <option value="{{ $situacao->value }}" {{ old('situacao_participante') === $situacao->value ? 'selected' : '' }}>
+                                    <option value="{{ $situacao->value }}" {{ old('situacao_participante') == $situacao->value ? 'selected' : '' }}>
                                         {{ ucfirst(str_replace('_', ' ', $situacao->value)) }}
                                     </option>
                                 @endforeach
@@ -202,7 +202,7 @@
                             <select id="tipo_entidade_origem" name="tipo_entidade_origem" class="input w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40">
                                 <option value="">Não informado</option>
                                 @foreach ($selects['tipo_entidade_origem'] as $tipo)
-                                    <option value="{{ $tipo->value }}" {{ old('tipo_entidade_origem') === $tipo->value ? 'selected' : '' }}>
+                                    <option value="{{ $tipo->value }}" {{ old('tipo_entidade_origem') == $tipo->value ? 'selected' : '' }}>
                                         {{ ucfirst(str_replace('_', ' ', $tipo->value)) }}
                                     </option>
                                 @endforeach
@@ -222,16 +222,16 @@
                             <label for="recebe_bolsa_familia" class="text-sm font-semibold text-[var(--content-text)]">Recebe Bolsa Familia?</label>
                             <select id="recebe_bolsa_familia" name="recebe_bolsa_familia" class="input w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40">
                                 <option value="">Não informado</option>
-                                <option value="1" {{ old('recebe_bolsa_familia') === '1' ? 'selected' : '' }}>Sim</option>
-                                <option value="0" {{ old('recebe_bolsa_familia') === '0' ? 'selected' : '' }}>Não</option>
+                                <option value="1" {{ old('recebe_bolsa_familia') == '1' ? 'selected' : '' }}>Sim</option>
+                                <option value="0" {{ old('recebe_bolsa_familia') == '0' ? 'selected' : '' }}>Não</option>
                             </select>
                         </div>
                         <div class="flex flex-col gap-2">
                             <label for="responsavel_menor" class="text-sm font-semibold text-[var(--content-text)]">Responsavel por menor?</label>
                             <select id="responsavel_menor" name="responsavel_menor" class="input w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40">
                                 <option value="">Não informado</option>
-                                <option value="1" {{ old('responsavel_menor') === '1' ? 'selected' : '' }}>Sim</option>
-                                <option value="0" {{ old('responsavel_menor') === '0' ? 'selected' : '' }}>Não</option>
+                                <option value="1" {{ old('responsavel_menor') == '1' ? 'selected' : '' }}>Sim</option>
+                                <option value="0" {{ old('responsavel_menor') == '0' ? 'selected' : '' }}>Não</option>
                             </select>
                         </div>
                         <div class="flex flex-col gap-2">
@@ -242,8 +242,8 @@
                             <label for="tem_com_quem_deixar_menores" class="text-sm font-semibold text-[var(--content-text)]">Tem com quem deixar os menores?</label>
                             <select id="tem_com_quem_deixar_menores" name="tem_com_quem_deixar_menores" class="input w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40">
                                 <option value="">Não informado</option>
-                                <option value="1" {{ old('tem_com_quem_deixar_menores') === '1' ? 'selected' : '' }}>Sim</option>
-                                <option value="0" {{ old('tem_com_quem_deixar_menores') === '0' ? 'selected' : '' }}>Não</option>
+                                <option value="1" {{ old('tem_com_quem_deixar_menores') == '1' ? 'selected' : '' }}>Sim</option>
+                                <option value="0" {{ old('tem_com_quem_deixar_menores') == '0' ? 'selected' : '' }}>Não</option>
                             </select>
                         </div>
                     </div>
@@ -257,7 +257,7 @@
                             <select id="possui_deficiencia" name="possui_deficiencia" class="input w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40">
                                 <option value="">Não informado</option>
                                 @foreach ($selects['possui_deficiencia'] as $opcao)
-                                    <option value="{{ $opcao->value }}" {{ old('possui_deficiencia') === $opcao->value ? 'selected' : '' }}>
+                                    <option value="{{ $opcao->value }}" {{ old('possui_deficiencia') == $opcao->value ? 'selected' : '' }}>
                                         {{ ucfirst(str_replace('_', ' ', $opcao->value)) }}
                                     </option>
                                 @endforeach

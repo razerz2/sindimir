@@ -102,7 +102,7 @@ class AlunoController extends Controller
         $estadoSelecionadoId = $aluno?->estado_residencia_id;
         $estados = Estado::query()
             ->where('ativo', true)
-            ->when($estadoSelecionadoId, fn ($query) => $query->orWhereKey($estadoSelecionadoId))
+            ->when($estadoSelecionadoId, fn ($query) => $query->orWhere('id', $estadoSelecionadoId))
             ->orderBy('nome')
             ->get(['id', 'nome', 'uf']);
 

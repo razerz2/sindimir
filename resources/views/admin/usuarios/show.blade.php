@@ -46,7 +46,7 @@
         </div>
 
         <div class="mt-6 flex flex-wrap gap-2">
-            <a class="btn btn-primary" href="{{ route('admin.usuarios.edit', $user) }}">
+            <a class="btn btn-primary" href="{{ route('admin.usuarios.edit', ['usuario' => $user->getRouteKey() ?? request()->route('usuario')]) }}">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 21h4.5L19.75 9.75l-4.5-4.5L4 16.5V21z" />
                     <path stroke-linecap="round" stroke-linejoin="round" d="M14.5 5.5l4 4" />
@@ -54,7 +54,7 @@
                 <span>Editar</span>
             </a>
             <a class="btn btn-ghost" href="{{ route('admin.usuarios.index') }}">Voltar</a>
-            <form action="{{ route('admin.usuarios.destroy', $user) }}" method="POST" class="inline-block">
+            <form action="{{ route('admin.usuarios.destroy', ['usuario' => $user->getRouteKey() ?? request()->route('usuario')]) }}" method="POST" class="inline-block">
                 @csrf
                 @method('DELETE')
                 <button class="btn btn-danger" type="submit">

@@ -62,7 +62,15 @@ class InscricaoController extends Controller
             $aluno = $resultado['aluno'];
             $input = collect($aluno->getFillable())
                 ->reject(fn (string $campo) => $campo === 'user_id')
-                ->mapWithKeys(fn (string $campo) => [$campo => $aluno->getAttribute($campo)])
+                ->mapWithKeys(function (string $campo) use ($aluno) {
+                    $valor = $aluno->getAttribute($campo);
+
+                    if ($valor instanceof \BackedEnum) {
+                        $valor = $valor->value;
+                    }
+
+                    return [$campo => $valor];
+                })
                 ->all();
 
             $input['cpf'] = $aluno->cpf;
@@ -158,7 +166,15 @@ class InscricaoController extends Controller
             $aluno = $link->aluno;
             $input = collect($aluno->getFillable())
                 ->reject(fn (string $campo) => $campo === 'user_id')
-                ->mapWithKeys(fn (string $campo) => [$campo => $aluno->getAttribute($campo)])
+                ->mapWithKeys(function (string $campo) use ($aluno) {
+                    $valor = $aluno->getAttribute($campo);
+
+                    if ($valor instanceof \BackedEnum) {
+                        $valor = $valor->value;
+                    }
+
+                    return [$campo => $valor];
+                })
                 ->all();
 
             $input['cpf'] = $aluno->cpf;
