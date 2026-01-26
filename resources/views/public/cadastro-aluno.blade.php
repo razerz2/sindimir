@@ -289,7 +289,13 @@
 
                 <input type="hidden" id="municipios_fetch_url" value="{{ route('public.catalogo.estados.municipios', ['estado' => 'STATE_ID']) }}">
 
-                <button type="submit" class="btn primary">Finalizar cadastro</button>
+                @php
+                    $temEventoCurso = old('evento_curso_id', request('evento_curso_id')) !== null
+                        && old('evento_curso_id', request('evento_curso_id')) !== '';
+                @endphp
+                <button type="submit" class="btn primary">
+                    {{ $temEventoCurso ? 'Finalizar inscrição' : 'Finalizar cadastro' }}
+                </button>
             </form>
         </div>
     </section>
