@@ -132,6 +132,11 @@ class WhatsAppService
             throw new RuntimeException('Configuração Z-API incompleta.' . $details);
         }
 
+        $linkUrl = $this->extractLinkUrl($message);
+        $endpoint = $linkUrl
+            ? "{$baseUrl}/instances/{$instance}/token/{$token}/send-link"
+            : "{$baseUrl}/instances/{$instance}/token/{$token}/send-text";
+
         $http = Http::withHeaders([
             'Client-Token' => $clientToken,
             'Content-Type' => 'application/json',
@@ -141,13 +146,22 @@ class WhatsAppService
             $http = $http->withoutVerifying();
         }
 
-        $response = $http->post(
-            "{$baseUrl}/instances/{$instance}/token/{$token}/send-text",
-            [
-                'phone' => $to,
-                'message' => $message,
-            ]
-        );
+        $payload = [
+            'phone' => $to,
+            'message' => $message,
+        ];
+
+        if ($linkUrl) {
+            $payload['linkUrl'] = $linkUrl;
+            $payload['title'] = (string) ($this->configuracaoService->get('sistema.nome') ?? config('app.name'));
+            $payload['linkDescription'] = 'Acesse o link para mais detalhes.';
+            $logoPath = (string) ($this->configuracaoService->get('tema.logo') ?? '');
+            if ($logoPath !== '') {
+                $payload['image'] = url($logoPath);
+            }
+        }
+
+        $response = $http->post($endpoint, $payload);
 
         if (! $response->successful()) {
             throw new RuntimeException('Falha ao enviar WhatsApp via Z-API.');
@@ -206,5 +220,14 @@ class WhatsAppService
             'provider' => 'meta',
             'response' => $response->json() ?? ['body' => $response->body()],
         ];
+    }
+
+    private function extractLinkUrl(string $message): ?string
+    {
+        if (preg_match('~https?://\S+~i', $message, $match) !== 1) {
+            return null;
+        }
+
+        return $match[0];
     }
 }

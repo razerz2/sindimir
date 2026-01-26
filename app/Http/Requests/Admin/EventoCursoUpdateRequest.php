@@ -25,6 +25,8 @@ class EventoCursoUpdateRequest extends FormRequest
             'numero_evento' => ['required', 'string', 'max:255'],
             'data_inicio' => ['required', 'date'],
             'data_fim' => ['required', 'date', 'after_or_equal:data_inicio'],
+            'horario_inicio' => ['nullable', 'date_format:H:i'],
+            'horario_fim' => ['nullable', 'date_format:H:i'],
             'carga_horaria' => ['required', 'integer', 'min:0'],
             'municipio' => ['required', 'string', 'max:255'],
             'local_realizacao' => ['required', 'string', 'max:255'],

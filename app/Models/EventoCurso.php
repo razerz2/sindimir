@@ -21,6 +21,8 @@ class EventoCurso extends Model
         'numero_evento',
         'data_inicio',
         'data_fim',
+        'horario_inicio',
+        'horario_fim',
         'carga_horaria',
         'municipio',
         'local_realizacao',

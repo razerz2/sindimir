@@ -40,10 +40,10 @@ class NotificationService
             : "Convite para {$curso->nome}";
         $corpoEmail = $emailTemplate
             ? $this->renderTemplate($emailTemplate->conteudo, $context)
-            : $this->buildFallbackMessage($aluno, $curso, $linkUrl, $datas, $vagasDisponiveis, $notificationType);
+            : $this->buildFallbackMessage($aluno, $curso, null, $linkUrl, $datas, $vagasDisponiveis, $notificationType);
         $textoWhatsApp = $whatsappTemplate
             ? $this->renderTemplate($whatsappTemplate->conteudo, $context)
-            : $this->buildFallbackMessage($aluno, $curso, $linkUrl, $datas, $vagasDisponiveis, $notificationType);
+            : $this->buildFallbackMessage($aluno, $curso, null, $linkUrl, $datas, $vagasDisponiveis, $notificationType);
 
         return [
             'assunto_email' => $assunto,
@@ -94,10 +94,10 @@ class NotificationService
                 : "Convite para {$curso->nome}";
         $mensagemEmail = $emailTemplate
             ? $this->renderTemplate($emailTemplate->conteudo, $context)
-            : $this->buildFallbackMessage($aluno, $curso, $linkUrl, $datas, $vagasDisponiveis, $notificationType);
+            : $this->buildFallbackMessage($aluno, $curso, $destinoEvento, $linkUrl, $datas, $vagasDisponiveis, $notificationType);
         $mensagemWhatsApp = $whatsappTemplate
             ? $this->renderTemplate($whatsappTemplate->conteudo, $context)
-            : $this->buildFallbackMessage($aluno, $curso, $linkUrl, $datas, $vagasDisponiveis, $notificationType);
+            : $this->buildFallbackMessage($aluno, $curso, $destinoEvento, $linkUrl, $datas, $vagasDisponiveis, $notificationType);
 
             if ($emailAtivo) {
                 if (! $this->isValidEmail($aluno->email)) {
@@ -187,17 +187,31 @@ class NotificationService
     private function buildFallbackMessage(
         Aluno $aluno,
         Curso $curso,
+        ?EventoCurso $evento,
         string $linkUrl,
         string $datas,
         int $vagasDisponiveis,
         NotificationType $notificationType
     ): string {
+        $detalhesEvento = [];
+        if ($evento?->horario_inicio) {
+            $detalhesEvento[] = 'Horario: ' . $this->formatHorario($evento->horario_inicio);
+        }
+        if ($evento?->carga_horaria) {
+            $detalhesEvento[] = "Carga horaria: {$evento->carga_horaria}";
+        }
+        if ($evento?->turno?->value) {
+            $turno = ucfirst(str_replace('_', ' ', $evento->turno->value));
+            $detalhesEvento[] = "Turno: {$turno}";
+        }
+
         $linhas = match ($notificationType) {
             NotificationType::EVENTO_CANCELADO => [
                 "Olá {$aluno->nome_completo},",
                 '',
                 "O evento do curso {$curso->nome} foi cancelado.",
                 "Datas: {$datas}",
+                ...$detalhesEvento,
                 '',
                 "Mais informações: {$linkUrl}",
             ],
@@ -206,6 +220,7 @@ class NotificationService
                 '',
                 "Sua inscrição no curso {$curso->nome} precisa ser confirmada.",
                 "Datas: {$datas}",
+                ...$detalhesEvento,
                 '',
                 "Confirme sua participação: {$linkUrl}",
             ],
@@ -214,6 +229,7 @@ class NotificationService
                 '',
                 "Uma vaga foi liberada para o curso {$curso->nome}.",
                 "Datas: {$datas}",
+                ...$detalhesEvento,
                 '',
                 "Garanta sua vaga: {$linkUrl}",
             ],
@@ -222,6 +238,7 @@ class NotificationService
                 '',
                 "Sua matrícula no curso {$curso->nome} foi confirmada.",
                 "Datas: {$datas}",
+                ...$detalhesEvento,
                 '',
                 "Acompanhe pelo sistema: {$linkUrl}",
             ],
@@ -230,6 +247,7 @@ class NotificationService
                 '',
                 "Curso: {$curso->nome}",
                 "Datas: {$datas}",
+                ...$detalhesEvento,
                 "Vagas disponíveis: {$vagasDisponiveis}",
                 '',
                 "Garanta sua vaga: {$linkUrl}",
@@ -237,6 +255,16 @@ class NotificationService
         };
 
         return implode(PHP_EOL, array_filter($linhas));
+    }
+
+    private function formatHorario(string $horario): string
+    {
+        $horario = trim($horario);
+        if ($horario === '') {
+            return '';
+        }
+
+        return strlen($horario) >= 5 ? substr($horario, 0, 5) : $horario;
     }
 
     /**
@@ -264,7 +292,9 @@ class NotificationService
             ? 'public.inscricao.confirmar'
             : 'public.inscricao.token';
 
-        return route($route, ['token' => $link->token]);
+        $path = route($route, ['token' => $link->token], false);
+
+        return $this->buildAbsoluteUrl($path);
     }
 
     /**
@@ -279,6 +309,14 @@ class NotificationService
             '{{vagas}}' => (string) $vagasDisponiveis,
             '{{link}}' => $linkUrl,
         ];
+    }
+
+    private function buildAbsoluteUrl(string $path): string
+    {
+        $baseUrl = rtrim((string) config('app.url'), '/');
+        $path = '/' . ltrim($path, '/');
+
+        return $baseUrl . $path;
     }
 
     private function getTemplate(NotificationType $type, string $canal): ?NotificationTemplate

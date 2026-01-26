@@ -139,6 +139,7 @@ class InscricaoController extends Controller
     {
         $link = NotificationLink::query()
             ->where('token', $token)
+            ->with('aluno.deficiencias')
             ->first();
 
         if (! $link || ! $link->isValid()) {
@@ -147,12 +148,32 @@ class InscricaoController extends Controller
                 ->with('status', 'Link de inscrição inválido ou expirado.');
         }
 
+        $routeParams = [
+            'token' => $link->token,
+            'curso_id' => $link->curso_id,
+            'evento_curso_id' => $link->evento_curso_id,
+        ];
+
+        if ($link->aluno) {
+            $aluno = $link->aluno;
+            $input = collect($aluno->getFillable())
+                ->reject(fn (string $campo) => $campo === 'user_id')
+                ->mapWithKeys(fn (string $campo) => [$campo => $aluno->getAttribute($campo)])
+                ->all();
+
+            $input['cpf'] = $aluno->cpf;
+            $input['data_nascimento'] = $aluno->data_nascimento?->format('Y-m-d');
+            $input['deficiencias'] = $aluno->deficiencias()->pluck('deficiencias.id')->all();
+            $input['evento_curso_id'] = $link->evento_curso_id;
+
+            return redirect()
+                ->route('public.cadastro', $routeParams)
+                ->withInput($input)
+                ->with('status', 'Link válido! Confirme seus dados para garantir sua vaga.');
+        }
+
         return redirect()
-            ->route('public.cadastro', [
-                'token' => $link->token,
-                'curso_id' => $link->curso_id,
-                'evento_curso_id' => $link->evento_curso_id,
-            ])
+            ->route('public.cadastro', $routeParams)
             ->with('status', 'Link válido! Complete o cadastro para garantir sua vaga.');
     }
 

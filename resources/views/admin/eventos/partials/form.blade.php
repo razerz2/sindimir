@@ -46,6 +46,20 @@
             required
         />
         <x-admin.input
+            id="horario_inicio"
+            name="horario_inicio"
+            label="Horario de inicio"
+            type="time"
+            :value="$evento->horario_inicio ?? ''"
+        />
+        <x-admin.input
+            id="horario_fim"
+            name="horario_fim"
+            label="Horario de fim"
+            type="time"
+            :value="$evento->horario_fim ?? ''"
+        />
+        <x-admin.input
             id="carga_horaria"
             name="carga_horaria"
             label="Carga horaria"
