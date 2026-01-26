@@ -48,6 +48,8 @@ Route::post('/inscricao/confirmar/{token}/nao', [\App\Http\Controllers\Public\In
     ->name('public.inscricao.confirmar.nao');
 Route::get('/inscricao/cancelada/{token}', [\App\Http\Controllers\Public\InscricaoController::class, 'cancelarInscricaoPagina'])
     ->name('public.inscricao.cancelada');
+Route::get('/inscricao/realizada', [\App\Http\Controllers\Public\InscricaoController::class, 'inscricaoRealizada'])
+    ->name('public.inscricao.realizada');
 Route::get('/matricula/{token}', [\App\Http\Controllers\Public\InscricaoController::class, 'visualizarMatricula'])
     ->name('public.matricula.visualizar');
 Route::post('/matricula/{token}/cancelar', [\App\Http\Controllers\Public\InscricaoController::class, 'cancelarMatriculaPublica'])

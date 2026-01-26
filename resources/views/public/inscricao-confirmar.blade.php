@@ -1,4 +1,4 @@
-@extends('public.layouts.app')
+@extends('layouts.public')
 
 @section('title', 'Confirmar inscrição')
 
@@ -24,11 +24,11 @@
         <div style="display:flex; gap:12px; flex-wrap:wrap;">
             <form method="POST" action="{{ route('public.inscricao.confirmar.sim', ['token' => $token]) }}">
                 @csrf
-                <button type="submit">Sim, confirmar</button>
+                <button type="submit" class="btn primary">Sim, confirmar</button>
             </form>
             <form method="POST" action="{{ route('public.inscricao.confirmar.nao', ['token' => $token]) }}">
                 @csrf
-                <button type="submit">Não, cancelar</button>
+                <button type="submit" class="btn outline">Não, cancelar</button>
             </form>
         </div>
     </div>

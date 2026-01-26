@@ -1,4 +1,4 @@
-@extends('public.layouts.app')
+@extends('layouts.public')
 
 @section('title', 'Inscrição cancelada')
 

@@ -1,4 +1,4 @@
-@extends('public.layouts.app')
+@extends('layouts.public')
 
 @section('title', 'Matrícula confirmada')
 
@@ -32,7 +32,7 @@
             <p>Se precisar, você pode cancelar sua matrícula a qualquer momento.</p>
             <form method="POST" action="{{ route('public.matricula.cancelar', ['token' => request()->route('token')]) }}">
                 @csrf
-                <button type="submit">Cancelar matrícula</button>
+                <button type="submit" class="btn outline">Cancelar matrícula</button>
             </form>
         </div>
     @endif

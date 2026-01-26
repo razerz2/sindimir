@@ -146,11 +146,18 @@ class InscricaoController extends Controller
                             NotificationType::INSCRICAO_CONFIRMAR
                         );
 
-                        return redirect()
-                            ->route('public.inscricao.confirmar', ['token' => $link->token]);
+                        $this->notificationService->disparar(
+                            [$aluno],
+                            $evento,
+                            NotificationType::INSCRICAO_CONFIRMAR,
+                            false,
+                            true
+                        );
                     }
 
-                    $statusMessage = 'Inscrição realizada com sucesso.';
+                    return redirect()
+                        ->route('public.inscricao.realizada')
+                        ->with('status', 'Inscrição realizada com sucesso.');
                 }
             }
         } catch (RuntimeException $exception) {
@@ -511,6 +518,11 @@ class InscricaoController extends Controller
             : 'Data ainda não informada.';
 
         return view('public.inscricao-cancelada', compact('curso', 'datas'));
+    }
+
+    public function inscricaoRealizada(): View
+    {
+        return view('public.inscricao-realizada');
     }
 
     public function visualizarMatricula(string $token): View|RedirectResponse
