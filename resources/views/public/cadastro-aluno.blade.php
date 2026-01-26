@@ -4,9 +4,17 @@
 
 @section('content')
     <section class="section">
-        <h1 class="section-title">Cadastro de aluno</h1>
+        @php
+            $temEventoCurso = old('evento_curso_id', request('evento_curso_id')) !== null
+                && old('evento_curso_id', request('evento_curso_id')) !== '';
+        @endphp
+        <h1 class="section-title">
+            {{ $temEventoCurso ? 'Inscrição do aluno' : 'Cadastro de aluno' }}
+        </h1>
         <p class="section-subtitle">
-            Preencha os dados abaixo para concluir seu cadastro e seguir com a inscrição.
+            {{ $temEventoCurso
+                ? 'Preencha os dados abaixo para concluir sua inscrição.'
+                : 'Preencha os dados abaixo para concluir seu cadastro e seguir com a inscrição.' }}
         </p>
         @if (session('status'))
             <div class="card" style="margin-bottom: 16px;">
@@ -289,10 +297,6 @@
 
                 <input type="hidden" id="municipios_fetch_url" value="{{ route('public.catalogo.estados.municipios', ['estado' => 'STATE_ID']) }}">
 
-                @php
-                    $temEventoCurso = old('evento_curso_id', request('evento_curso_id')) !== null
-                        && old('evento_curso_id', request('evento_curso_id')) !== '';
-                @endphp
                 <button type="submit" class="btn primary">
                     {{ $temEventoCurso ? 'Finalizar inscrição' : 'Finalizar cadastro' }}
                 </button>
