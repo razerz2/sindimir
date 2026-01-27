@@ -185,6 +185,8 @@ Route::middleware(['auth', 'role:aluno'])
             ->name('dashboard');
         Route::get('/perfil', [\App\Http\Controllers\Aluno\AlunoAreaController::class, 'perfil'])
             ->name('perfil');
+        Route::put('/perfil', [\App\Http\Controllers\Aluno\AlunoAreaController::class, 'perfilUpdate'])
+            ->name('perfil.update');
         Route::get('/inscricoes', [\App\Http\Controllers\Aluno\AlunoAreaController::class, 'inscricoes'])
             ->name('inscricoes');
         Route::get('/historico', [\App\Http\Controllers\Aluno\AlunoAreaController::class, 'historico'])

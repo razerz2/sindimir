@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 
 class AlunoService
 {
-    public function create(array $data, array $deficiencias = [], ?string $descricaoDeficiencia = null): Aluno
+    public function create(array $data, ?array $deficiencias = null, ?string $descricaoDeficiencia = null): Aluno
     {
         return DB::transaction(function () use ($data, $deficiencias, $descricaoDeficiencia) {
             $aluno = Aluno::create($data);
@@ -17,7 +17,7 @@ class AlunoService
         });
     }
 
-    public function update(Aluno $aluno, array $data, array $deficiencias = [], ?string $descricaoDeficiencia = null): Aluno
+    public function update(Aluno $aluno, array $data, ?array $deficiencias = null, ?string $descricaoDeficiencia = null): Aluno
     {
         return DB::transaction(function () use ($aluno, $data, $deficiencias, $descricaoDeficiencia) {
             $aluno->update($data);
@@ -27,8 +27,12 @@ class AlunoService
         });
     }
 
-    private function syncDeficiencias(Aluno $aluno, array $deficiencias, ?string $descricaoDeficiencia): void
+    private function syncDeficiencias(Aluno $aluno, ?array $deficiencias, ?string $descricaoDeficiencia): void
     {
+        if ($deficiencias === null) {
+            return;
+        }
+
         if (empty($deficiencias)) {
             $aluno->deficiencias()->detach();
 

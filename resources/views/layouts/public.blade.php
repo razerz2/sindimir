@@ -58,6 +58,9 @@
             }
             .nav-brand img {
                 height: 38px;
+                width: 38px;
+                border-radius: 999px;
+                object-fit: cover;
             }
             .nav-links {
                 display: flex;
@@ -176,7 +179,17 @@
             @media (max-width: 720px) {
                 .navbar {
                     flex-direction: column;
-                    align-items: flex-start;
+                    align-items: center;
+                    gap: 16px;
+                }
+                .nav-brand {
+                    width: 100%;
+                    justify-content: flex-start;
+                }
+                .nav-links {
+                    width: 100%;
+                    justify-content: center;
+                    row-gap: 12px;
                 }
             }
         </style>

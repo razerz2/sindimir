@@ -1,9 +1,5 @@
 @php
     $aluno = $aluno ?? null;
-    $usuarioOptions = $usuarios->map(fn ($usuario) => [
-        'value' => $usuario->id,
-        'label' => "{$usuario->name} ({$usuario->email})",
-    ])->all();
     $sexoOptions = collect($selects['sexo'])->map(fn ($sexo) => [
         'value' => $sexo->value,
         'label' => ucfirst(str_replace('_', ' ', $sexo->value)),
@@ -53,15 +49,6 @@
     <div>
         <h3 class="text-base font-semibold">Identificacao e vinculo</h3>
         <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <x-admin.select
-                id="user_id"
-                name="user_id"
-                label="Usuario vinculado"
-                :options="$usuarioOptions"
-                :selected="$aluno->user_id ?? null"
-                placeholder="Sem vinculo"
-                wrapper-class="lg:col-span-2"
-            />
             <x-admin.input
                 id="cpf"
                 name="cpf"
@@ -364,7 +351,7 @@
     </div>
 </div>
 
-<input type="hidden" id="municipios_fetch_url" value="{{ route('admin.catalogo.estados.municipios', ['estado' => 'STATE_ID']) }}">
+<input type="hidden" id="municipios_fetch_url" value="{{ route('public.catalogo.estados.municipios', ['estado' => 'STATE_ID']) }}">
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {

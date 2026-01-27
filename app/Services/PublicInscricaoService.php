@@ -46,7 +46,7 @@ class PublicInscricaoService
         ];
     }
 
-    public function cadastrarAluno(array $data, array $deficiencias = [], ?string $descricaoDeficiencia = null): Aluno
+    public function cadastrarAluno(array $data, ?array $deficiencias = null, ?string $descricaoDeficiencia = null): Aluno
     {
         $cpf = Cpf::normalize($data['cpf']);
 

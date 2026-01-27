@@ -122,10 +122,16 @@ class InscricaoController extends Controller
     public function cadastroStore(PublicAlunoStoreRequest $request): RedirectResponse
     {
         try {
+            $deficiencias = $request->has('deficiencias')
+                ? $request->input('deficiencias', [])
+                : null;
+            $deficienciaDescricao = $request->has('deficiencias')
+                ? $request->input('deficiencia_descricao')
+                : null;
             $aluno = $this->inscricaoService->cadastrarAluno(
                 $request->validated(),
-                $request->input('deficiencias', []),
-                $request->input('deficiencia_descricao')
+                $deficiencias,
+                $deficienciaDescricao
             );
 
             $eventoId = $request->integer('evento_curso_id');
