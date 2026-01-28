@@ -55,6 +55,9 @@
             }
             .sidebar-brand img {
                 height: 34px;
+                width: 34px;
+                border-radius: 9999px;
+                object-fit: cover;
             }
             .sidebar nav {
                 display: grid;
