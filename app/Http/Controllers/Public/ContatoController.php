@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Mail\ContatoMensagemMail;
 use App\Services\ConfiguracaoService;
+use App\Support\Phone;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -34,10 +35,13 @@ class ContatoController extends Controller
 
     public function enviar(Request $request): RedirectResponse
     {
+        $request->merge([
+            'telefone' => Phone::normalize($request->input('telefone')),
+        ]);
         $data = $request->validate([
             'nome' => 'required|string|max:255',
             'email' => 'required|email',
-            'telefone' => 'nullable|string|max:255',
+            'telefone' => 'nullable|string|digits_between:10,11',
             'assunto' => 'required|string|max:255',
             'mensagem' => 'required|string',
         ]);

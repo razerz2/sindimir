@@ -10,21 +10,21 @@ class ListaEsperaPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->role === UserRole::Admin || $user->hasModuleAccess('eventos');
     }
 
     public function view(User $user, ListaEspera $listaEspera): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->role === UserRole::Admin || $user->hasModuleAccess('eventos');
     }
 
     public function update(User $user, ListaEspera $listaEspera): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->role === UserRole::Admin || $user->hasModuleAccess('eventos');
     }
 
     public function delete(User $user, ListaEspera $listaEspera): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->role === UserRole::Admin || $user->hasModuleAccess('eventos');
     }
 }

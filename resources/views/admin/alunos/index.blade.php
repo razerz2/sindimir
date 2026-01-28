@@ -31,9 +31,9 @@
                 @foreach ($alunos as $aluno)
                     <tr>
                         <td>{{ $aluno->nome_completo }}</td>
-                        <td>{{ $aluno->cpf }}</td>
+                        <td>{{ \App\Support\Cpf::format($aluno->cpf) ?: '-' }}</td>
                         <td>{{ $aluno->municipio?->nome ?? '-' }}</td>
-                        <td>{{ $aluno->celular ?? $aluno->telefone ?? '-' }}</td>
+                        <td>{{ \App\Support\Phone::format($aluno->celular ?? $aluno->telefone) ?: '-' }}</td>
                         <td>
                             <div class="table-actions">
                                 <a class="btn btn-ghost" href="{{ route('admin.alunos.show', $aluno) }}">

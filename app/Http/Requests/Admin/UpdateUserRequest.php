@@ -27,6 +27,7 @@ class UpdateUserRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
+            'nome_exibicao' => ['nullable', 'string', 'max:255'],
             'email' => [
                 'required',
                 'email',
@@ -35,8 +36,10 @@ class UpdateUserRequest extends FormRequest
             ],
             'role' => [
                 'required',
-                Rule::in(array_map(fn (UserRole $role) => $role->value, UserRole::cases())),
+                Rule::in([UserRole::Admin->value, UserRole::Usuario->value]),
             ],
+            'module_permissions' => ['nullable', 'array'],
+            'module_permissions.*' => [Rule::in(array_keys(User::MODULES))],
         ];
     }
 }

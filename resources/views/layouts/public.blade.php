@@ -230,6 +230,14 @@
                         </svg>
                         Contato
                     </a>
+                    <a href="{{ route('aluno.login') }}">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                            <path d="M10 17l5-5-5-5" />
+                            <path d="M15 12H3" />
+                            <path d="M19 4h2v16h-2" />
+                        </svg>
+                        Login Aluno
+                    </a>
                 </nav>
             </div>
         </header>

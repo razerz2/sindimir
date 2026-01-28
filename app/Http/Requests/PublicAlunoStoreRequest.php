@@ -28,4 +28,31 @@ class PublicAlunoStoreRequest extends AlunoBaseRequest
 
         return Rule::unique('alunos', 'cpf')->ignore($alunoId);
     }
+
+    protected function emailUniqueRule(): Unique
+    {
+        $alunoId = Aluno::query()
+            ->whereCpf($this->input('cpf'))
+            ->value('id');
+
+        return Rule::unique('alunos', 'email')->ignore($alunoId);
+    }
+
+    protected function celularUniqueRule(): Unique
+    {
+        $alunoId = Aluno::query()
+            ->whereCpf($this->input('cpf'))
+            ->value('id');
+
+        return Rule::unique('alunos', 'celular')->ignore($alunoId);
+    }
+
+    protected function telefoneUniqueRule(): Unique
+    {
+        $alunoId = Aluno::query()
+            ->whereCpf($this->input('cpf'))
+            ->value('id');
+
+        return Rule::unique('alunos', 'telefone')->ignore($alunoId);
+    }
 }

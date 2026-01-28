@@ -4,6 +4,7 @@
 
 - ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD
 - APP_NAME, APP_URL, APP_ENV, APP_DEBUG, APP_LOCALE
+- SESSION_DRIVER, SESSION_DOMAIN, SESSION_LIFETIME
 - DASHBOARD_LIMITE_ALERTA_PERCENTUAL
 - TEMA_COR_PRIMARIA, TEMA_COR_SECUNDARIA, TEMA_COR_FUNDO, TEMA_COR_TEXTO, TEMA_COR_BORDA
 - SCHEDULER_LEMBRETE_DIAS_ANTES, SCHEDULER_LEMBRETE_HORARIO, SCHEDULER_LEMBRETE_EMAIL_ASSUNTO, SCHEDULER_LEMBRETE_MENSAGEM
@@ -25,6 +26,13 @@ padrao atuais sao:
 ## Banco de dados
 
 Por padrao o projeto usa MySQL.
+
+## Ambiente local (evitar 419)
+
+Para evitar erro 419 em formulários (CSRF), mantenha:
+
+- `APP_URL` igual ao host do navegador (ex: `http://127.0.0.1:8000`)
+- `SESSION_DOMAIN` vazio
 
 ## Configuracoes em banco
 
@@ -52,6 +60,11 @@ Tabela `configuracoes` (via tela de configuracoes do admin):
 - smtp.encryption
 - smtp.from_email
 - smtp.from_name
+- seguranca.2fa.ativo
+- seguranca.2fa.perfil
+- seguranca.2fa.canal
+- seguranca.2fa.expiracao_minutos
+- seguranca.2fa.max_tentativas
 - site.meta_title
 - site.meta_description
 - site.footer.titulo

@@ -42,6 +42,11 @@ class ConfiguracaoController extends Controller
             'sistema_ativo' => (bool) $this->configuracaoService->get('sistema.ativo', true),
             'notificacao_email_ativo' => (bool) $this->configuracaoService->get('notificacao.email_ativo', true),
             'notificacao_whatsapp_ativo' => (bool) $this->configuracaoService->get('notificacao.whatsapp_ativo', false),
+            'two_factor_ativo' => (bool) $this->configuracaoService->get('seguranca.2fa.ativo', false),
+            'two_factor_perfil' => $this->configuracaoService->get('seguranca.2fa.perfil', 'admin'),
+            'two_factor_canal' => $this->configuracaoService->get('seguranca.2fa.canal', 'email'),
+            'two_factor_expiracao_minutos' => (int) $this->configuracaoService->get('seguranca.2fa.expiracao_minutos', 10),
+            'two_factor_max_tentativas' => (int) $this->configuracaoService->get('seguranca.2fa.max_tentativas', 5),
             'tema_cor_destaque' => $this->configuracaoService->get('tema.cor_destaque', null),
             'tema_logo' => $this->configuracaoService->get('tema.logo', null),
             'tema_favicon' => $this->configuracaoService->get('tema.favicon', null),
@@ -104,6 +109,8 @@ class ConfiguracaoController extends Controller
             'auto_curso_ativo' => (bool) $this->configuracaoService->get('notificacao.auto.curso_disponivel.ativo', false),
             'auto_curso_email' => (bool) $this->configuracaoService->get('notificacao.auto.curso_disponivel.canal.email', true),
             'auto_curso_whatsapp' => (bool) $this->configuracaoService->get('notificacao.auto.curso_disponivel.canal.whatsapp', false),
+            'auto_curso_horario_envio' => $this->configuracaoService->get('notificacao.auto.curso_disponivel.horario_envio', '08:00'),
+            'auto_curso_dias_antes' => (int) $this->configuracaoService->get('notificacao.auto.curso_disponivel.dias_antes', 0),
             'rate_limit_ativo' => (bool) $this->configuracaoService->get('notificacao.rate_limit.ativo', true),
             'rate_limit_limite_diario' => (int) $this->configuracaoService->get('notificacao.rate_limit.limite_diario', 2),
         ];
@@ -169,6 +176,11 @@ class ConfiguracaoController extends Controller
             'tema_background_main_tamanho' => ['nullable', 'string', 'max:40'],
             'notificacao_email_ativo' => ['nullable', 'boolean'],
             'notificacao_whatsapp_ativo' => ['nullable', 'boolean'],
+            'two_factor_ativo' => ['nullable', 'boolean'],
+            'two_factor_perfil' => ['nullable', 'string', 'in:admin,aluno,ambos'],
+            'two_factor_canal' => ['nullable', 'string', 'in:email,whatsapp'],
+            'two_factor_expiracao_minutos' => ['nullable', 'integer', 'min:1', 'max:60'],
+            'two_factor_max_tentativas' => ['nullable', 'integer', 'min:1', 'max:10'],
             'whatsapp_provedor' => ['nullable', 'string', 'in:meta,zapi'],
             'whatsapp_token' => ['nullable', 'string', 'max:200'],
             'whatsapp_client_token' => ['nullable', 'string', 'max:200'],
@@ -225,6 +237,8 @@ class ConfiguracaoController extends Controller
             'auto_curso_ativo' => ['nullable', 'boolean'],
             'auto_curso_email' => ['nullable', 'boolean'],
             'auto_curso_whatsapp' => ['nullable', 'boolean'],
+            'auto_curso_horario_envio' => ['nullable', 'string', 'max:10'],
+            'auto_curso_dias_antes' => ['nullable', 'integer', 'min:0', 'max:365'],
             'rate_limit_ativo' => ['nullable', 'boolean'],
             'rate_limit_limite_diario' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
@@ -273,6 +287,19 @@ class ConfiguracaoController extends Controller
 
         $this->configuracaoService->set('notificacao.email_ativo', (bool) $request->boolean('notificacao_email_ativo'), 'Notificacao por email');
         $this->configuracaoService->set('notificacao.whatsapp_ativo', (bool) $request->boolean('notificacao_whatsapp_ativo'), 'Notificacao por WhatsApp');
+        $this->configuracaoService->set('seguranca.2fa.ativo', (bool) $request->boolean('two_factor_ativo'), '2FA ativo');
+        $this->configuracaoService->set('seguranca.2fa.perfil', (string) ($data['two_factor_perfil'] ?? 'admin'), '2FA perfis');
+        $this->configuracaoService->set('seguranca.2fa.canal', (string) ($data['two_factor_canal'] ?? 'email'), '2FA canal');
+        $this->configuracaoService->set(
+            'seguranca.2fa.expiracao_minutos',
+            (int) ($data['two_factor_expiracao_minutos'] ?? 10),
+            '2FA expiração em minutos'
+        );
+        $this->configuracaoService->set(
+            'seguranca.2fa.max_tentativas',
+            (int) ($data['two_factor_max_tentativas'] ?? 5),
+            '2FA max tentativas'
+        );
         $whatsappProvedor = (string) ($data['whatsapp_provedor'] ?? '');
         $whatsappToken = (string) ($data['whatsapp_token'] ?? '');
         $whatsappClientToken = (string) ($data['whatsapp_client_token'] ?? '');
@@ -345,6 +372,16 @@ class ConfiguracaoController extends Controller
         $this->configuracaoService->set('notificacao.auto.curso_disponivel.ativo', (bool) $request->boolean('auto_curso_ativo'), 'Auto curso disponivel ativo');
         $this->configuracaoService->set('notificacao.auto.curso_disponivel.canal.email', (bool) $request->boolean('auto_curso_email'), 'Auto curso disponivel email');
         $this->configuracaoService->set('notificacao.auto.curso_disponivel.canal.whatsapp', (bool) $request->boolean('auto_curso_whatsapp'), 'Auto curso disponivel WhatsApp');
+        $this->configuracaoService->set(
+            'notificacao.auto.curso_disponivel.horario_envio',
+            (string) ($data['auto_curso_horario_envio'] ?? '08:00'),
+            'Auto curso disponivel horario envio'
+        );
+        $this->configuracaoService->set(
+            'notificacao.auto.curso_disponivel.dias_antes',
+            (int) ($data['auto_curso_dias_antes'] ?? 0),
+            'Auto curso disponivel dias antes'
+        );
 
         $this->configuracaoService->set('notificacao.rate_limit.ativo', (bool) $request->boolean('rate_limit_ativo'), 'Rate limit de notificacoes');
         $this->configuracaoService->set(

@@ -18,7 +18,7 @@
             @forelse ($registros as $registro)
                 <tr>
                     <td>{{ $registro->created_at->format('d/m/Y H:i') }}</td>
-                    <td>{{ $registro->user?->name ?? 'Sistema' }}</td>
+                    <td>{{ $registro->user?->display_name ?? $registro->user?->name ?? 'Sistema' }}</td>
                     <td>{{ ucfirst($registro->acao) }}</td>
                     <td>{{ class_basename($registro->entidade_type) }}</td>
                     <td>{{ $registro->entidade_id ?? '-' }}</td>

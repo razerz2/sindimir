@@ -4,7 +4,7 @@
 
 @section('content')
     <p><strong>Nome:</strong> {{ $aluno->nome_completo }}</p>
-    <p><strong>CPF:</strong> {{ $aluno->cpf }}</p>
+    <p><strong>CPF:</strong> {{ \App\Support\Cpf::format($aluno->cpf) ?: '-' }}</p>
     <p><strong>Data de nascimento:</strong> {{ $aluno->data_nascimento?->format('d/m/Y') ?? '-' }}</p>
     <p><strong>Sexo:</strong> {{ $aluno->sexo?->value ? ucfirst(str_replace('_', ' ', $aluno->sexo->value)) : '-' }}</p>
     <p><strong>Nome social:</strong> {{ $aluno->nome_social ?? '-' }}</p>
@@ -21,8 +21,8 @@
     <p><strong>Município:</strong> {{ $aluno->municipio?->nome ?? '-' }}</p>
     <p><strong>CEP:</strong> {{ $aluno->cep ?? '-' }}</p>
     <p><strong>E-mail:</strong> {{ $aluno->email ?? '-' }}</p>
-    <p><strong>Celular:</strong> {{ $aluno->celular ?? '-' }}</p>
-    <p><strong>Telefone:</strong> {{ $aluno->telefone ?? '-' }}</p>
+    <p><strong>Celular:</strong> {{ \App\Support\Phone::format($aluno->celular) ?: '-' }}</p>
+    <p><strong>Telefone:</strong> {{ \App\Support\Phone::format($aluno->telefone) ?: '-' }}</p>
     <p><strong>Estado civil:</strong> {{ $aluno->estado_civil?->value ? ucfirst(str_replace('_', ' ', $aluno->estado_civil->value)) : '-' }}</p>
     <p><strong>Raça/Cor:</strong> {{ $aluno->raca_cor?->value ? ucfirst(str_replace('_', ' ', $aluno->raca_cor->value)) : '-' }}</p>
     <p><strong>Possui deficiência:</strong> {{ $aluno->possui_deficiencia?->value ? ucfirst(str_replace('_', ' ', $aluno->possui_deficiencia->value)) : '-' }}</p>

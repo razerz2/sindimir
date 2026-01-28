@@ -20,15 +20,38 @@
             rows="4"
             wrapper-class="md:col-span-2"
         />
-        <x-admin.select
-            id="categoria_id"
-            name="categoria_id"
-            label="Categoria"
-            :options="$categorias->map(fn ($categoria) => ['value' => $categoria->id, 'label' => $categoria->nome])->all()"
-            :selected="$curso->categoria_id ?? null"
-            placeholder="Selecione uma categoria"
-            required
-        />
+        <div class="md:col-span-1">
+            <x-admin.select
+                id="categoria_id"
+                name="categoria_id"
+                label="Categoria"
+                :options="$categorias->map(fn ($categoria) => ['value' => $categoria->id, 'label' => $categoria->nome])->all()"
+                :selected="$curso->categoria_id ?? null"
+                placeholder="Selecione uma categoria"
+                required
+            >
+                <x-slot name="append">
+                    <a
+                        href="{{ route('admin.catalogo.categorias.index') }}"
+                        class="btn btn-ghost h-full w-12 rounded-xl p-0 text-[var(--content-text)] hover:text-[var(--color-primary)]"
+                        title="Gerenciar categorias"
+                        aria-label="Gerenciar categorias"
+                    >
+                        <svg
+                            class="h-6 w-6"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <path d="M12 5v14M5 12h14" />
+                        </svg>
+                    </a>
+                </x-slot>
+            </x-admin.select>
+        </div>
         <x-admin.input
             id="validade"
             name="validade"

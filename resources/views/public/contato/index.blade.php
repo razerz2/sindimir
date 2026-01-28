@@ -53,7 +53,16 @@
 
                     <div class="field">
                         <label for="telefone">Telefone</label>
-                        <input class="input" type="text" id="telefone" name="telefone" value="{{ old('telefone') }}">
+                        <input
+                            class="input"
+                            type="text"
+                            id="telefone"
+                            name="telefone"
+                            value="{{ \App\Support\Phone::format(old('telefone')) }}"
+                            placeholder="(00) 00000-0000"
+                            inputmode="numeric"
+                            data-mask="phone"
+                        >
                     </div>
 
                     <div class="field">
@@ -75,6 +84,8 @@
             </div>
         </div>
     </section>
+
+    @include('partials.input-masks')
 @endsection
 
 @section('footer')

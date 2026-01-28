@@ -4,6 +4,7 @@ namespace App\Exports;
 
 use App\Enums\StatusListaEspera;
 use App\Enums\StatusMatricula;
+use App\Support\Cpf;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -59,7 +60,7 @@ class ListaEsperaExport
         return [
             $this->formatDateTime($row->data_entrada),
             $row->aluno_nome,
-            $row->aluno_cpf,
+            Cpf::format($row->aluno_cpf),
             $row->curso_nome,
             $this->formatEventoLabel($row->evento_numero, $row->evento_data_inicio),
             $row->posicao ?? '-',

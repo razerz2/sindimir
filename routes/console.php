@@ -30,6 +30,10 @@ app()->booted(function () {
             });
     })->hourly()->name('lista-espera:chamar');
 
+    $schedule->call(function (MatriculaService $matriculaService) {
+        $matriculaService->enviarNotificacoesVagasDisponiveis();
+    })->hourly()->name('vagas-disponiveis:enviar');
+
     $schedule->call(function (ReminderService $reminderService) {
         $reminderService->enviarLembretes();
     })->dailyAt(config('app.scheduler.lembrete_horario'))->name('lembretes:enviar');

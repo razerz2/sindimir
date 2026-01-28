@@ -10,26 +10,26 @@ class AlunoPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->role === UserRole::Admin || $user->hasModuleAccess('alunos');
     }
 
     public function view(User $user, Aluno $aluno): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->role === UserRole::Admin || $user->hasModuleAccess('alunos');
     }
 
     public function create(User $user): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->role === UserRole::Admin || $user->hasModuleAccess('alunos');
     }
 
     public function update(User $user, Aluno $aluno): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->role === UserRole::Admin || $user->hasModuleAccess('alunos');
     }
 
     public function delete(User $user, Aluno $aluno): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->role === UserRole::Admin || $user->hasModuleAccess('alunos');
     }
 }

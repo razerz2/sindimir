@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\RelatorioNotificacaoController;
 use App\Http\Controllers\Admin\SiteSectionController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\Public\ContatoController;
 
 Route::get('/', [\App\Http\Controllers\Public\PublicController::class, 'index'])
@@ -66,6 +67,9 @@ Route::prefix('admin')->group(function () {
     Route::post('/logout', [LoginController::class, 'destroy'])
         ->middleware('auth')
         ->name('logout');
+    Route::get('/logout', [LoginController::class, 'destroy'])
+        ->middleware('auth')
+        ->name('logout.get');
 });
 
 Route::prefix('aluno')->middleware('guest')->group(function () {
@@ -73,7 +77,13 @@ Route::prefix('aluno')->middleware('guest')->group(function () {
     Route::post('/login', [LoginController::class, 'store'])->name('aluno.login.store');
 });
 
-Route::middleware(['auth', 'role:admin'])
+Route::middleware('guest')->group(function () {
+    Route::get('/2fa', [TwoFactorController::class, 'show'])->name('2fa.show');
+    Route::post('/2fa', [TwoFactorController::class, 'verify'])->name('2fa.verify');
+    Route::post('/2fa/reenviar', [TwoFactorController::class, 'resend'])->name('2fa.resend');
+});
+
+Route::middleware(['auth', 'role:admin,usuario', 'module-access'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
@@ -114,8 +124,13 @@ Route::middleware(['auth', 'role:admin'])
         Route::delete('/lista-espera/{lista}', [\App\Http\Controllers\Admin\ListaEsperaController::class, 'remover'])
             ->name('lista-espera.remover');
         Route::resource('/alunos', \App\Http\Controllers\Admin\AlunoController::class);
+        Route::get('/usuarios/{user}/senha', [UserController::class, 'editPassword'])
+            ->name('usuarios.senha.edit');
+        Route::put('/usuarios/{user}/senha', [UserController::class, 'updatePassword'])
+            ->name('usuarios.senha.update');
         Route::resource('/usuarios', UserController::class)
-            ->only(['index', 'show', 'edit', 'update', 'destroy']);
+            ->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy'])
+            ->parameters(['usuarios' => 'user']);
         Route::get('/configuracoes', [\App\Http\Controllers\Admin\ConfiguracaoController::class, 'index'])
             ->name('configuracoes.index');
         Route::post('/configuracoes', [\App\Http\Controllers\Admin\ConfiguracaoController::class, 'update'])
@@ -189,8 +204,12 @@ Route::middleware(['auth', 'role:aluno'])
             ->name('perfil.update');
         Route::get('/inscricoes', [\App\Http\Controllers\Aluno\AlunoAreaController::class, 'inscricoes'])
             ->name('inscricoes');
+        Route::post('/inscricoes/{eventoCurso}', [\App\Http\Controllers\Aluno\AlunoAreaController::class, 'inscrever'])
+            ->name('inscricoes.store');
         Route::get('/historico', [\App\Http\Controllers\Aluno\AlunoAreaController::class, 'historico'])
             ->name('historico');
         Route::get('/preferencias', [\App\Http\Controllers\Aluno\AlunoAreaController::class, 'preferencias'])
             ->name('preferencias');
+        Route::put('/preferencias', [\App\Http\Controllers\Aluno\AlunoAreaController::class, 'preferenciasUpdate'])
+            ->name('preferencias.update');
     });

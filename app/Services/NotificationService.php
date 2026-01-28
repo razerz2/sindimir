@@ -548,6 +548,29 @@ class NotificationService
         ]);
     }
 
+    public function registrarBloqueio(
+        Aluno $aluno,
+        Curso $curso,
+        ?EventoCurso $evento,
+        NotificationType $notificationType,
+        string $canal,
+        string $motivo,
+        ?int $validadeMinutos = null
+    ): void {
+        $link = $this->linkService->resolve($aluno, $curso, $evento, $notificationType, $validadeMinutos);
+
+        $this->logAttempt(
+            $canal,
+            'blocked',
+            $motivo,
+            $aluno,
+            $curso,
+            $evento,
+            $link,
+            $notificationType
+        );
+    }
+
     private function isValidEmail(?string $email): bool
     {
         if (! $email) {

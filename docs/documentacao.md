@@ -13,19 +13,23 @@ e área do aluno.
 - Público: página institucional, lista de cursos, inscrição por CPF e cadastro com token.
 - Admin: dashboard com indicadores, gestão de cursos, eventos e alunos.
 - Admin: usuários, configurações do sistema, tema, SMTP e provedores WhatsApp.
+- Admin: gestão de usuários com permissões por módulo e nome de exibição.
 - Admin: envio de notificações (email/WhatsApp) com templates e preview.
 - Admin: CMS institucional com sections fixas da home, ordenação e estilos visuais.
 - Admin: relatórios (cursos, eventos, matrículas, inscrições, lista de espera, auditoria).
 - Aluno: dashboard, perfil, inscrições, histórico e preferências.
 - Automacoes: fila de envios, rate limit de notificacoes e links com validade.
 - Agendamentos: expiração de matrículas, chamadas da lista de espera e lembretes.
+- Segurança: autenticação em dois fatores (2FA) por email ou WhatsApp.
 
 ## Acesso e perfis
 
 - `admin`: área administrativa (`/admin`) com login em `/admin/login`.
+- `usuario`: perfil administrativo com acesso por módulos configurados.
 - `aluno`: área do aluno (`/aluno`) com login em `/aluno/login`.
 
 O controle de acesso é feito por middleware e policies.
+O middleware `module-access` limita o acesso do perfil `usuario` por módulos.
 
 ## Requisitos
 
@@ -124,6 +128,11 @@ Tabela `configuracoes` (via tela de configurações do admin):
 - smtp.encryption
 - smtp.from_email
 - smtp.from_name
+- seguranca.2fa.ativo
+- seguranca.2fa.perfil
+- seguranca.2fa.canal
+- seguranca.2fa.expiracao_minutos
+- seguranca.2fa.max_tentativas
 - site.meta_title
 - site.meta_description
 - site.footer.titulo
@@ -190,6 +199,16 @@ Somente um provedor deve ficar ativo por vez:
 - Meta Cloud API: configure `WHATSAPP_META_*` e deixe `WHATSAPP_ZAPI_ENABLED` em `false`.
 
 Se nenhum provedor estiver ativo, o envio de WhatsApp falhara.
+
+## Autenticação em dois fatores (2FA)
+
+- Ativação e parâmetros via configurações do admin (segurança).
+- Perfis: `admin`, `aluno` ou `ambos`.
+- Canal: email ou WhatsApp.
+- Expiração e limite de tentativas configuráveis.
+- Rotas: `/2fa` (tela), `POST /2fa` (validar) e `POST /2fa/reenviar` (novo código).
+
+O código é enviado ao email do usuário ou ao WhatsApp do aluno (quando disponível).
 
 ## Notificações para alunos
 

@@ -4,11 +4,16 @@ namespace App\Services;
 
 use App\Models\Configuracao;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class ConfiguracaoService
 {
     public function get(string $chave, mixed $default = null): mixed
     {
+        if (! Schema::hasTable('configuracoes')) {
+            return $default;
+        }
+
         $config = Configuracao::query()
             ->where('chave', $chave)
             ->first();

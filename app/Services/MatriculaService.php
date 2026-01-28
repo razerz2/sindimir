@@ -593,6 +593,239 @@ class MatriculaService
         return $processadas;
     }
 
+    public function enviarNotificacoesVagasDisponiveis(): int
+    {
+        $autoAtivo = (bool) $this->configuracaoService->get('notificacao.auto.curso_disponivel.ativo', false);
+
+        if (! $autoAtivo) {
+            return 0;
+        }
+
+        $horarioEnvio = (string) $this->configuracaoService->get(
+            'notificacao.auto.curso_disponivel.horario_envio',
+            '08:00'
+        );
+        $emailAtivo = (bool) $this->configuracaoService->get('notificacao.auto.curso_disponivel.canal.email', true);
+        $whatsappAtivo = (bool) $this->configuracaoService->get('notificacao.auto.curso_disponivel.canal.whatsapp', false);
+        $emailGlobal = (bool) $this->configuracaoService->get('notificacao.email_ativo', true);
+        $whatsappGlobal = (bool) $this->configuracaoService->get('notificacao.whatsapp_ativo', false);
+        $emailAtivo = $emailAtivo && $emailGlobal;
+        $whatsappAtivo = $whatsappAtivo && $whatsappGlobal;
+
+        if (! $emailAtivo && ! $whatsappAtivo) {
+            return 0;
+        }
+
+        $diasAntes = (int) $this->configuracaoService->get(
+            'notificacao.auto.curso_disponivel.dias_antes',
+            0
+        );
+        $limiteMaximo = (int) $this->configuracaoService->get(
+            'notificacao.auto.curso_disponivel.limite_maximo',
+            3
+        );
+        $agora = CarbonImmutable::now();
+        if ($horarioEnvio !== '' && $agora->format('H:i') !== $horarioEnvio) {
+            return 0;
+        }
+        $total = 0;
+
+        EventoCurso::query()
+            ->with('curso')
+            ->where('ativo', true)
+            ->whereHas('curso', fn ($query) => $query->where('ativo', true))
+            ->orderBy('id')
+            ->chunkById(50, function ($eventos) use (
+                &$total,
+                $agora,
+                $emailAtivo,
+                $whatsappAtivo,
+                $limiteMaximo
+            ) {
+                foreach ($eventos as $evento) {
+                    $evento->loadMissing('curso');
+
+                    if (! $evento->curso) {
+                        continue;
+                    }
+
+                    $dataInicio = $evento->data_inicio?->startOfDay();
+                    if ($dataInicio) {
+                        $limiteEnvio = $dataInicio->subDays(max(0, $diasAntes))->startOfDay();
+                        if ($agora->startOfDay()->greaterThanOrEqualTo($limiteEnvio)) {
+                            continue;
+                        }
+                    }
+
+                    $limiteVagas = (int) $evento->curso->limite_vagas;
+                    if ($limiteVagas <= 0) {
+                        // Decisao explicita: eventos sem limite de vagas nao entram no envio automatico.
+                        continue;
+                    }
+
+                    $ocupadas = Matricula::query()
+                        ->where('evento_curso_id', $evento->id)
+                        ->whereIn('status', [StatusMatricula::Confirmada, StatusMatricula::Pendente])
+                        ->count();
+                    $vagasDisponiveis = $limiteVagas - $ocupadas;
+
+                    if ($vagasDisponiveis <= 0) {
+                        continue;
+                    }
+
+                    $matriculados = Matricula::query()
+                        ->where('evento_curso_id', $evento->id)
+                        ->whereIn('status', [StatusMatricula::Confirmada, StatusMatricula::Pendente])
+                        ->pluck('aluno_id')
+                        ->all();
+                    $matriculados = array_flip($matriculados);
+
+                    $listaEspera = ListaEspera::query()
+                        ->where('evento_curso_id', $evento->id)
+                        ->whereIn('status', [StatusListaEspera::Aguardando, StatusListaEspera::Chamado])
+                        ->pluck('aluno_id')
+                        ->all();
+                    $listaEspera = array_flip($listaEspera);
+
+                    $categoriaId = $evento->curso->categoria_id;
+                    $alunosQuery = Aluno::query()->orderBy('id');
+
+                    if ($categoriaId) {
+                        $alunosQuery->where(function ($query) use ($categoriaId) {
+                            $query->whereDoesntHave('categoriasPreferidas')
+                                ->orWhereHas('categoriasPreferidas', fn ($subQuery) => $subQuery
+                                    ->where('categorias.id', $categoriaId));
+                        });
+                    }
+
+                    $alunosQuery->chunkById(200, function ($alunos) use (
+                        &$total,
+                        $evento,
+                        $emailAtivo,
+                        $whatsappAtivo,
+                        $limiteMaximo,
+                        $matriculados,
+                        $listaEspera
+                    ) {
+                        foreach ($alunos as $aluno) {
+                            if ($this->possuiBloqueioDefinitivo($aluno, $evento)) {
+                                continue;
+                            }
+
+                            if (isset($matriculados[$aluno->id])) {
+                                $this->registrarBloqueioDefinitivo(
+                                    $aluno,
+                                    $evento,
+                                    $emailAtivo,
+                                    $whatsappAtivo,
+                                    'Bloqueio definitivo: aluno ja matriculado.'
+                                );
+                                continue;
+                            }
+
+                            if (isset($listaEspera[$aluno->id])) {
+                                $this->registrarBloqueioDefinitivo(
+                                    $aluno,
+                                    $evento,
+                                    $emailAtivo,
+                                    $whatsappAtivo,
+                                    'Bloqueio definitivo: aluno ja esta na lista de espera.'
+                                );
+                                continue;
+                            }
+
+                            if (
+                                $limiteMaximo > 0
+                                && $this->limiteMaximoNotificacoesAtingido($aluno, $evento, $limiteMaximo)
+                            ) {
+                                $this->registrarBloqueioDefinitivo(
+                                    $aluno,
+                                    $evento,
+                                    $emailAtivo,
+                                    $whatsappAtivo,
+                                    'Bloqueio definitivo: limite maximo de notificacoes atingido.'
+                                );
+                                continue;
+                            }
+
+                            $this->notificationService->disparar(
+                                [$aluno],
+                                $evento,
+                                NotificationType::VAGA_ABERTA,
+                                $emailAtivo,
+                                $whatsappAtivo
+                            );
+                            $total++;
+                        }
+                    });
+                }
+            });
+
+        return $total;
+    }
+
+    private function possuiBloqueioDefinitivo(Aluno $aluno, EventoCurso $evento): bool
+    {
+        return NotificationLog::query()
+            ->where('aluno_id', $aluno->id)
+            ->where('evento_curso_id', $evento->id)
+            ->where('notification_type', NotificationType::VAGA_ABERTA->value)
+            ->where('status', 'blocked')
+            ->where('erro', 'like', 'Bloqueio definitivo:%')
+            ->exists();
+    }
+
+    private function limiteMaximoNotificacoesAtingido(Aluno $aluno, EventoCurso $evento, int $limiteMaximo): bool
+    {
+        $cursoId = $evento->curso?->id ?? $evento->curso_id;
+        $query = NotificationLog::query()
+            ->where('aluno_id', $aluno->id)
+            ->where('notification_type', NotificationType::VAGA_ABERTA->value)
+            ->where('status', 'success');
+
+        if ($cursoId) {
+            $query->where('curso_id', $cursoId);
+        }
+
+        return $query
+            ->where('evento_curso_id', $evento->id)
+            ->count() >= $limiteMaximo;
+    }
+
+    private function registrarBloqueioDefinitivo(
+        Aluno $aluno,
+        EventoCurso $evento,
+        bool $emailAtivo,
+        bool $whatsappAtivo,
+        string $motivo
+    ): void {
+        $motivoNormalizado = str_starts_with($motivo, 'Bloqueio definitivo:')
+            ? $motivo
+            : 'Bloqueio definitivo: ' . $motivo;
+
+        if ($emailAtivo) {
+            $this->notificationService->registrarBloqueio(
+                $aluno,
+                $evento->curso,
+                $evento,
+                NotificationType::VAGA_ABERTA,
+                'email',
+                $motivoNormalizado
+            );
+        }
+
+        if ($whatsappAtivo) {
+            $this->notificationService->registrarBloqueio(
+                $aluno,
+                $evento->curso,
+                $evento,
+                NotificationType::VAGA_ABERTA,
+                'whatsapp',
+                $motivoNormalizado
+            );
+        }
+    }
+
     private function reordenarListaEspera(int $eventoId): void
     {
         $itens = ListaEspera::query()

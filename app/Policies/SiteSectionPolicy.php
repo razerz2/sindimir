@@ -10,26 +10,26 @@ class SiteSectionPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->role === UserRole::Admin || $user->hasModuleAccess('cms');
     }
 
     public function view(User $user, SiteSection $section): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->role === UserRole::Admin || $user->hasModuleAccess('cms');
     }
 
     public function create(User $user): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->role === UserRole::Admin || $user->hasModuleAccess('cms');
     }
 
     public function update(User $user, SiteSection $section): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->role === UserRole::Admin || $user->hasModuleAccess('cms');
     }
 
     public function delete(User $user, SiteSection $section): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->role === UserRole::Admin || $user->hasModuleAccess('cms');
     }
 }

@@ -346,18 +346,22 @@
                             <details class="relative">
                                 <summary class="list-none cursor-pointer rounded-full border border-[var(--border-color)] px-3 py-2 text-sm font-semibold text-[var(--content-text)] hover:bg-black/5">
                                     <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-primary)] text-xs font-bold text-white">
-                                        {{ strtoupper(substr(auth()->user()?->name ?? 'A', 0, 1)) }}
+                                        {{ strtoupper(substr(auth()->user()?->display_name ?? auth()->user()?->name ?? 'A', 0, 1)) }}
                                     </span>
-                                    <span class="ml-2 hidden sm:inline">{{ auth()->user()?->name ?? 'Administrador' }}</span>
+                                    <span class="ml-2 hidden sm:inline">
+                                        {{ auth()->user()?->display_name ?? auth()->user()?->name ?? 'Administrador' }}
+                                    </span>
                                 </summary>
                                 <div class="absolute right-0 mt-2 w-56 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] p-2 text-sm shadow-lg">
-                                    <a class="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-black/5" href="{{ route('admin.usuarios.index') }}">
-                                        <svg class="h-4 w-4 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                                            <path d="M16 11a4 4 0 1 0-8 0" />
-                                            <path d="M4 20a8 8 0 0 1 16 0" />
-                                        </svg>
-                                        <span>Perfil</span>
-                                    </a>
+                                    @if (auth()->user()?->role === \App\Enums\UserRole::Admin)
+                                        <a class="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-black/5" href="{{ route('admin.usuarios.index') }}">
+                                            <svg class="h-4 w-4 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                                                <path d="M16 11a4 4 0 1 0-8 0" />
+                                                <path d="M4 20a8 8 0 0 1 16 0" />
+                                            </svg>
+                                            <span>Perfil</span>
+                                        </a>
+                                    @endif
                                     <a class="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-black/5" href="{{ route('admin.configuracoes.index') }}">
                                         <svg class="h-4 w-4 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
                                             <path d="M12 8a4 4 0 1 0 0 8" />

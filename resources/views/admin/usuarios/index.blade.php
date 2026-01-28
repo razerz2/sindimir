@@ -9,7 +9,9 @@
 @section('content')
     <div class="page-actions">
         <div></div>
-        <button class="btn btn-primary" type="button" disabled>Novo usuario</button>
+        @if (auth()->user()?->role === \App\Enums\UserRole::Admin)
+            <a class="btn btn-primary" href="{{ route('admin.usuarios.create') }}">Novo usuario</a>
+        @endif
     </div>
 
     @if (session('status'))
@@ -30,7 +32,7 @@
             <tbody>
                 @forelse ($users as $user)
                     <tr>
-                        <td>{{ $user->name }}</td>
+                        <td>{{ $user->display_name }}</td>
                         <td>{{ $user->email }}</td>
                         <td>
                             <span class="badge neutral">
@@ -57,6 +59,14 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M14.5 5.5l4 4" />
                                     </svg>
                                     <span>Editar</span>
+                                </a>
+                                <a class="btn btn-ghost" href="{{ route('admin.usuarios.senha.edit', $user) }}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 10V7a5 5 0 0 1 10 0v3" />
+                                        <rect x="5" y="10" width="14" height="10" rx="2" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 14v2" />
+                                    </svg>
+                                    <span>Redefinir senha</span>
                                 </a>
                                 <form action="{{ route('admin.usuarios.destroy', $user) }}" method="POST" style="display:inline">
                                     @csrf

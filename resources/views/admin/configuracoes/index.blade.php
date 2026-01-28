@@ -13,6 +13,7 @@
         <div class="content-card">
             <div class="mb-6 flex flex-wrap gap-2">
                 <button class="btn btn-ghost tab-button active" type="button" data-tab="geral">Geral</button>
+                <button class="btn btn-ghost tab-button" type="button" data-tab="seguranca">Seguranca</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="tema">Tema</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="catalogo">Catálogos</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="notificacoes">Notificacoes</button>
@@ -46,6 +47,60 @@
                         :checked="$settings['sistema_ativo'] ?? true"
                     />
                 </div>
+            </div>
+
+            <div class="tab-panel hidden" data-tab-panel="seguranca">
+                <h3 class="section-title">Seguranca</h3>
+                <p class="text-sm text-slate-500">
+                    Configure a autenticacao em dois fatores para acesso ao sistema.
+                </p>
+                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <x-admin.checkbox
+                        name="two_factor_ativo"
+                        label="Ativar 2FA"
+                        :checked="$settings['two_factor_ativo'] ?? false"
+                    />
+                    <x-admin.select
+                        id="two_factor_perfil"
+                        name="two_factor_perfil"
+                        label="Perfis obrigatorios"
+                        :options="[
+                            ['value' => 'admin', 'label' => 'Administradores'],
+                            ['value' => 'aluno', 'label' => 'Alunos'],
+                            ['value' => 'ambos', 'label' => 'Administradores e alunos'],
+                        ]"
+                        :selected="$settings['two_factor_perfil'] ?? 'admin'"
+                        placeholder="Selecione"
+                    />
+                    <x-admin.select
+                        id="two_factor_canal"
+                        name="two_factor_canal"
+                        label="Canal de envio"
+                        :options="[
+                            ['value' => 'email', 'label' => 'E-mail'],
+                            ['value' => 'whatsapp', 'label' => 'WhatsApp'],
+                        ]"
+                        :selected="$settings['two_factor_canal'] ?? 'email'"
+                        placeholder="Selecione"
+                    />
+                    <x-admin.input
+                        id="two_factor_expiracao_minutos"
+                        name="two_factor_expiracao_minutos"
+                        label="Expiracao do codigo (minutos)"
+                        type="number"
+                        :value="$settings['two_factor_expiracao_minutos'] ?? 10"
+                    />
+                    <x-admin.input
+                        id="two_factor_max_tentativas"
+                        name="two_factor_max_tentativas"
+                        label="Limite de tentativas"
+                        type="number"
+                        :value="$settings['two_factor_max_tentativas'] ?? 5"
+                    />
+                </div>
+                <p class="mt-3 text-xs text-slate-500">
+                    O canal escolhido deve estar ativo em Notificacoes e configurado em WhatsApp/E-mail.
+                </p>
             </div>
 
             <div class="tab-panel hidden" data-tab-panel="tema">
@@ -675,6 +730,22 @@
                                 name="auto_curso_whatsapp"
                                 label="WhatsApp"
                                 :checked="$settings['auto_curso_whatsapp'] ?? false"
+                            />
+                            <x-admin.input
+                                id="auto_curso_horario_envio"
+                                name="auto_curso_horario_envio"
+                                label="Horário de envio"
+                                type="time"
+                                :value="$settings['auto_curso_horario_envio'] ?? '08:00'"
+                                hint="Envia apenas quando o scheduler roda exatamente neste horário (HH:MM)."
+                            />
+                            <x-admin.input
+                                id="auto_curso_dias_antes"
+                                name="auto_curso_dias_antes"
+                                label="Dias antes do evento"
+                                type="number"
+                                :value="$settings['auto_curso_dias_antes'] ?? 0"
+                                hint="Bloqueia envios quando faltarem X dias ou menos para o início do evento."
                             />
                         </div>
                     </div>

@@ -13,6 +13,7 @@ use App\Enums\TipoEntidadeOrigem;
 use App\Models\Estado;
 use App\Models\Municipio;
 use App\Support\Cpf;
+use App\Support\Phone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -95,6 +96,12 @@ class Aluno extends Model
             ->withTimestamps();
     }
 
+    public function categoriasPreferidas(): BelongsToMany
+    {
+        return $this->belongsToMany(Categoria::class, 'aluno_categoria_preferencias')
+            ->withTimestamps();
+    }
+
     public function matriculas(): HasMany
     {
         return $this->hasMany(Matricula::class);
@@ -119,6 +126,20 @@ class Aluno extends Model
     {
         return Attribute::make(
             set: fn (?string $value) => Cpf::normalize($value),
+        );
+    }
+
+    protected function celular(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value) => Phone::normalize($value),
+        );
+    }
+
+    protected function telefone(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value) => Phone::normalize($value),
         );
     }
 

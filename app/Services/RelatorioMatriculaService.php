@@ -6,6 +6,7 @@ use App\Enums\StatusMatricula;
 use App\Exports\MatriculasExport;
 use App\Models\Curso;
 use App\Models\EventoCurso;
+use App\Support\Cpf;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
@@ -175,6 +176,7 @@ class RelatorioMatriculaService
         $row->data_inscricao_formatada = $this->formatDateTime($row->data_inscricao);
         $row->data_confirmacao_formatada = $this->formatDateTime($row->data_confirmacao);
         $row->data_expiracao_formatada = $this->formatDateTime($row->data_expiracao);
+        $row->aluno_cpf = Cpf::format($row->aluno_cpf);
 
         return $row;
     }

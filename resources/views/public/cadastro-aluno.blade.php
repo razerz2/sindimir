@@ -30,7 +30,17 @@
                     <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                         <div class="flex flex-col gap-2">
                             <label for="cpf" class="text-sm font-semibold text-[var(--content-text)]">CPF</label>
-                            <input id="cpf" name="cpf" type="text" value="{{ old('cpf') }}" required class="input w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40">
+                            <input
+                                id="cpf"
+                                name="cpf"
+                                type="text"
+                                value="{{ \App\Support\Cpf::format(old('cpf')) }}"
+                                placeholder="000.000.000-00"
+                                inputmode="numeric"
+                                data-mask="cpf"
+                                required
+                                class="input w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40"
+                            >
                             @error('cpf')
                                 <p class="text-xs text-red-500">{{ $message }}</p>
                             @enderror
@@ -78,7 +88,17 @@
                         </div>
                         <div class="flex flex-col gap-2">
                             <label for="celular" class="text-sm font-semibold text-[var(--content-text)]">Celular</label>
-                            <input id="celular" name="celular" type="text" value="{{ old('celular') }}" required class="input w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40">
+                            <input
+                                id="celular"
+                                name="celular"
+                                type="text"
+                                value="{{ \App\Support\Phone::format(old('celular')) }}"
+                                placeholder="(00) 00000-0000"
+                                inputmode="numeric"
+                                data-mask="phone"
+                                required
+                                class="input w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40"
+                            >
                             @error('celular')
                                 <p class="text-xs text-red-500">{{ $message }}</p>
                             @enderror
@@ -144,6 +164,8 @@
             </form>
         </div>
     </section>
+
+    @include('partials.input-masks')
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {

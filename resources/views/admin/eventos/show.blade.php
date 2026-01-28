@@ -73,7 +73,7 @@
                     @forelse ($inscritos as $matricula)
                         <tr>
                             <td>{{ $matricula->aluno?->nome_completo ?? '-' }}</td>
-                            <td>{{ $matricula->aluno?->cpf ?? '-' }}</td>
+                            <td>{{ \App\Support\Cpf::format($matricula->aluno?->cpf) ?: '-' }}</td>
                             <td>{{ $matricula->aluno?->email ?? '-' }}</td>
                             <td>
                                 <span class="badge">
@@ -139,7 +139,7 @@
                         @php($isAguardando = $item->status?->value === 'aguardando')
                         <tr>
                             <td>{{ $item->aluno?->nome_completo ?? '-' }}</td>
-                            <td>{{ $item->aluno?->cpf ?? '-' }}</td>
+                            <td>{{ \App\Support\Cpf::format($item->aluno?->cpf) ?: '-' }}</td>
                             <td>{{ $item->created_at?->format('d/m/Y H:i') ?? '-' }}</td>
                             <td>{{ $item->posicao ?? '-' }}</td>
                             <td>

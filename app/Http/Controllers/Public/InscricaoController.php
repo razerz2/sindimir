@@ -22,6 +22,7 @@ use App\Services\MatriculaService;
 use App\Services\NotificationLinkService;
 use App\Services\NotificationService;
 use App\Services\PublicInscricaoService;
+use App\Support\Cpf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -44,8 +45,20 @@ class InscricaoController extends Controller
 
     public function cpfSubmit(Request $request): RedirectResponse
     {
+        $request->merge([
+            'cpf' => Cpf::normalize($request->input('cpf')),
+        ]);
         $data = $request->validate([
-            'cpf' => ['required', 'string', 'max:14'],
+            'cpf' => [
+                'required',
+                'string',
+                'digits:11',
+                function (string $attribute, mixed $value, $fail) {
+                    if (! Cpf::isValid($value)) {
+                        $fail('CPF inválido.');
+                    }
+                },
+            ],
             'evento_curso_id' => ['nullable', 'integer', 'exists:evento_cursos,id'],
         ]);
 

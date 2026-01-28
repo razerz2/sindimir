@@ -22,9 +22,11 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'nome_exibicao',
         'email',
         'password',
         'role',
+        'module_permissions',
     ];
 
     /**
@@ -48,7 +50,33 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'role' => UserRole::class,
+            'module_permissions' => 'array',
         ];
+    }
+
+    public const MODULES = [
+        'cursos' => 'Cursos',
+        'eventos' => 'Eventos',
+        'alunos' => 'Alunos',
+        'relatorios' => 'Relatorios',
+        'notificacoes' => 'Notificacoes',
+        'cms' => 'CMS institucional',
+    ];
+
+    public function getDisplayNameAttribute(): string
+    {
+        return $this->nome_exibicao ?: $this->name;
+    }
+
+    public function hasModuleAccess(string $module): bool
+    {
+        if ($this->role === UserRole::Admin) {
+            return true;
+        }
+
+        $permissions = $this->module_permissions ?? [];
+
+        return in_array($module, $permissions, true);
     }
 
     public function aluno(): HasOne

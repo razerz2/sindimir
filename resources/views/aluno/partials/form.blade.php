@@ -53,7 +53,10 @@
                 id="cpf"
                 name="cpf"
                 label="CPF"
-                :value="$aluno->cpf ?? ''"
+                :value="\App\Support\Cpf::format($aluno->cpf ?? '')"
+                placeholder="000.000.000-00"
+                inputmode="numeric"
+                data-mask="cpf"
                 required
             />
             <x-admin.input
@@ -184,14 +187,20 @@
                 id="celular"
                 name="celular"
                 label="Celular"
-                :value="$aluno->celular ?? ''"
+                :value="\App\Support\Phone::format($aluno->celular ?? '')"
+                placeholder="(00) 00000-0000"
+                inputmode="numeric"
+                data-mask="phone"
                 required
             />
             <x-admin.input
                 id="telefone"
                 name="telefone"
                 label="Telefone"
-                :value="$aluno->telefone ?? ''"
+                :value="\App\Support\Phone::format($aluno->telefone ?? '')"
+                placeholder="(00) 0000-0000"
+                inputmode="numeric"
+                data-mask="phone"
             />
         </div>
     </div>
@@ -352,6 +361,7 @@
 </div>
 
 <input type="hidden" id="municipios_fetch_url" value="{{ route('public.catalogo.estados.municipios', ['estado' => 'STATE_ID']) }}">
+@include('partials.input-masks')
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {

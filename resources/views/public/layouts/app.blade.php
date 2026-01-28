@@ -51,6 +51,7 @@
                 <a href="{{ route('public.institucional') }}">Institucional</a>
                 <a href="{{ route('public.cursos') }}">Cursos</a>
                 <a href="{{ route('public.cpf') }}">Inscrição por CPF</a>
+                <a href="{{ route('aluno.login') }}" style="float:right; padding:8px 12px; border-radius:6px; background:rgba(255,255,255,0.15);">Login Aluno</a>
             </nav>
         </header>
         <main>

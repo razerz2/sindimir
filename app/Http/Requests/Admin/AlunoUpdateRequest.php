@@ -30,4 +30,25 @@ class AlunoUpdateRequest extends AlunoBaseRequest
 
         return Rule::unique('alunos', 'cpf')->ignore($aluno?->id);
     }
+
+    protected function emailUniqueRule(): Rule
+    {
+        $aluno = $this->route('aluno');
+
+        return Rule::unique('alunos', 'email')->ignore($aluno?->id);
+    }
+
+    protected function celularUniqueRule(): Rule
+    {
+        $aluno = $this->route('aluno');
+
+        return Rule::unique('alunos', 'celular')->ignore($aluno?->id);
+    }
+
+    protected function telefoneUniqueRule(): Rule
+    {
+        $aluno = $this->route('aluno');
+
+        return Rule::unique('alunos', 'telefone')->ignore($aluno?->id);
+    }
 }

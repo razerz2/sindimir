@@ -7,6 +7,7 @@ use App\Enums\StatusMatricula;
 use App\Exports\ListaEsperaExport;
 use App\Models\Curso;
 use App\Models\EventoCurso;
+use App\Support\Cpf;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
@@ -164,6 +165,7 @@ class RelatorioListaEsperaService
         $row->matricula_gerada_label = $row->matricula_id ? 'Sim' : 'Não';
         $row->status_matricula_label = $this->getStatusMatriculaLabel($row->status_matricula);
         $row->evento_label = $this->formatEventoLabel($row->evento_numero, $row->evento_data_inicio);
+        $row->aluno_cpf = Cpf::format($row->aluno_cpf);
 
         return $row;
     }

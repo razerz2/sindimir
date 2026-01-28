@@ -32,7 +32,9 @@
         @if ($required) required @endif
         @if ($readonly) readonly @endif
         @if ($disabled) disabled @endif
-        class="w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 @error($name) border-red-500 @enderror"
+        {{ $attributes->merge([
+            'class' => 'w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 ' . ($errors->has($name) ? 'border-red-500' : ''),
+        ]) }}
     >
     @if ($hint)
         <p class="text-xs text-slate-500">{{ $hint }}</p>

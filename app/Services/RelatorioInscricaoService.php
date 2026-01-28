@@ -8,6 +8,7 @@ use App\Models\Curso;
 use App\Models\EventoCurso;
 use App\Models\ListaEspera;
 use App\Models\Matricula;
+use App\Support\Cpf;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
@@ -269,6 +270,7 @@ class RelatorioInscricaoService
         $row->origem_label = $this->getOrigemLabel((bool) $row->tem_notificacao, (bool) $row->tem_manual);
         $row->evento_label = $this->formatEventoLabel($row->evento_numero, $row->evento_data_inicio);
         $row->data_inscricao_formatada = $this->formatDateTime($row->data_inscricao);
+        $row->aluno_cpf = Cpf::format($row->aluno_cpf);
 
         return $row;
     }

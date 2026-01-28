@@ -35,7 +35,7 @@
                 @forelse ($inscritos as $matricula)
                     <tr>
                         <td>{{ $matricula->aluno?->nome_completo ?? '-' }}</td>
-                        <td>{{ $matricula->aluno?->cpf ?? '-' }}</td>
+                        <td>{{ \App\Support\Cpf::format($matricula->aluno?->cpf) ?: '-' }}</td>
                         <td>{{ $matricula->aluno?->email ?? '-' }}</td>
                         <td>
                             <span class="badge">

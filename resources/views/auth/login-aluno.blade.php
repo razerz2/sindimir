@@ -39,28 +39,19 @@
             @csrf
 
             <div class="field">
-                <label for="email">E-mail</label>
+                <label for="cpf">CPF</label>
                 <input
                     class="input"
-                    id="email"
-                    name="email"
-                    type="email"
-                    value="{{ old('email') }}"
+                    id="cpf"
+                    name="cpf"
+                    type="text"
+                    value="{{ \App\Support\Cpf::format(old('cpf')) }}"
+                    placeholder="000.000.000-00"
+                    inputmode="numeric"
+                    data-mask="cpf"
                     autocomplete="username"
                     required
                     autofocus
-                >
-            </div>
-
-            <div class="field">
-                <label for="password">Senha</label>
-                <input
-                    class="input"
-                    id="password"
-                    name="password"
-                    type="password"
-                    autocomplete="current-password"
-                    required
                 >
             </div>
 
@@ -72,4 +63,5 @@
             <button class="btn primary" type="submit">Entrar</button>
         </form>
     </div>
+    @include('partials.input-masks')
 @endsection

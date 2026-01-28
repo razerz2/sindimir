@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Enums\StatusMatricula;
+use App\Support\Cpf;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -52,7 +53,7 @@ class MatriculasExport
     {
         return [
             $row->aluno_nome,
-            $row->aluno_cpf,
+            Cpf::format($row->aluno_cpf),
             $row->curso_nome,
             $this->formatEventoLabel($row->evento_numero, $row->evento_data_inicio),
             $this->getStatusLabel($row->status),
