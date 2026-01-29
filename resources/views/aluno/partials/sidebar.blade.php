@@ -32,7 +32,7 @@
         Preferências
     </a>
 </nav>
-<form action="{{ route('logout') }}" method="POST" class="mt-auto">
+<form action="{{ route('aluno.logout') }}" method="POST" class="mt-auto">
     @csrf
     <button class="nav-link w-full" type="submit">
         <svg class="h-5 w-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">

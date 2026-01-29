@@ -223,6 +223,7 @@ O código é enviado ao email do usuário ou ao WhatsApp do aluno (quando dispon
 - Jobs `SendEmailNotificationJob` e `SendWhatsAppNotificationJob` disparam as notificações com `QUEUE_CONNECTION=database` e gravam um registro em `notificacao_logs` com canal, status e eventual erro.
 - O prazo de confirmação é configurado em `notificacao.auto.inscricao_confirmacao.tempo_limite_horas` (padrão 24).
 - A lista de espera suporta modos `todos` e `sequencial` em `notificacao.auto.lista_espera.modo`, com intervalo de envio em `notificacao.auto.lista_espera.intervalo_minutos`.
+- Curso disponível respeita `notificacao.auto.curso_disponivel.horario_envio` (padrão 08:00) e `notificacao.auto.curso_disponivel.dias_antes` (padrão 0); fora do horário apenas ignora o envio.
 - Inscrições em eventos geram notificação de confirmação (`INSCRICAO_CONFIRMAR`); se não confirmadas até o prazo, a matrícula expira e a lista de espera é acionada.
 - Cancelamentos de evento disparam notificações para inscritos e lista de espera (`EVENTO_CANCELADO`).
 
@@ -246,4 +247,5 @@ O código é enviado ao email do usuário ou ao WhatsApp do aluno (quando dispon
 
 - Expirar matrículas vencidas (hora em hora).
 - Chamar lista de espera por evento (hora em hora).
+- Enviar notificações de curso disponível (hora em hora; envio efetivo só no horário configurado).
 - Enviar lembretes de cursos (diário no horário configurado).

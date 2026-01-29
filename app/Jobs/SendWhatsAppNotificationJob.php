@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\NotificationLog;
 use App\Services\WhatsAppService;
+use App\Support\WhatsAppMessageFormatter;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -33,8 +34,12 @@ class SendWhatsAppNotificationJob implements ShouldQueue
 
     public function handle(WhatsAppService $whatsAppService): void
     {
+        $formattedMessage = null;
+
         try {
-            $whatsAppService->send($this->celular, $this->message);
+            $formattedMessage = WhatsAppMessageFormatter::format($this->message);
+
+            $whatsAppService->send($this->celular, $formattedMessage);
 
             NotificationLog::create([
                 'aluno_id' => $this->alunoId,
@@ -45,6 +50,7 @@ class SendWhatsAppNotificationJob implements ShouldQueue
                 'canal' => 'whatsapp',
                 'status' => 'success',
                 'erro' => null,
+                'mensagem' => $formattedMessage,
             ]);
         } catch (Throwable $exception) {
             NotificationLog::create([
@@ -56,6 +62,7 @@ class SendWhatsAppNotificationJob implements ShouldQueue
                 'canal' => 'whatsapp',
                 'status' => 'failed',
                 'erro' => $exception->getMessage(),
+                'mensagem' => $formattedMessage ?? $this->message,
             ]);
 
             throw $exception;

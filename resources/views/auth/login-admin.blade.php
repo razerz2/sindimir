@@ -35,7 +35,7 @@
             </div>
         @endif
 
-        <form class="form" method="POST" action="{{ route('login') }}">
+        <form class="form" method="POST" action="{{ route('admin.login.store') }}">
             @csrf
 
             <div class="field">

@@ -21,8 +21,9 @@ class TwoFactorController extends Controller
 
     public function show(Request $request): View|RedirectResponse
     {
-        if (Auth::check()) {
-            return $this->redirectForUser(Auth::user());
+        $authenticatedGuard = $this->getAuthenticatedGuard();
+        if ($authenticatedGuard) {
+            return $this->redirectForGuard($authenticatedGuard, Auth::guard($authenticatedGuard)->user());
         }
 
         $pendingUserId = $request->session()->get('2fa.pending_user_id');
@@ -41,6 +42,11 @@ class TwoFactorController extends Controller
         $data = $request->validate([
             'code' => ['required', 'digits:6'],
         ]);
+
+        $guard = (string) $request->session()->get('2fa.guard', 'admin');
+        if (! in_array($guard, ['admin', 'aluno'], true)) {
+            return $this->redirectToLogin($request);
+        }
 
         $pendingUserId = $request->session()->get('2fa.pending_user_id');
         $challengeId = $request->session()->get('2fa.challenge_id');
@@ -89,10 +95,16 @@ class TwoFactorController extends Controller
         }
 
         $remember = (bool) $request->session()->get('2fa.remember', false);
-        Auth::loginUsingId($user->id, $remember);
+        if ($guard === 'admin' && ! in_array($user->role, [UserRole::Admin, UserRole::Usuario], true)) {
+            $this->clearSession($request);
+
+            return $this->redirectToLogin($request)
+                ->withErrors(['code' => 'Credenciais inválidas.']);
+        }
+        Auth::guard($guard)->loginUsingId($user->id, $remember);
         $this->clearSession($request);
 
-        return $this->redirectForUser($user);
+        return $this->redirectForGuard($guard, $user);
     }
 
     public function resend(Request $request): RedirectResponse
@@ -126,15 +138,15 @@ class TwoFactorController extends Controller
 
     private function redirectToLogin(Request $request): RedirectResponse
     {
-        $loginRoute = $request->session()->get('2fa.login_route', 'login');
+        $loginRoute = $request->session()->get('2fa.login_route', 'admin.login');
 
         return redirect()->route($loginRoute);
     }
 
-    private function redirectForUser(User $user): RedirectResponse
+    private function redirectForGuard(string $guard, User $user): RedirectResponse
     {
-        $fallback = in_array($user->role, [UserRole::Admin, UserRole::Usuario], true)
-            ? route('admin.index')
+        $fallback = $guard === 'admin'
+            ? route('admin.dashboard')
             : route('aluno.dashboard');
 
         return redirect()->intended($fallback);
@@ -149,6 +161,20 @@ class TwoFactorController extends Controller
             '2fa.channel',
             '2fa.destination',
             '2fa.login_route',
+            '2fa.guard',
         ]);
+    }
+
+    private function getAuthenticatedGuard(): ?string
+    {
+        if (Auth::guard('admin')->check()) {
+            return 'admin';
+        }
+
+        if (Auth::guard('aluno')->check()) {
+            return 'aluno';
+        }
+
+        return null;
     }
 }

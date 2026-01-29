@@ -59,31 +59,31 @@ Route::post('/matricula/{token}/cancelar', [\App\Http\Controllers\Public\Inscric
 Route::get('/catalogos/estados/{estado}/municipios', [MunicipioController::class, 'byEstado'])
     ->name('public.catalogo.estados.municipios');
 
-Route::prefix('admin')->group(function () {
-    Route::middleware('guest')->group(function () {
+Route::prefix('admin')->name('admin.')->group(function () {
+    Route::middleware('guest:admin')->group(function () {
         Route::get('/login', [LoginController::class, 'show'])->name('login');
-        Route::post('/login', [LoginController::class, 'store']);
+        Route::post('/login', [LoginController::class, 'store'])->name('login.store');
     });
     Route::post('/logout', [LoginController::class, 'destroy'])
-        ->middleware('auth')
+        ->middleware('auth:admin')
         ->name('logout');
     Route::get('/logout', [LoginController::class, 'destroy'])
-        ->middleware('auth')
+        ->middleware('auth:admin')
         ->name('logout.get');
 });
 
-Route::prefix('aluno')->middleware('guest')->group(function () {
-    Route::get('/login', [LoginController::class, 'show'])->name('aluno.login');
-    Route::post('/login', [LoginController::class, 'store'])->name('aluno.login.store');
+Route::prefix('aluno')->name('aluno.')->middleware('guest:aluno')->group(function () {
+    Route::get('/login', [LoginController::class, 'show'])->name('login');
+    Route::post('/login', [LoginController::class, 'store'])->name('login.store');
 });
 
-Route::middleware('guest')->group(function () {
+Route::middleware('guest:admin,aluno')->group(function () {
     Route::get('/2fa', [TwoFactorController::class, 'show'])->name('2fa.show');
     Route::post('/2fa', [TwoFactorController::class, 'verify'])->name('2fa.verify');
     Route::post('/2fa/reenviar', [TwoFactorController::class, 'resend'])->name('2fa.resend');
 });
 
-Route::middleware(['auth', 'role:admin,usuario', 'module-access'])
+Route::middleware(['auth:admin', 'role:admin,usuario', 'module-access'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
@@ -192,7 +192,7 @@ Route::middleware(['auth', 'role:admin,usuario', 'module-access'])
             ->name('site.media.store');
     });
 
-Route::middleware(['auth', 'role:aluno'])
+Route::middleware(['auth:aluno', 'role:aluno'])
     ->prefix('aluno')
     ->name('aluno.')
     ->group(function () {
@@ -213,3 +213,10 @@ Route::middleware(['auth', 'role:aluno'])
         Route::put('/preferencias', [\App\Http\Controllers\Aluno\AlunoAreaController::class, 'preferenciasUpdate'])
             ->name('preferencias.update');
     });
+
+Route::post('/aluno/logout', [LoginController::class, 'destroy'])
+    ->middleware('auth:aluno')
+    ->name('aluno.logout');
+Route::get('/aluno/logout', [LoginController::class, 'destroy'])
+    ->middleware('auth:aluno')
+    ->name('aluno.logout.get');

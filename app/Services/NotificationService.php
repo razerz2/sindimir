@@ -12,6 +12,7 @@ use App\Models\EventoCurso;
 use App\Models\NotificationLink;
 use App\Models\NotificationLog;
 use App\Models\NotificationTemplate;
+use App\Support\WhatsAppMessageFormatter;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 
@@ -65,6 +66,7 @@ class NotificationService
         );
         $corpoEmail = $this->normalizeMensagem($corpoEmail, $aluno, $notificationType, $linkUrl);
         $textoWhatsApp = $this->normalizeMensagem($textoWhatsApp, $aluno, $notificationType, $linkUrl);
+        $textoWhatsApp = WhatsAppMessageFormatter::format($textoWhatsApp);
 
         return [
             'assunto_email' => $assunto,

@@ -29,7 +29,10 @@ class LoginController extends Controller
 
     public function store(Request $request, TwoFactorService $twoFactorService): RedirectResponse
     {
-        $isAlunoLogin = $request->route()?->getName() === 'aluno.login.store';
+        $routeName = $request->route()?->getName();
+        $isAlunoLogin = $routeName === 'aluno.login.store';
+        // Usa guards separados para evitar conflito entre admin e aluno.
+        $guard = $isAlunoLogin ? 'aluno' : 'admin';
         if ($isAlunoLogin) {
             $request->merge([
                 'cpf' => Cpf::normalize($request->input('cpf')),
@@ -117,22 +120,30 @@ class LoginController extends Controller
                     '2fa.channel' => $challenge->channel,
                     '2fa.destination' => $twoFactorService->maskDestination($user, $challenge->channel),
                     '2fa.login_route' => 'aluno.login',
+                    '2fa.guard' => $guard,
                 ]);
 
                 return redirect()->route('2fa.show');
             }
 
-            Auth::loginUsingId($user->id, $remember);
+            Auth::guard($guard)->loginUsingId($user->id, $remember);
 
             return redirect()->intended(route('aluno.dashboard'));
         }
 
-        if (Auth::attempt($credentials, $remember)) {
+        if (Auth::guard($guard)->attempt($credentials, $remember)) {
             $request->session()->regenerate();
 
-            $user = $request->user();
+            $user = Auth::guard($guard)->user();
+            if ($user && ! in_array($user->role, [UserRole::Admin, UserRole::Usuario], true)) {
+                Auth::guard($guard)->logout();
+
+                throw ValidationException::withMessages([
+                    'email' => 'Credenciais invalidas.',
+                ]);
+            }
             if ($user && $twoFactorService->isEnabledForUser($user)) {
-                Auth::logout();
+                Auth::guard($guard)->logout();
 
                 try {
                     $challenge = $twoFactorService->startChallenge($user, $request);
@@ -142,24 +153,20 @@ class LoginController extends Controller
                     ]);
                 }
 
-                $loginRoute = $request->route()?->getName() === 'aluno.login' ? 'aluno.login' : 'login';
                 $request->session()->put([
                     '2fa.pending_user_id' => $user->id,
                     '2fa.challenge_id' => $challenge->id,
                     '2fa.remember' => $remember,
                     '2fa.channel' => $challenge->channel,
                     '2fa.destination' => $twoFactorService->maskDestination($user, $challenge->channel),
-                    '2fa.login_route' => $loginRoute,
+                    '2fa.login_route' => 'admin.login',
+                    '2fa.guard' => $guard,
                 ]);
 
                 return redirect()->route('2fa.show');
             }
 
-            $fallback = in_array($user?->role, [UserRole::Admin, UserRole::Usuario], true)
-                ? route('admin.index')
-                : route('aluno.dashboard');
-
-            return redirect()->intended($fallback);
+            return redirect()->intended(route('admin.dashboard'));
         }
 
         $errorKey = $isAlunoLogin ? 'cpf' : 'email';
@@ -170,11 +177,13 @@ class LoginController extends Controller
 
     public function destroy(Request $request): RedirectResponse
     {
-        Auth::logout();
-
-        $request->session()->invalidate();
+        $guard = $request->routeIs('aluno.*') ? 'aluno' : 'admin';
+        Auth::guard($guard)->logout();
+        // Mantem outras sessões/guards intactos (isolamento entre areas).
         $request->session()->regenerateToken();
 
-        return redirect()->route('public.home');
+        $redirect = $guard === 'aluno' ? route('aluno.login') : route('admin.login');
+
+        return redirect()->to($redirect);
     }
 }

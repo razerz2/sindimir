@@ -21,6 +21,7 @@ class NotificationLog extends Model
         'canal',
         'status',
         'erro',
+        'mensagem',
     ];
 
     public function aluno(): BelongsTo
