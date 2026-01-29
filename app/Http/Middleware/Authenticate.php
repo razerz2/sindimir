@@ -13,6 +13,8 @@ class Authenticate extends Middleware
             return null;
         }
 
+        // Observação: o "intended" é salvo na sessão pelo fluxo de auth do Laravel.
+        // Como a sessão é compartilhada entre guards, evitamos depender dele no login/2FA.
         if ($request->routeIs('admin.*') || $request->is('admin', 'admin/*')) {
             return route('admin.login');
         }
