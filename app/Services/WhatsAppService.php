@@ -60,18 +60,19 @@ class WhatsAppService
 
     public function send(string $to, string $message): void
     {
+        $this->sendWithResponse($to, $message);
+    }
+
+    public function sendWithResponse(string $to, string $message): array
+    {
         $provider = $this->getActiveProvider();
 
         if ($provider === 'zapi') {
-            $this->sendViaZapi($to, $message);
-
-            return;
+            return $this->sendViaZapi($to, $message, true);
         }
 
         if ($provider === 'meta') {
-            $this->sendViaMeta($to, $message);
-
-            return;
+            return $this->sendViaMeta($to, $message, true);
         }
 
         throw new RuntimeException('Nenhum provedor WhatsApp ativo configurado.');

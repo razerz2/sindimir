@@ -23,7 +23,7 @@ class TwoFactorController extends Controller
     {
         $authenticatedGuard = $this->getAuthenticatedGuard();
         if ($authenticatedGuard) {
-            return $this->redirectForGuard($authenticatedGuard, Auth::guard($authenticatedGuard)->user());
+            return $this->redirectForGuard($authenticatedGuard, Auth::guard($authenticatedGuard)->user(), $request);
         }
 
         $pendingUserId = $request->session()->get('2fa.pending_user_id');
@@ -104,7 +104,7 @@ class TwoFactorController extends Controller
         Auth::guard($guard)->loginUsingId($user->id, $remember);
         $this->clearSession($request);
 
-        return $this->redirectForGuard($guard, $user);
+        return $this->redirectForGuard($guard, $user, $request);
     }
 
     public function resend(Request $request): RedirectResponse
@@ -143,13 +143,16 @@ class TwoFactorController extends Controller
         return redirect()->route($loginRoute);
     }
 
-    private function redirectForGuard(string $guard, User $user): RedirectResponse
+    private function redirectForGuard(string $guard, User $user, Request $request): RedirectResponse
     {
         $fallback = $guard === 'admin'
             ? route('admin.dashboard')
             : route('aluno.dashboard');
 
-        return redirect()->intended($fallback);
+        // Evita reaproveitar o "intended" de outro guard (login cruzado).
+        $request->session()->forget('url.intended');
+
+        return redirect()->to($fallback);
     }
 
     private function clearSession(Request $request): void

@@ -127,8 +127,11 @@ class LoginController extends Controller
             }
 
             Auth::guard($guard)->loginUsingId($user->id, $remember);
+            // Evita reaproveitar o "intended" de outro guard (login cruzado).
+            $request->session()->forget('url.intended');
+            $request->session()->regenerate();
 
-            return redirect()->intended(route('aluno.dashboard'));
+            return redirect()->to(route('aluno.dashboard'));
         }
 
         if (Auth::guard($guard)->attempt($credentials, $remember)) {
@@ -166,7 +169,11 @@ class LoginController extends Controller
                 return redirect()->route('2fa.show');
             }
 
-            return redirect()->intended(route('admin.dashboard'));
+            // Evita reaproveitar o "intended" de outro guard (login cruzado).
+            $request->session()->forget('url.intended');
+            $request->session()->regenerate();
+
+            return redirect()->to(route('admin.dashboard'));
         }
 
         $errorKey = $isAlunoLogin ? 'cpf' : 'email';

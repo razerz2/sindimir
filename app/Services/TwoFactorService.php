@@ -58,7 +58,7 @@ class TwoFactorService
         ]);
 
         try {
-            $this->sendCode($user, $code, $channel);
+            $meta = $this->sendCode($user, $code, $channel);
         } catch (RuntimeException $exception) {
             $this->log(
                 $user,
@@ -72,7 +72,7 @@ class TwoFactorService
             throw $exception;
         }
 
-        $this->log($user, $challenge, $channel, 'send', 'success', null, $request);
+        $this->log($user, $challenge, $channel, 'send', 'success', null, $request, $meta ?? null);
 
         return $challenge;
     }
@@ -148,7 +148,7 @@ class TwoFactorService
         return $numero ? $this->maskPhone($numero) : '';
     }
 
-    private function sendCode(User $user, string $code, string $channel): void
+    private function sendCode(User $user, string $code, string $channel): array
     {
         $mensagem = "Seu código de verificação para acesso à Área do Aluno é: {$code}. Este código é válido por alguns minutos e não deve ser compartilhado.";
         if ($channel === 'email') {
@@ -158,7 +158,9 @@ class TwoFactorService
 
             Mail::to($user->email)->send(new GenericNotificationMail('Código de verificação', $mensagem));
 
-            return;
+            return [
+                'provider' => 'email',
+            ];
         }
 
         $numero = $this->resolveWhatsappNumber($user);
@@ -169,7 +171,7 @@ class TwoFactorService
             throw new RuntimeException('WhatsApp não está configurado para envio.');
         }
 
-        $this->whatsAppService->send($numero, $mensagem);
+        return $this->whatsAppService->sendWithResponse($numero, $mensagem);
     }
 
     private function generateCode(): string
@@ -237,7 +239,8 @@ class TwoFactorService
         string $action,
         string $status,
         ?string $message,
-        Request $request
+        Request $request,
+        ?array $meta = null
     ): void {
         TwoFactorLog::create([
             'user_id' => $user->id,
@@ -248,6 +251,7 @@ class TwoFactorService
             'message' => $message,
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
+            'meta' => $meta,
         ]);
     }
 }
