@@ -7,6 +7,7 @@ use App\Enums\StatusMatricula;
 use App\Jobs\SendEmailNotificationJob;
 use App\Jobs\SendWhatsAppNotificationJob;
 use App\Models\Aluno;
+use App\Models\ContatoExterno;
 use App\Models\Curso;
 use App\Models\EventoCurso;
 use App\Models\NotificationLink;
@@ -15,9 +16,13 @@ use App\Models\NotificationTemplate;
 use App\Support\WhatsAppMessageFormatter;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class NotificationService
 {
+    private const DESTINATARIO_ALUNO = 'aluno';
+    private const DESTINATARIO_CONTATO_EXTERNO = 'contato_externo';
+
     public function __construct(
         private readonly ConfiguracaoService $configuracaoService,
         private readonly NotificationLinkService $linkService
@@ -34,7 +39,8 @@ class NotificationService
         if (in_array($notificationType, [NotificationType::EVENTO_CANCELADO, NotificationType::INSCRICAO_CANCELADA], true)) {
             $linkUrl = '';
         }
-        $context = $this->buildTemplateContext($aluno, $curso, null, $linkUrl, $datas, $vagasDisponiveis);
+        $destinatarioNome = (string) $aluno->nome_completo;
+        $context = $this->buildTemplateContext($destinatarioNome, $curso, null, $linkUrl, $datas, $vagasDisponiveis);
 
         $emailTemplate = $this->getTemplate($notificationType, 'email');
         $whatsappTemplate = $this->getTemplate($notificationType, 'whatsapp');
@@ -46,7 +52,7 @@ class NotificationService
             $notificationType,
             $emailTemplate?->conteudo,
             $context,
-            $aluno,
+            $destinatarioNome,
             $curso,
             null,
             $linkUrl,
@@ -57,15 +63,15 @@ class NotificationService
             $notificationType,
             $whatsappTemplate?->conteudo,
             $context,
-            $aluno,
+            $destinatarioNome,
             $curso,
             null,
             $linkUrl,
             $datas,
             $vagasDisponiveis
         );
-        $corpoEmail = $this->normalizeMensagem($corpoEmail, $aluno, $notificationType, $linkUrl);
-        $textoWhatsApp = $this->normalizeMensagem($textoWhatsApp, $aluno, $notificationType, $linkUrl);
+        $corpoEmail = $this->normalizeMensagem($corpoEmail, $destinatarioNome, $notificationType, $linkUrl);
+        $textoWhatsApp = $this->normalizeMensagem($textoWhatsApp, $destinatarioNome, $notificationType, $linkUrl);
         $textoWhatsApp = WhatsAppMessageFormatter::format($textoWhatsApp);
 
         return [
@@ -90,9 +96,9 @@ class NotificationService
         $destinoEvento = $destino instanceof EventoCurso ? $destino->loadMissing('curso') : null;
         $curso = $destinoEvento ? $destinoEvento->curso : $destino;
 
-        $colecaoAlunos = $this->normalizeAlunos($alunos);
+        $destinatarios = $this->resolveDestinatarios($alunos);
 
-        if ($colecaoAlunos->isEmpty()) {
+        if ($destinatarios->isEmpty()) {
             return;
         }
 
@@ -104,13 +110,39 @@ class NotificationService
             return;
         }
 
-        foreach ($colecaoAlunos as $aluno) {
-            $link = $this->linkService->resolve($aluno, $curso, $destinoEvento, $notificationType, $validadeMinutos);
+        Log::info('Disparo de notificações iniciado.', [
+            'destinatarios' => $destinatarios->count(),
+            'destinatarios_config' => $this->resolveDestinatariosConfig(),
+            'notification_type' => $notificationType->value,
+        ]);
+
+        $emailsEnviados = [];
+        $telefonesEnviados = [];
+
+        foreach ($destinatarios as $destinatario) {
+            $destinatarioNome = (string) ($destinatario['nome'] ?? '');
+            $link = null;
+            if ($destinatario['tipo'] === self::DESTINATARIO_ALUNO && $destinatario['aluno'] instanceof Aluno) {
+                $link = $this->linkService->resolve(
+                    $destinatario['aluno'],
+                    $curso,
+                    $destinoEvento,
+                    $notificationType,
+                    $validadeMinutos
+                );
+            }
             $linkUrl = $this->resolveLinkUrl($link, $notificationType);
             if (in_array($notificationType, [NotificationType::EVENTO_CANCELADO, NotificationType::INSCRICAO_CANCELADA], true)) {
                 $linkUrl = '';
             }
-            $context = $this->buildTemplateContext($aluno, $curso, $destinoEvento, $linkUrl, $datas, $vagasDisponiveis);
+            $context = $this->buildTemplateContext(
+                $destinatarioNome,
+                $curso,
+                $destinoEvento,
+                $linkUrl,
+                $datas,
+                $vagasDisponiveis
+            );
 
             $emailTemplate = $this->getTemplate($notificationType, 'email');
             $whatsappTemplate = $this->getTemplate($notificationType, 'whatsapp');
@@ -118,67 +150,80 @@ class NotificationService
             $assunto = $emailTemplate && $emailTemplate->assunto
                 ? $this->renderTemplate($emailTemplate->assunto, $context)
                 : "Convite para {$curso->nome}";
-        $mensagemEmail = $this->resolveMensagem(
-            $notificationType,
-            $emailTemplate?->conteudo,
-            $context,
-            $aluno,
-            $curso,
-            $destinoEvento,
-            $linkUrl,
-            $datas,
-            $vagasDisponiveis
-        );
-        $mensagemWhatsApp = $this->resolveMensagem(
-            $notificationType,
-            $whatsappTemplate?->conteudo,
-            $context,
-            $aluno,
-            $curso,
-            $destinoEvento,
-            $linkUrl,
-            $datas,
-            $vagasDisponiveis
-        );
-        $mensagemEmail = $this->normalizeMensagem($mensagemEmail, $aluno, $notificationType, $linkUrl);
-        $mensagemWhatsApp = $this->normalizeMensagem($mensagemWhatsApp, $aluno, $notificationType, $linkUrl);
+            $mensagemEmail = $this->resolveMensagem(
+                $notificationType,
+                $emailTemplate?->conteudo,
+                $context,
+                $destinatarioNome,
+                $curso,
+                $destinoEvento,
+                $linkUrl,
+                $datas,
+                $vagasDisponiveis
+            );
+            $mensagemWhatsApp = $this->resolveMensagem(
+                $notificationType,
+                $whatsappTemplate?->conteudo,
+                $context,
+                $destinatarioNome,
+                $curso,
+                $destinoEvento,
+                $linkUrl,
+                $datas,
+                $vagasDisponiveis
+            );
+            $mensagemEmail = $this->normalizeMensagem($mensagemEmail, $destinatarioNome, $notificationType, $linkUrl);
+            $mensagemWhatsApp = $this->normalizeMensagem($mensagemWhatsApp, $destinatarioNome, $notificationType, $linkUrl);
 
             if ($emailAtivo) {
-                if (! $this->isValidEmail($aluno->email)) {
-                    $this->logAttempt('email', 'blocked', 'Email inválido ou não cadastrado.', $aluno, $curso, $destinoEvento, $link, $notificationType);
-                } elseif ($this->isRateLimited($aluno, $curso, $destinoEvento, $notificationType, 'email')) {
-                    $this->logAttempt('email', 'blocked', 'Limite diário atingido.', $aluno, $curso, $destinoEvento, $link, $notificationType);
+                $email = (string) ($destinatario['email'] ?? '');
+                $emailKey = strtolower(trim($email));
+                if (! $this->isValidEmail($email)) {
+                    $this->logAttempt('email', 'blocked', 'Email inválido ou não cadastrado.', $destinatario, $curso, $destinoEvento, $link, $notificationType);
+                } elseif ($emailKey !== '' && isset($emailsEnviados[$emailKey])) {
+                    $this->logAttempt('email', 'blocked', 'Destinatário duplicado.', $destinatario, $curso, $destinoEvento, $link, $notificationType);
+                } elseif ($this->isRateLimited($destinatario, $curso, $destinoEvento, $notificationType, 'email')) {
+                    $this->logAttempt('email', 'blocked', 'Limite diário atingido.', $destinatario, $curso, $destinoEvento, $link, $notificationType);
                 } else {
                     SendEmailNotificationJob::dispatch(
-                        $aluno->id,
-                        $aluno->email,
-                        $aluno->nome_completo,
+                        $destinatario['tipo'],
+                        $destinatario['id'],
+                        $destinatarioNome,
+                        $email,
                         $curso->id,
                         $destinoEvento?->id,
-                        $link->id,
+                        $link?->id,
                         $notificationType->value,
                         $assunto,
                         $mensagemEmail
                     );
+                    if ($emailKey !== '') {
+                        $emailsEnviados[$emailKey] = true;
+                    }
                 }
             }
 
             if ($whatsappAtivo) {
-                $numeroNormalizado = $this->normalizeWhatsapp($aluno->celular);
+                $numeroNormalizado = $this->normalizeWhatsapp($destinatario['telefone'] ?? null);
                 if (! $numeroNormalizado) {
-                    $this->logAttempt('whatsapp', 'blocked', 'WhatsApp inválido ou não cadastrado.', $aluno, $curso, $destinoEvento, $link, $notificationType);
-                } elseif ($this->isRateLimited($aluno, $curso, $destinoEvento, $notificationType, 'whatsapp')) {
-                    $this->logAttempt('whatsapp', 'blocked', 'Limite diário atingido.', $aluno, $curso, $destinoEvento, $link, $notificationType);
+                    $this->logAttempt('whatsapp', 'blocked', 'WhatsApp inválido ou não cadastrado.', $destinatario, $curso, $destinoEvento, $link, $notificationType);
+                } elseif (isset($telefonesEnviados[$numeroNormalizado])) {
+                    $this->logAttempt('whatsapp', 'blocked', 'Destinatário duplicado.', $destinatario, $curso, $destinoEvento, $link, $notificationType);
+                } elseif ($this->isRateLimited($destinatario, $curso, $destinoEvento, $notificationType, 'whatsapp')) {
+                    $this->logAttempt('whatsapp', 'blocked', 'Limite diário atingido.', $destinatario, $curso, $destinoEvento, $link, $notificationType);
                 } else {
                     SendWhatsAppNotificationJob::dispatch(
-                        $aluno->id,
+                        $destinatario['tipo'],
+                        $destinatario['id'],
+                        $destinatarioNome,
                         $numeroNormalizado,
                         $curso->id,
                         $destinoEvento?->id,
-                        $link->id,
+                        $link?->id,
                         $notificationType->value,
                         $mensagemWhatsApp
                     );
+                    $telefonesEnviados[$numeroNormalizado] = true;
                 }
             }
         }
@@ -195,6 +240,65 @@ class NotificationService
             ->filter(fn ($aluno) => $aluno instanceof Aluno)
             ->unique('id')
             ->values();
+    }
+
+    /**
+     * @param iterable<Aluno> $alunos
+     * @return Collection<int, array{
+     *     tipo: string,
+     *     id: int|null,
+     *     nome: string,
+     *     email: string|null,
+     *     telefone: string|null,
+     *     aluno: Aluno|null,
+     *     contato_externo: ContatoExterno|null
+     * }>
+     */
+    private function resolveDestinatarios(iterable $alunos): Collection
+    {
+        $modo = $this->resolveDestinatariosConfig();
+        $destinatarios = [];
+
+        if ($modo !== 'contatos_externos') {
+            foreach ($this->normalizeAlunos($alunos) as $aluno) {
+                $destinatarios[] = [
+                    'tipo' => self::DESTINATARIO_ALUNO,
+                    'id' => $aluno->id,
+                    'nome' => (string) $aluno->nome_completo,
+                    'email' => $aluno->email,
+                    'telefone' => $aluno->celular,
+                    'aluno' => $aluno,
+                    'contato_externo' => null,
+                ];
+            }
+        }
+
+        if ($modo !== 'alunos') {
+            ContatoExterno::query()
+                ->orderBy('id')
+                ->chunkById(500, function ($contatos) use (&$destinatarios) {
+                    foreach ($contatos as $contato) {
+                        $destinatarios[] = [
+                            'tipo' => self::DESTINATARIO_CONTATO_EXTERNO,
+                            'id' => $contato->id,
+                            'nome' => (string) $contato->nome,
+                            'email' => null,
+                            'telefone' => $contato->telefone,
+                            'aluno' => null,
+                            'contato_externo' => $contato,
+                        ];
+                    }
+                });
+        }
+
+        return collect($destinatarios)->values();
+    }
+
+    private function resolveDestinatariosConfig(): string
+    {
+        $modo = (string) $this->configuracaoService->get('notificacao.destinatarios', 'alunos');
+
+        return in_array($modo, ['alunos', 'contatos_externos', 'ambos'], true) ? $modo : 'alunos';
     }
 
     private function contarVagas(Curso $curso, ?EventoCurso $evento): int
@@ -229,7 +333,7 @@ class NotificationService
     }
 
     private function buildFallbackMessage(
-        Aluno $aluno,
+        string $destinatarioNome,
         Curso $curso,
         ?EventoCurso $evento,
         string $linkUrl,
@@ -238,10 +342,10 @@ class NotificationService
         NotificationType $notificationType
     ): string {
         if ($notificationType === NotificationType::EVENTO_CRIADO) {
-            return $this->buildEventoCriadoMessage($aluno, $curso, $evento, $linkUrl, $datas, $vagasDisponiveis);
+            return $this->buildEventoCriadoMessage($destinatarioNome, $curso, $evento, $linkUrl, $datas, $vagasDisponiveis);
         }
 
-        $primeiroNome = $this->getPrimeiroNome($aluno->nome_completo);
+        $primeiroNome = $this->getPrimeiroNome($destinatarioNome);
         $detalhesEvento = [];
         if ($evento?->horario_inicio) {
             $detalhesEvento[] = 'Horario: ' . $this->formatHorario($evento->horario_inicio);
@@ -312,14 +416,14 @@ class NotificationService
     }
 
     private function buildEventoCriadoMessage(
-        Aluno $aluno,
+        string $destinatarioNome,
         Curso $curso,
         ?EventoCurso $evento,
         string $linkUrl,
         string $datas,
         int $vagasDisponiveis
     ): string {
-        $primeiroNome = $this->getPrimeiroNome($aluno->nome_completo);
+        $primeiroNome = $this->getPrimeiroNome($destinatarioNome);
         $horario = $evento?->horario_inicio ? $this->formatHorario($evento->horario_inicio) : '';
         $cargaHoraria = $evento?->carga_horaria ? (string) $evento->carga_horaria : '';
         $turno = $evento?->turno?->value
@@ -383,8 +487,20 @@ class NotificationService
         return [$emailAtivo, $whatsappAtivo];
     }
 
-    private function resolveLinkUrl(NotificationLink $link, NotificationType $notificationType): string
+    private function resolveLinkUrl(?NotificationLink $link, NotificationType $notificationType): string
     {
+        if (! $link) {
+            $route = match ($notificationType) {
+                NotificationType::INSCRICAO_CONFIRMAR,
+                NotificationType::MATRICULA_CONFIRMADA => 'public.cpf',
+                default => 'public.cursos',
+            };
+
+            $path = route($route, [], false);
+
+            return $this->buildAbsoluteUrl($path);
+        }
+
         $route = match ($notificationType) {
             NotificationType::INSCRICAO_CONFIRMAR => 'public.inscricao.confirmar',
             NotificationType::MATRICULA_CONFIRMADA => 'public.matricula.visualizar',
@@ -400,15 +516,14 @@ class NotificationService
      * @return array<string, string>
      */
     private function buildTemplateContext(
-        Aluno $aluno,
+        string $destinatarioNome,
         Curso $curso,
         ?EventoCurso $evento,
         string $linkUrl,
         string $datas,
         int $vagasDisponiveis
-    ): array
-    {
-        $primeiroNome = $this->getPrimeiroNome($aluno->nome_completo);
+    ): array {
+        $primeiroNome = $this->getPrimeiroNome($destinatarioNome);
         $horario = $evento?->horario_inicio ? $this->formatHorario($evento->horario_inicio) : '';
         $cargaHoraria = $evento?->carga_horaria ? (string) $evento->carga_horaria : '';
         $turno = $evento?->turno?->value
@@ -417,6 +532,7 @@ class NotificationService
 
         return [
             '{{aluno_nome}}' => $primeiroNome,
+            '{{destinatario_nome}}' => $primeiroNome,
             '{{curso_nome}}' => $curso->nome,
             '{{datas}}' => $datas,
             '{{vagas}}' => (string) $vagasDisponiveis,
@@ -439,7 +555,7 @@ class NotificationService
         NotificationType $notificationType,
         ?string $template,
         array $context,
-        Aluno $aluno,
+        string $destinatarioNome,
         Curso $curso,
         ?EventoCurso $evento,
         string $linkUrl,
@@ -447,24 +563,40 @@ class NotificationService
         int $vagasDisponiveis
     ): string {
         if ($notificationType === NotificationType::EVENTO_CANCELADO || ! $template) {
-            return $this->buildFallbackMessage($aluno, $curso, $evento, $linkUrl, $datas, $vagasDisponiveis, $notificationType);
+            return $this->buildFallbackMessage(
+                $destinatarioNome,
+                $curso,
+                $evento,
+                $linkUrl,
+                $datas,
+                $vagasDisponiveis,
+                $notificationType
+            );
         }
 
         $mensagem = $this->renderTemplate($template, $context);
 
         if ($mensagem === '' || str_contains($mensagem, '{{')) {
-            return $this->buildFallbackMessage($aluno, $curso, $evento, $linkUrl, $datas, $vagasDisponiveis, $notificationType);
+            return $this->buildFallbackMessage(
+                $destinatarioNome,
+                $curso,
+                $evento,
+                $linkUrl,
+                $datas,
+                $vagasDisponiveis,
+                $notificationType
+            );
         }
 
         return $mensagem;
     }
     private function normalizeMensagem(
         string $mensagem,
-        Aluno $aluno,
+        string $destinatarioNome,
         NotificationType $notificationType,
         string $linkUrl
     ): string {
-        $mensagem = $this->normalizeNomeAluno($mensagem, $aluno);
+        $mensagem = $this->normalizeNomeDestinatario($mensagem, $destinatarioNome);
 
         if ($linkUrl !== '' && $this->shouldNormalizeLinks($notificationType)) {
             $mensagem = $this->replaceMessageLinks($mensagem, $linkUrl);
@@ -473,9 +605,9 @@ class NotificationService
         return $mensagem;
     }
 
-    private function normalizeNomeAluno(string $mensagem, Aluno $aluno): string
+    private function normalizeNomeDestinatario(string $mensagem, string $nomeCompleto): string
     {
-        $nomeCompleto = trim((string) $aluno->nome_completo);
+        $nomeCompleto = trim($nomeCompleto);
         $primeiroNome = $this->getPrimeiroNome($nomeCompleto);
 
         if ($primeiroNome === '') {
@@ -532,17 +664,21 @@ class NotificationService
         string $canal,
         string $status,
         string $erro,
-        Aluno $aluno,
+        array $destinatario,
         Curso $curso,
         ?EventoCurso $evento,
-        NotificationLink $link,
+        ?NotificationLink $link,
         NotificationType $notificationType
     ): void {
         NotificationLog::create([
-            'aluno_id' => $aluno->id,
+            'aluno_id' => $destinatario['tipo'] === self::DESTINATARIO_ALUNO ? $destinatario['id'] : null,
+            'contato_externo_id' => $destinatario['tipo'] === self::DESTINATARIO_CONTATO_EXTERNO
+                ? $destinatario['id']
+                : null,
+            'tipo_destinatario' => $destinatario['tipo'],
             'curso_id' => $curso->id,
             'evento_curso_id' => $evento?->id,
-            'notificacao_link_id' => $link->id,
+            'notificacao_link_id' => $link?->id,
             'notification_type' => $notificationType->value,
             'canal' => $canal,
             'status' => $status,
@@ -560,12 +696,16 @@ class NotificationService
         ?int $validadeMinutos = null
     ): void {
         $link = $this->linkService->resolve($aluno, $curso, $evento, $notificationType, $validadeMinutos);
+        $destinatario = [
+            'tipo' => self::DESTINATARIO_ALUNO,
+            'id' => $aluno->id,
+        ];
 
         $this->logAttempt(
             $canal,
             'blocked',
             $motivo,
-            $aluno,
+            $destinatario,
             $curso,
             $evento,
             $link,
@@ -604,7 +744,7 @@ class NotificationService
     }
 
     private function isRateLimited(
-        Aluno $aluno,
+        array $destinatario,
         Curso $curso,
         ?EventoCurso $evento,
         NotificationType $notificationType,
@@ -621,12 +761,19 @@ class NotificationService
         }
 
         $query = NotificationLog::query()
-            ->where('aluno_id', $aluno->id)
             ->where('curso_id', $curso->id)
             ->where('notification_type', $notificationType->value)
             ->where('canal', $canal)
             ->where('status', '!=', 'blocked')
             ->whereDate('created_at', CarbonImmutable::today());
+
+        if ($destinatario['tipo'] === self::DESTINATARIO_ALUNO) {
+            $query->where('tipo_destinatario', self::DESTINATARIO_ALUNO)
+                ->where('aluno_id', $destinatario['id']);
+        } else {
+            $query->where('tipo_destinatario', self::DESTINATARIO_CONTATO_EXTERNO)
+                ->where('contato_externo_id', $destinatario['id']);
+        }
 
         if ($evento) {
             $query->where('evento_curso_id', $evento->id);

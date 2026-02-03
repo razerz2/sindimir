@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Enums\NotificationType;
 use App\Models\NotificationTemplate;
 use App\Services\ConfiguracaoService;
+use App\Services\GoogleContactsService;
 use App\Services\WhatsAppService;
 use App\Services\ThemeService;
 use App\Services\SiteSectionService;
@@ -20,7 +21,8 @@ class ConfiguracaoController extends Controller
     public function __construct(
         private readonly ConfiguracaoService $configuracaoService,
         private readonly ThemeService $themeService,
-        private readonly WhatsAppService $whatsAppService
+        private readonly WhatsAppService $whatsAppService,
+        private readonly GoogleContactsService $googleContactsService
     ) {
     }
 
@@ -42,6 +44,7 @@ class ConfiguracaoController extends Controller
             'sistema_ativo' => (bool) $this->configuracaoService->get('sistema.ativo', true),
             'notificacao_email_ativo' => (bool) $this->configuracaoService->get('notificacao.email_ativo', true),
             'notificacao_whatsapp_ativo' => (bool) $this->configuracaoService->get('notificacao.whatsapp_ativo', false),
+            'notificacao_destinatarios' => $this->configuracaoService->get('notificacao.destinatarios', 'alunos'),
             'two_factor_ativo' => (bool) $this->configuracaoService->get('seguranca.2fa.ativo', false),
             'two_factor_perfil' => $this->configuracaoService->get('seguranca.2fa.perfil', 'admin'),
             'two_factor_canal' => $this->configuracaoService->get('seguranca.2fa.canal', 'email'),
@@ -146,13 +149,22 @@ class ConfiguracaoController extends Controller
             $whatsappReady = ! empty($settings['whatsapp_token']) && ! empty($settings['whatsapp_phone_number_id']);
         }
 
+        $googleConfigured = $this->googleContactsService->isConfigured();
+        $googleConnected = $this->googleContactsService->isConnected();
+        $googleAccount = $this->googleContactsService->getConnectedAccount();
+        $googleStatus = $googleConnected ? 'Conectado' : ($googleConfigured ? 'Pendente' : 'Não configurado');
+
         return view('admin.configuracoes.index', compact(
             'settings',
             'theme',
             'whatsappStatus',
             'templates',
             'whatsappReady',
-            'templateDefaults'
+            'templateDefaults',
+            'googleConfigured',
+            'googleConnected',
+            'googleAccount',
+            'googleStatus'
         ));
     }
 
@@ -176,6 +188,7 @@ class ConfiguracaoController extends Controller
             'tema_background_main_tamanho' => ['nullable', 'string', 'max:40'],
             'notificacao_email_ativo' => ['nullable', 'boolean'],
             'notificacao_whatsapp_ativo' => ['nullable', 'boolean'],
+            'notificacao_destinatarios' => ['nullable', 'string', 'in:alunos,contatos_externos,ambos'],
             'two_factor_ativo' => ['nullable', 'boolean'],
             'two_factor_perfil' => ['nullable', 'string', 'in:admin,aluno,ambos'],
             'two_factor_canal' => ['nullable', 'string', 'in:email,whatsapp'],
@@ -287,6 +300,11 @@ class ConfiguracaoController extends Controller
 
         $this->configuracaoService->set('notificacao.email_ativo', (bool) $request->boolean('notificacao_email_ativo'), 'Notificacao por email');
         $this->configuracaoService->set('notificacao.whatsapp_ativo', (bool) $request->boolean('notificacao_whatsapp_ativo'), 'Notificacao por WhatsApp');
+        $this->configuracaoService->set(
+            'notificacao.destinatarios',
+            (string) ($data['notificacao_destinatarios'] ?? 'alunos'),
+            'Destinatários das notificações'
+        );
         $this->configuracaoService->set('seguranca.2fa.ativo', (bool) $request->boolean('two_factor_ativo'), '2FA ativo');
         $this->configuracaoService->set('seguranca.2fa.perfil', (string) ($data['two_factor_perfil'] ?? 'admin'), '2FA perfis');
         $this->configuracaoService->set('seguranca.2fa.canal', (string) ($data['two_factor_canal'] ?? 'email'), '2FA canal');

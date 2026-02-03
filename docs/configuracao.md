@@ -1,6 +1,6 @@
-# Configuracao
+# Configuração
 
-## Variaveis de ambiente principais
+## Variáveis de ambiente principais
 
 - ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD
 - APP_NAME, APP_URL, APP_ENV, APP_DEBUG, APP_LOCALE
@@ -15,17 +15,17 @@
 - NOTIFICATION_LINK_VALIDITY_MINUTES
 - NOTIFICATION_MESSAGE_TEMPLATE
 
-## Usuario administrador padrao
+## Usuário administrador padrão
 
-O seeder de admin cria o usuario com base nas chaves acima. Os valores
-padrao atuais sao:
+O seeder de admin cria o usuário com base nas chaves acima. Os valores
+padrão atuais são:
 
 - Email: `admin@sindimir.local`
 - Senha: `admin123`
 
 ## Banco de dados
 
-Por padrao o projeto usa MySQL.
+Por padrão o projeto usa MySQL.
 
 ## Ambiente local (evitar 419)
 
@@ -33,6 +33,16 @@ Para evitar erro 419 em formulários (CSRF), mantenha:
 
 - `APP_URL` igual ao host do navegador (ex: `http://127.0.0.1:8000`)
 - `SESSION_DOMAIN` vazio
+
+## Sessão e múltiplos guards (admin/aluno)
+
+O sistema usa guards separados (`admin` e `aluno`) para manter as áreas isoladas.
+Ainda assim, o cookie/sessão do navegador é compartilhado, então **não se deve
+assumir que `url.intended` pertence ao mesmo contexto** quando o usuário navega
+entre `/admin` e `/aluno`.
+
+O fluxo atual de login/2FA já é blindado para não depender de `intended` e para
+redirecionar explicitamente ao dashboard correto do guard.
 
 ## Configuracoes em banco
 

@@ -1,10 +1,16 @@
-# Documentacao Sindimir
+# Documentação Sindimir
 
-Esta pasta centraliza a documentacao tecnica do sistema de cursos Sindimir.
+Esta pasta centraliza a documentação técnica do sistema de cursos Sindimir.
 
-## Indice
+## Índice
 
-- `documentacao.md` - Documento unico com visao geral, configuracao e operacao.
-- `configuracao.md` - Variaveis de ambiente e ajustes basicos do sistema.
-- `operacao.md` - Comandos e rotinas de operacao.
-- `arquitetura.md` - Visao geral, camadas e componentes principais.
+- `documentacao.md` - Documento único com visão geral, configuração e operação.
+- `configuracao.md` - Variáveis de ambiente e ajustes básicos do sistema.
+- `operacao.md` - Comandos e rotinas de operação.
+- `arquitetura.md` - Visão geral, camadas e componentes principais.
+
+## Nota sobre autenticação
+
+As áreas **admin** e **aluno** usam guards separados e rotas isoladas. O fluxo
+de login/2FA e redirecionamento não depende de `url.intended` para evitar login
+cruzado entre contextos.

@@ -14,6 +14,8 @@ class NotificationLog extends Model
 
     protected $fillable = [
         'aluno_id',
+        'contato_externo_id',
+        'tipo_destinatario',
         'curso_id',
         'evento_curso_id',
         'notificacao_link_id',
@@ -27,6 +29,11 @@ class NotificationLog extends Model
     public function aluno(): BelongsTo
     {
         return $this->belongsTo(Aluno::class);
+    }
+
+    public function contatoExterno(): BelongsTo
+    {
+        return $this->belongsTo(ContatoExterno::class);
     }
 
     public function curso(): BelongsTo

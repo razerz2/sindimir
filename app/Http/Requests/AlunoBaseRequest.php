@@ -11,9 +11,11 @@ use App\Enums\SimNaoNaoDeclarada;
 use App\Enums\SituacaoParticipante;
 use App\Enums\TipoEntidadeOrigem;
 use App\Http\Requests\Concerns\NormalizesCpf;
+use App\Models\ContatoExterno;
 use App\Support\Cpf;
 use App\Support\Phone;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Unique;
 
@@ -38,7 +40,13 @@ abstract class AlunoBaseRequest extends FormRequest
             'nome_completo' => ['required', 'string', 'max:255'],
             'data_nascimento' => ['required', 'date'],
             'sexo' => ['required', Rule::in(array_map(fn (Sexo $sexo) => $sexo->value, Sexo::cases()))],
-            'celular' => ['required', 'string', 'digits_between:10,11', $this->celularUniqueRule()],
+            'celular' => [
+                'required',
+                'string',
+                'digits_between:10,11',
+                $this->celularUniqueRule(),
+                $this->contatoExternoTelefoneRule('celular'),
+            ],
             'email' => ['required', 'email', 'max:255', $this->emailUniqueRule()],
             'endereco' => ['required', 'string', 'max:255'],
             'bairro' => ['required', 'string', 'max:255'],
@@ -68,7 +76,13 @@ abstract class AlunoBaseRequest extends FormRequest
             'uf_naturalidade' => ['nullable', 'string', 'size:2'],
             'nome_pai' => ['nullable', 'string', 'max:255'],
             'nome_mae' => ['nullable', 'string', 'max:255'],
-            'telefone' => ['nullable', 'string', 'digits_between:10,11', $this->telefoneUniqueRule()],
+            'telefone' => [
+                'nullable',
+                'string',
+                'digits_between:10,11',
+                $this->telefoneUniqueRule(),
+                $this->contatoExternoTelefoneRule('telefone'),
+            ],
             'estado_civil' => ['nullable', Rule::in(array_map(fn (EstadoCivil $estado) => $estado->value, EstadoCivil::cases()))],
             'raca_cor' => ['nullable', Rule::in(array_map(fn (RacaCor $raca) => $raca->value, RacaCor::cases()))],
             'possui_deficiencia' => ['nullable', Rule::in(array_map(fn (SimNaoNaoDeclarada $item) => $item->value, SimNaoNaoDeclarada::cases()))],
@@ -107,6 +121,29 @@ abstract class AlunoBaseRequest extends FormRequest
     protected function telefoneUniqueRule(): Unique
     {
         return Rule::unique('alunos', 'telefone');
+    }
+
+    private function contatoExternoTelefoneRule(string $field): callable
+    {
+        return function (string $attribute, mixed $value, $fail) use ($field) {
+            if (! $value) {
+                return;
+            }
+
+            $normalized = Phone::normalize((string) $value);
+            if ($normalized === '') {
+                return;
+            }
+
+            if (! Schema::hasTable('contatos_externos')) {
+                return;
+            }
+
+            if (ContatoExterno::query()->where('telefone', $normalized)->exists()) {
+                $label = $field === 'celular' ? 'Celular' : 'Telefone';
+                $fail($label . ' já cadastrado em contatos externos.');
+            }
+        };
     }
 
     public function messages(): array

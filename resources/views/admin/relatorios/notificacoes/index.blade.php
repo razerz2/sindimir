@@ -93,7 +93,8 @@
                     <thead>
                         <tr>
                             <th>Data/Hora do envio</th>
-                            <th>Aluno</th>
+                            <th>Destinatário</th>
+                            <th>Tipo</th>
                             <th>Curso</th>
                             <th>Evento</th>
                             <th>Tipo</th>
@@ -106,7 +107,8 @@
                         @foreach ($notificacoes as $notificacao)
                             <tr>
                                 <td>{{ $notificacao->data_envio_formatada }}</td>
-                                <td>{{ $notificacao->aluno_nome }}</td>
+                                <td>{{ $notificacao->destinatario_nome }}</td>
+                                <td>{{ $notificacao->destinatario_tipo_label }}</td>
                                 <td>{{ $notificacao->curso_nome }}</td>
                                 <td>{{ $notificacao->evento_label }}</td>
                                 <td>{{ $notificacao->tipo_label }}</td>

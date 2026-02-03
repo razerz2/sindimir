@@ -1,33 +1,37 @@
 # Arquitetura
 
-## Visao geral
+## Visão geral
 
-Aplicacao Laravel 12 voltada ao gerenciamento de cursos, inscricoes e alunos.
-As areas publicas apresentam a oferta de cursos e a inscricao; as areas logadas
-se dividem em perfil de administrador e aluno.
+Aplicação Laravel 12 voltada ao gerenciamento de cursos, inscrições e alunos.
+As áreas públicas apresentam a oferta de cursos e a inscrição; as áreas logadas
+se dividem em perfil administrativo (admin/usuário) e aluno.
 
 ## Camadas e responsabilidades
 
-- Controllers finos, focados em orquestracao e responses.
-- Services concentram regras de negocio e integracoes.
+- Controllers finos, focados em orquestração e responses.
+- Services concentram regras de negócio e integrações.
 - Models representam entidades e relacionamentos.
-- Policies garantem autorizacao por papel (admin/aluno).
+- Policies garantem autorização por papel (admin/usuário/aluno).
 - Middleware aplica controle de acesso por papel.
 - Observers registram auditoria automaticamente.
-- Jobs enviam notificacoes por email e WhatsApp.
-- Enums centralizam valores de dominio.
+- Jobs enviam notificações por email e WhatsApp.
+- Enums centralizam valores de domínio.
 
-## Modulos
+## Módulos
 
-- Publico: pagina institucional, listagem de cursos e inscricao por CPF.
-- Admin: gestao de cursos, eventos, alunos, auditoria e configuracoes.
-- Aluno: area do aluno com perfil, inscricoes e historico.
+- Público: página institucional, listagem de cursos e inscrição por CPF.
+- Admin: gestão de cursos, eventos, alunos, auditoria e configurações.
+- Aluno: área do aluno com perfil, inscrições e histórico.
 
-## Autenticacao e perfis
+## Autenticação e perfis
 
-- Roles principais: `admin` e `aluno`.
-- Rotas administrativas ficam sob `admin/` e exigem autenticacao e papel `admin`.
-- Rotas da area do aluno ficam sob `aluno/` e exigem autenticacao e papel `aluno`.
+- Roles principais: `admin`, `usuario` e `aluno`.
+- Rotas administrativas ficam sob `admin/` e exigem autenticação do **guard `admin`** e papel `admin`/`usuario` (com controle de módulos via middleware).
+- Rotas da área do aluno ficam sob `aluno/` e exigem autenticação do **guard `aluno`** e papel `aluno`.
+
+### Observacao sobre sessao e redirecionamentos
+
+Por padrão, o Laravel pode salvar `url.intended` na **sessão** quando uma rota protegida redireciona para login. Como a sessão é compartilhada entre guards, o sistema evita depender de `intended` nos fluxos de login/2FA para impedir "login cruzado" entre admin e aluno.
 
 ## Principais services
 
@@ -58,7 +62,7 @@ se dividem em perfil de administrador e aluno.
 
 - Fila baseada em banco de dados para envio de email e WhatsApp.
 - Jobs: `SendEmailNotificationJob` e `SendWhatsAppNotificationJob`.
-- Logs e links de notificacoes persistem em `notificacao_logs` e `notificacao_links`.
+- Logs e links de notificações persistem em `notificacao_logs` e `notificacao_links`.
 
 ## Agendamentos
 

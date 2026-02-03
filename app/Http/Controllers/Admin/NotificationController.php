@@ -29,7 +29,12 @@ class NotificationController extends Controller
         $destino = $this->resolveDestino($request);
         $alunos = $this->resolveAlunos($request, $destino);
 
-        if ($alunos->isEmpty()) {
+        $destinatarios = (string) $this->configuracaoService->get('notificacao.destinatarios', 'alunos');
+        if (! in_array($destinatarios, ['alunos', 'contatos_externos', 'ambos'], true)) {
+            $destinatarios = 'alunos';
+        }
+
+        if ($alunos->isEmpty() && $destinatarios === 'alunos') {
             return response()->json(['message' => 'Nenhum aluno válido encontrado.'], 422);
         }
 

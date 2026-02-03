@@ -68,13 +68,14 @@ class RelatorioNotificacaoService
     private function buildQuery(array $filtros, bool $forExport = false): Builder
     {
         $query = DB::table('notificacao_logs')
-            ->join('alunos', 'alunos.id', '=', 'notificacao_logs.aluno_id')
+            ->leftJoin('alunos', 'alunos.id', '=', 'notificacao_logs.aluno_id')
+            ->leftJoin('contatos_externos', 'contatos_externos.id', '=', 'notificacao_logs.contato_externo_id')
             ->join('cursos', 'cursos.id', '=', 'notificacao_logs.curso_id')
             ->leftJoin('evento_cursos', 'evento_cursos.id', '=', 'notificacao_logs.evento_curso_id')
             ->select([
                 'notificacao_logs.id',
                 'notificacao_logs.created_at as data_envio',
-                'alunos.nome_completo as aluno_nome',
+                DB::raw("COALESCE(alunos.nome_completo, contatos_externos.nome, '-') as destinatario_nome"),
                 'cursos.nome as curso_nome',
                 'evento_cursos.numero_evento as evento_numero',
                 'evento_cursos.data_inicio as evento_data_inicio',
@@ -82,6 +83,7 @@ class RelatorioNotificacaoService
                 'notificacao_logs.canal',
                 'notificacao_logs.status',
                 'notificacao_logs.erro',
+                'notificacao_logs.tipo_destinatario',
             ]);
 
         $this->applyFilters($query, $filtros);
@@ -130,6 +132,8 @@ class RelatorioNotificacaoService
         $row->evento_label = $this->formatEventoLabel($row->evento_numero, $row->evento_data_inicio);
         $row->data_envio_formatada = $this->formatDateTime($row->data_envio);
         $row->erro_label = $row->erro ?: '-';
+        $row->destinatario_nome = $row->destinatario_nome ?? '-';
+        $row->destinatario_tipo_label = $this->getDestinatarioLabel($row->tipo_destinatario ?? '');
 
         return $row;
     }
@@ -188,6 +192,14 @@ class RelatorioNotificacaoService
     private function getCanalLabel(string $canal): string
     {
         return $canal === 'whatsapp' ? 'WhatsApp' : 'Email';
+    }
+
+    private function getDestinatarioLabel(string $tipo): string
+    {
+        return match ($tipo) {
+            'contato_externo' => 'Contato externo',
+            default => 'Aluno',
+        };
     }
 
     private function getStatusLabel(string $status): string

@@ -148,7 +148,7 @@ class EventoCursoService
         $whatsappAtivo = (bool) $this->configuracaoService->get('notificacao.auto.evento_criado.canal.whatsapp', false);
         $alunos = Aluno::query()->get();
 
-        if ($alunos->isEmpty()) {
+        if ($alunos->isEmpty() && $this->somenteAlunosComoDestinatarios()) {
             return;
         }
 
@@ -191,7 +191,7 @@ class EventoCursoService
 
         $alunos = $inscritos->merge($lista)->unique('id')->values();
 
-        if ($alunos->isEmpty()) {
+        if ($alunos->isEmpty() && $this->somenteAlunosComoDestinatarios()) {
             return;
         }
 
@@ -202,5 +202,12 @@ class EventoCursoService
             $emailAtivo,
             $whatsappAtivo
         );
+    }
+
+    private function somenteAlunosComoDestinatarios(): bool
+    {
+        $destinatarios = (string) $this->configuracaoService->get('notificacao.destinatarios', 'alunos');
+
+        return ! in_array($destinatarios, ['contatos_externos', 'ambos'], true);
     }
 }

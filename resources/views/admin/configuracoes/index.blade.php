@@ -19,6 +19,7 @@
                 <button class="btn btn-ghost tab-button" type="button" data-tab="notificacoes">Notificacoes</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="auto-notificacoes">Notificações Automáticas</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="whatsapp">WhatsApp</button>
+                <button class="btn btn-ghost tab-button" type="button" data-tab="google-contatos">Google Contatos</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="email">E-mail (SMTP)</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="footer">Footer</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="auditoria">Auditoria</button>
@@ -260,6 +261,18 @@
                         label="Ativar envio de WhatsApp"
                         :checked="$settings['notificacao_whatsapp_ativo'] ?? false"
                     />
+                    <x-admin.select
+                        id="notificacao_destinatarios"
+                        name="notificacao_destinatarios"
+                        label="Destinatários das notificações"
+                        :options="[
+                            ['value' => 'alunos', 'label' => 'Somente alunos'],
+                            ['value' => 'contatos_externos', 'label' => 'Somente contatos externos'],
+                            ['value' => 'ambos', 'label' => 'Alunos e contatos externos'],
+                        ]"
+                        :selected="$settings['notificacao_destinatarios'] ?? 'alunos'"
+                        placeholder="Selecione"
+                    />
                 </div>
                 @php
                     $types = \App\Enums\NotificationType::cases();
@@ -496,6 +509,55 @@
                             Testar envio
                         </button>
                     </div>
+                </div>
+            </div>
+
+            <div class="tab-panel hidden" data-tab-panel="google-contatos">
+                <h3 class="section-title">Google Contacts</h3>
+                <p class="text-sm text-slate-500">
+                    Conecte a conta Google da empresa para importar contatos do telefone.
+                </p>
+                <div class="mt-4 flex flex-wrap items-center gap-3">
+                    <span class="badge">{{ $googleStatus }}</span>
+                    @if ($googleConnected && $googleAccount)
+                        <span class="text-xs text-slate-500">
+                            {{ $googleAccount['email'] ?? '' }}
+                        </span>
+                    @endif
+                </div>
+
+                @if (! $googleConfigured)
+                    <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+                        Configure as credenciais Google no arquivo <code>.env</code> antes de conectar.
+                    </div>
+                @endif
+
+                <div class="mt-6 flex flex-wrap gap-3">
+                    @if ($googleConfigured && ! $googleConnected)
+                        <a class="btn btn-primary" href="{{ route('admin.google.contacts.connect') }}">
+                            Conectar conta Google
+                        </a>
+                    @endif
+
+                    @if ($googleConfigured && $googleConnected)
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
+                            formaction="{{ route('admin.google.contacts.import') }}"
+                            formmethod="POST"
+                        >
+                            Importar contatos
+                        </button>
+                        <button
+                            type="submit"
+                            class="btn btn-ghost"
+                            formaction="{{ route('admin.google.contacts.disconnect') }}"
+                            formmethod="POST"
+                            onclick="return confirm('Deseja remover a conexão com o Google?')"
+                        >
+                            Desconectar
+                        </button>
+                    @endif
                 </div>
             </div>
 

@@ -1,6 +1,6 @@
-# Operacao
+# Operação
 
-## Comandos basicos
+## Comandos básicos
 
 - `composer run setup` (primeiro setup com dependencias e build)
 - `php artisan migrate --seed` (migracoes e seeders)
@@ -15,9 +15,11 @@ O script abaixo sobe servidor, fila, logs e Vite em paralelo:
 
 - `composer run dev`
 
-## Observacoes
+## Observações
 
-- Ajuste as variaveis de ambiente antes de semear o admin padrao.
-- Para notificacoes WhatsApp, ative apenas um provedor por vez.
-- Em producao, use `php artisan queue:work` e agende `php artisan schedule:run`
+- Ajuste as variáveis de ambiente antes de semear o admin padrão.
+- Para notificações WhatsApp, ative apenas um provedor por vez.
+- Em produção, use `php artisan queue:work` e agende `php artisan schedule:run`
   via cron (a cada minuto).
+- Para validar o isolamento de autenticação, teste logins em `/admin/login` e
+  `/aluno/login` em sequência e confirme que cada um termina no seu dashboard.

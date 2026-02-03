@@ -22,12 +22,13 @@ class SendEmailNotificationJob implements ShouldQueue
     public int $tries = 1;
 
     public function __construct(
-        public readonly int $alunoId,
+        public readonly string $destinatarioTipo,
+        public readonly ?int $destinatarioId,
+        public readonly string $destinatarioNome,
         public readonly string $email,
-        public readonly string $alunoNome,
         public readonly int $cursoId,
         public readonly ?int $eventoCursoId,
-        public readonly int $notificacaoLinkId,
+        public readonly ?int $notificacaoLinkId,
         public readonly string $notificationType,
         public readonly string $subject,
         public readonly string $body
@@ -40,7 +41,9 @@ class SendEmailNotificationJob implements ShouldQueue
             Mail::to($this->email)->send(new GenericNotificationMail($this->subject, $this->body));
 
             NotificationLog::create([
-                'aluno_id' => $this->alunoId,
+                'aluno_id' => $this->destinatarioTipo === 'aluno' ? $this->destinatarioId : null,
+                'contato_externo_id' => $this->destinatarioTipo === 'contato_externo' ? $this->destinatarioId : null,
+                'tipo_destinatario' => $this->destinatarioTipo,
                 'curso_id' => $this->cursoId,
                 'evento_curso_id' => $this->eventoCursoId,
                 'notificacao_link_id' => $this->notificacaoLinkId,
@@ -51,7 +54,9 @@ class SendEmailNotificationJob implements ShouldQueue
             ]);
         } catch (Throwable $exception) {
             NotificationLog::create([
-                'aluno_id' => $this->alunoId,
+                'aluno_id' => $this->destinatarioTipo === 'aluno' ? $this->destinatarioId : null,
+                'contato_externo_id' => $this->destinatarioTipo === 'contato_externo' ? $this->destinatarioId : null,
+                'tipo_destinatario' => $this->destinatarioTipo,
                 'curso_id' => $this->cursoId,
                 'evento_curso_id' => $this->eventoCursoId,
                 'notificacao_link_id' => $this->notificacaoLinkId,

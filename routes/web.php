@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\CategoriaController;
 use App\Http\Controllers\Admin\EstadoController;
+use App\Http\Controllers\Admin\GoogleContactsController;
 use App\Http\Controllers\Admin\MediaAssetController;
 use App\Http\Controllers\Admin\MunicipioController;
 use App\Http\Controllers\Admin\NotificationController;
@@ -137,6 +138,14 @@ Route::middleware(['auth:admin', 'role:admin,usuario', 'module-access'])
             ->name('configuracoes.update');
         Route::post('/configuracoes/whatsapp/testar', [\App\Http\Controllers\Admin\ConfiguracaoController::class, 'testarWhatsapp'])
             ->name('configuracoes.whatsapp.testar');
+        Route::get('/google/contatos/conectar', [GoogleContactsController::class, 'connect'])
+            ->name('google.contacts.connect');
+        Route::get('/google/contatos/callback', [GoogleContactsController::class, 'callback'])
+            ->name('google.contacts.callback');
+        Route::post('/google/contatos/importar', [GoogleContactsController::class, 'import'])
+            ->name('google.contacts.import');
+        Route::post('/google/contatos/desconectar', [GoogleContactsController::class, 'disconnect'])
+            ->name('google.contacts.disconnect');
         Route::get('/auditoria', [\App\Http\Controllers\Admin\AuditoriaController::class, 'index'])
             ->name('auditoria.index');
         Route::get('/notificacoes', [NotificationController::class, 'index'])

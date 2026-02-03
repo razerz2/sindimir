@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Services\ConfiguracaoService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -25,9 +26,17 @@ class NotificationDispatchRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
+            /** @var ConfiguracaoService $configuracaoService */
+            $configuracaoService = app(ConfiguracaoService::class);
+            $destinatarios = (string) $configuracaoService->get('notificacao.destinatarios', 'alunos');
+            $destinatarios = in_array($destinatarios, ['alunos', 'contatos_externos', 'ambos'], true)
+                ? $destinatarios
+                : 'alunos';
+
             if (
                 $this->filled('curso_id')
                 && ! $this->filled('aluno_ids')
+                && $destinatarios === 'alunos'
             ) {
                 $validator->errors()->add('aluno_ids', 'Informe ao menos um aluno para o curso selecionado.');
             }

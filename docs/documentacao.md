@@ -31,6 +31,41 @@ e área do aluno.
 O controle de acesso é feito por middleware e policies.
 O middleware `module-access` limita o acesso do perfil `usuario` por módulos.
 
+## Autenticação (guards) e isolamento entre áreas
+
+O sistema utiliza **guards separados** para evitar interferência entre sessão do admin e do aluno:
+
+- **Guard `admin`**: usado exclusivamente na área administrativa (roles `admin` e `usuario`).
+- **Guard `aluno`**: usado exclusivamente na área do aluno (role `aluno`).
+
+### Rotas de autenticação (nomes)
+
+- **Admin**
+  - Login: `GET /admin/login` (`admin.login`) e `POST /admin/login` (`admin.login.store`)
+  - Logout: `POST /admin/logout` (`admin.logout`) e `GET /admin/logout` (`admin.logout.get`)
+- **Aluno**
+  - Login: `GET /aluno/login` (`aluno.login`) e `POST /aluno/login` (`aluno.login.store`)
+  - Logout: `POST /aluno/logout` (`aluno.logout`) e `GET /aluno/logout` (`aluno.logout.get`)
+
+### Middlewares e redirecionamentos
+
+- Rotas admin usam `auth:admin` / `guest:admin`.
+- Rotas aluno usam `auth:aluno` / `guest:aluno`.
+- Ao tentar acessar uma rota protegida sem autenticação:
+  - Admin redireciona para `/admin/login`
+  - Aluno redireciona para `/aluno/login`
+
+### Blindagem contra “login cruzado” (url.intended)
+
+O Laravel armazena `url.intended` na **mesma sessão**. Como a sessão é compartilhada entre guards, isso pode causar redirecionamento incorreto ao fazer login em outra área.
+
+Por isso, o fluxo de **login** e **2FA**:
+
+- **não depende de `intended`** para decidir o destino;
+- **limpa `url.intended`** e redireciona explicitamente para o dashboard do contexto:
+  - Admin → `/admin/dashboard`
+  - Aluno → `/aluno/dashboard`
+
 ## Requisitos
 
 - PHP 8.2+
@@ -149,7 +184,7 @@ Essas chaves complementam os valores de `config/app.php` e `config/mail.php`.
 ## Tema (público)
 
 As variáveis de tema usadas na área pública são compartilhadas globalmente no
-Blade via `AppServiceProvider`, evitando uso de `@php` nas views. Variaveis
+Blade via `AppServiceProvider`, evitando uso de `@php` nas views. Variáveis
 disponiveis:
 
 - `$themeFavicon`

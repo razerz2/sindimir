@@ -28,7 +28,8 @@ class NotificacoesExport
 
             fputcsv($handle, [
                 'Data/Hora do envio',
-                'Aluno',
+                'Destinatário',
+                'Tipo destinatário',
                 'Curso',
                 'Evento',
                 'Tipo de notificacao',
@@ -51,7 +52,8 @@ class NotificacoesExport
     {
         return [
             $this->formatDateTime($row->data_envio),
-            $row->aluno_nome,
+            $row->destinatario_nome ?? '-',
+            $this->getDestinatarioLabel($row->tipo_destinatario ?? ''),
             $row->curso_nome,
             $this->formatEventoLabel($row->evento_numero, $row->evento_data_inicio),
             $this->getTipoLabel($row->notification_type),
@@ -80,6 +82,14 @@ class NotificacoesExport
     private function getCanalLabel(string $canal): string
     {
         return $canal === 'whatsapp' ? 'WhatsApp' : 'Email';
+    }
+
+    private function getDestinatarioLabel(string $tipo): string
+    {
+        return match ($tipo) {
+            'contato_externo' => 'Contato externo',
+            default => 'Aluno',
+        };
     }
 
     private function getStatusLabel(string $status): string
