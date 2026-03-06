@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Enums\LegacyNotificationType;
 use App\Enums\NotificationType;
 use App\Models\NotificationTemplate;
 use App\Services\ConfiguracaoService;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ConfiguracaoController extends Controller
@@ -60,12 +62,12 @@ class ConfiguracaoController extends Controller
             'footer_titulo' => $this->configuracaoService->get('site.footer.titulo', 'Sindimir'),
             'footer_descricao' => $this->configuracaoService->get(
                 'site.footer.descricao',
-                'Solucoes digitais para capacitacao, eventos e desenvolvimento do setor metal mecanico.'
+                'Soluções digitais para capacitação, eventos e desenvolvimento do setor metal mecânico.'
             ),
             'footer_contato_titulo' => $this->configuracaoService->get('site.footer.contato_titulo', 'Contato'),
             'footer_contato_email' => $this->configuracaoService->get('site.footer.contato_email', 'contato@sindimir.org'),
             'footer_contato_telefone' => $this->configuracaoService->get('site.footer.contato_telefone', '(00) 0000-0000'),
-            'footer_endereco_titulo' => $this->configuracaoService->get('site.footer.endereco_titulo', 'Endereco'),
+            'footer_endereco_titulo' => $this->configuracaoService->get('site.footer.endereco_titulo', 'Endereço'),
             'footer_endereco_linha1' => $this->configuracaoService->get('site.footer.endereco_linha1', 'Rua da Industria, 1000'),
             'footer_endereco_linha2' => $this->configuracaoService->get('site.footer.endereco_linha2', 'Distrito Industrial'),
             'whatsapp_provedor' => $this->configuracaoService->get('whatsapp.provedor', null),
@@ -116,11 +118,39 @@ class ConfiguracaoController extends Controller
             'auto_curso_dias_antes' => (int) $this->configuracaoService->get('notificacao.auto.curso_disponivel.dias_antes', 0),
             'rate_limit_ativo' => (bool) $this->configuracaoService->get('notificacao.rate_limit.ativo', true),
             'rate_limit_limite_diario' => (int) $this->configuracaoService->get('notificacao.rate_limit.limite_diario', 2),
+            'bot_enabled' => (bool) $this->configuracaoService->get('bot.enabled', false),
+            'bot_provider' => (string) $this->configuracaoService->get('bot.provider', 'meta'),
+            'bot_session_timeout_minutes' => (int) $this->configuracaoService->get('bot.session_timeout_minutes', 15),
+            'bot_welcome_message' => (string) $this->configuracaoService->get(
+                'bot.welcome_message',
+                'Bem-vindo ao bot do Sindimir. Escolha uma opcao:'
+            ),
+            'bot_fallback_message' => (string) $this->configuracaoService->get(
+                'bot.fallback_message',
+                'Nao entendi sua mensagem. Escolha uma opcao valida.'
+            ),
+            'bot_entry_keywords' => $this->formatBotEntryKeywordsForTextarea(
+                $this->configuracaoService->get('bot.entry_keywords', ['oi', 'ola'])
+            ),
+            'bot_reset_keyword' => (string) $this->configuracaoService->get('bot.reset_keyword', 'menu'),
+            'bot_courses_limit' => (int) $this->configuracaoService->get('bot.courses.limit', 10),
+            'bot_courses_order' => (string) $this->configuracaoService->get('bot.courses.order', 'asc'),
+            'bot_cancel_limit' => (int) $this->configuracaoService->get('bot.cancel.limit', 10),
+            'bot_cancel_order' => (string) $this->configuracaoService->get('bot.cancel.order', 'desc'),
+            'bot_cancel_require_confirm' => (bool) (
+                $this->configuracaoService->get('bot.cancel.require_confirm', null)
+                ?? $this->configuracaoService->get('bot.cancel.require_confirmation', true)
+            ),
+            'bot_cancel_require_valid_cpf' => (bool) $this->configuracaoService->get('bot.cancel.require_valid_cpf', true),
+            'bot_cancel_only_active_events' => (bool) $this->configuracaoService->get('bot.cancel.only_active_events', true),
+            'bot_audit_log_enabled' => (bool) $this->configuracaoService->get('bot.audit_log_enabled', true),
         ];
 
         $theme = $this->themeService->getThemeColors();
         $templates = collect();
         $templateDefaults = $this->buildTemplateDefaultsPayload();
+        $templateTypeOptions = $this->getTemplateTypeOptions();
+        $templateVariables = $this->getTemplateVariables();
 
         if (Schema::hasTable('notification_templates')) {
             $this->ensureDefaultNotificationTemplates();
@@ -161,6 +191,8 @@ class ConfiguracaoController extends Controller
             'templates',
             'whatsappReady',
             'templateDefaults',
+            'templateTypeOptions',
+            'templateVariables',
             'googleConfigured',
             'googleConnected',
             'googleAccount',
@@ -216,13 +248,28 @@ class ConfiguracaoController extends Controller
             'footer_endereco_titulo' => ['required', 'string', 'max:120'],
             'footer_endereco_linha1' => ['required', 'string', 'max:200'],
             'footer_endereco_linha2' => ['required', 'string', 'max:200'],
+            'submit_context' => ['nullable', 'string', 'in:all,template'],
             'templates' => ['array'],
             'templates.*.email.assunto' => ['nullable', 'string', 'max:200'],
             'templates.*.email.conteudo' => ['nullable', 'string', 'max:4000'],
             'templates.*.email.ativo' => ['nullable', 'boolean'],
             'templates.*.whatsapp.conteudo' => ['nullable', 'string', 'max:4000'],
             'templates.*.whatsapp.ativo' => ['nullable', 'boolean'],
-            'template_type' => ['nullable', 'string'],
+            'template_type' => [
+                'nullable',
+                'string',
+                Rule::in($this->getTemplateTypeValues()),
+                Rule::requiredIf(fn () => $request->input('submit_context') === 'template'),
+            ],
+            'template_channel' => [
+                'nullable',
+                'string',
+                Rule::in(['whatsapp', 'email']),
+                Rule::requiredIf(fn () => $request->input('submit_context') === 'template'),
+            ],
+            'template_active' => ['nullable', 'boolean'],
+            'template_subject' => ['nullable', 'string', 'max:200'],
+            'template_content' => ['nullable', 'string', 'max:4000'],
             'auto_lembrete_ativo' => ['nullable', 'boolean'],
             'auto_lembrete_email' => ['nullable', 'boolean'],
             'auto_lembrete_whatsapp' => ['nullable', 'boolean'],
@@ -254,6 +301,21 @@ class ConfiguracaoController extends Controller
             'auto_curso_dias_antes' => ['nullable', 'integer', 'min:0', 'max:365'],
             'rate_limit_ativo' => ['nullable', 'boolean'],
             'rate_limit_limite_diario' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'bot_enabled' => ['nullable', 'boolean'],
+            'bot_provider' => ['nullable', 'string', 'in:meta,zapi'],
+            'bot_session_timeout_minutes' => ['nullable', 'integer', 'min:1', 'max:1440'],
+            'bot_welcome_message' => ['nullable', 'string', 'max:2000'],
+            'bot_fallback_message' => ['nullable', 'string', 'max:2000'],
+            'bot_entry_keywords' => ['nullable', 'string', 'max:4000'],
+            'bot_reset_keyword' => ['nullable', 'string', 'max:40'],
+            'bot_courses_limit' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'bot_courses_order' => ['nullable', 'string', 'in:asc,desc'],
+            'bot_cancel_limit' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'bot_cancel_order' => ['nullable', 'string', 'in:asc,desc'],
+            'bot_cancel_require_confirm' => ['nullable', 'boolean'],
+            'bot_cancel_require_valid_cpf' => ['nullable', 'boolean'],
+            'bot_cancel_only_active_events' => ['nullable', 'boolean'],
+            'bot_audit_log_enabled' => ['nullable', 'boolean'],
         ]);
 
         $this->configuracaoService->set('sistema.nome', $data['sistema_nome'], 'Nome do sistema');
@@ -407,13 +469,82 @@ class ConfiguracaoController extends Controller
             (int) ($data['rate_limit_limite_diario'] ?? 2),
             'Rate limit diario de notificacoes'
         );
+        $this->configuracaoService->set('bot.enabled', (bool) $request->boolean('bot_enabled'), 'BOT ativo');
+        $this->configuracaoService->set('bot.provider', (string) ($data['bot_provider'] ?? 'meta'), 'Provedor ativo do BOT');
+        $this->configuracaoService->set(
+            'bot.session_timeout_minutes',
+            (int) ($data['bot_session_timeout_minutes'] ?? 15),
+            'Timeout de sessao do BOT'
+        );
+        $this->configuracaoService->set(
+            'bot.welcome_message',
+            (string) ($data['bot_welcome_message'] ?? 'Bem-vindo ao bot do Sindimir. Escolha uma opcao:'),
+            'Mensagem de boas-vindas do BOT'
+        );
+        $this->configuracaoService->set(
+            'bot.fallback_message',
+            (string) ($data['bot_fallback_message'] ?? 'Nao entendi sua mensagem. Escolha uma opcao valida.'),
+            'Mensagem de fallback do BOT'
+        );
+        $this->configuracaoService->set(
+            'bot.entry_keywords',
+            $this->parseBotEntryKeywords((string) ($data['bot_entry_keywords'] ?? '')),
+            'Palavras-chave de entrada do BOT'
+        );
+        $this->configuracaoService->set(
+            'bot.reset_keyword',
+            (string) ($data['bot_reset_keyword'] ?? 'menu'),
+            'Palavra-chave de reset do BOT'
+        );
+        $this->configuracaoService->set('bot.courses.limit', (int) ($data['bot_courses_limit'] ?? 10), 'Limite de cursos no BOT');
+        $this->configuracaoService->set(
+            'bot.courses.order',
+            (string) ($data['bot_courses_order'] ?? 'asc'),
+            'Ordenacao de cursos no BOT'
+        );
+        $this->configuracaoService->set(
+            'bot.cancel.limit',
+            (int) ($data['bot_cancel_limit'] ?? 10),
+            'Limite de inscricoes para cancelamento no BOT'
+        );
+        $this->configuracaoService->set(
+            'bot.cancel.order',
+            (string) ($data['bot_cancel_order'] ?? 'desc'),
+            'Ordenacao de inscricoes no BOT'
+        );
+        $this->configuracaoService->set(
+            'bot.cancel.require_confirm',
+            (bool) $request->boolean('bot_cancel_require_confirm'),
+            'Exigir confirmacao de cancelamento no BOT'
+        );
+        // Compatibilidade com chave legada.
+        $this->configuracaoService->set(
+            'bot.cancel.require_confirmation',
+            (bool) $request->boolean('bot_cancel_require_confirm'),
+            'Exigir confirmacao de cancelamento no BOT (legado)'
+        );
+        $this->configuracaoService->set(
+            'bot.cancel.require_valid_cpf',
+            (bool) $request->boolean('bot_cancel_require_valid_cpf'),
+            'Exigir CPF valido no BOT'
+        );
+        $this->configuracaoService->set(
+            'bot.cancel.only_active_events',
+            (bool) $request->boolean('bot_cancel_only_active_events'),
+            'Cancelar apenas eventos ativos no BOT'
+        );
+        $this->configuracaoService->set(
+            'bot.audit_log_enabled',
+            (bool) $request->boolean('bot_audit_log_enabled'),
+            'Auditoria de mensagens do BOT'
+        );
 
-        $this->syncNotificationTemplates($data['templates'] ?? [], $data['template_type'] ?? null);
+        $this->syncNotificationTemplatesFromRequest($request, $data);
         Cache::forget(SiteSectionService::CACHE_KEY);
 
         return redirect()
             ->route('admin.configuracoes.index')
-            ->with('status', 'Configuracoes atualizadas com sucesso.');
+            ->with('status', 'Configurações atualizadas com sucesso.');
     }
 
     public function testarWhatsapp(Request $request): RedirectResponse
@@ -460,19 +591,61 @@ class ConfiguracaoController extends Controller
             ]);
     }
 
-    private function syncNotificationTemplates(array $templates, ?string $onlyType = null): void
+    private function syncNotificationTemplatesFromRequest(Request $request, array $data): void
     {
-        $types = NotificationType::cases();
+        $submitContext = (string) ($data['submit_context'] ?? 'all');
 
-        if ($onlyType) {
-            $types = array_filter($types, fn (NotificationType $type) => $type->value === $onlyType);
+        if (
+            $submitContext === 'template'
+            && ! empty($data['template_type'])
+            && ! empty($data['template_channel'])
+        ) {
+            $typeKey = (string) $data['template_type'];
+            $canal = (string) $data['template_channel'];
+            $payload = [
+                'ativo' => $request->boolean('template_active'),
+                'conteudo' => (string) ($data['template_content'] ?? ''),
+            ];
+
+            if ($canal === 'email') {
+                $payload['assunto'] = (string) ($data['template_subject'] ?? '');
+            }
+
+            $this->syncNotificationTemplates(
+                [
+                    $typeKey => [
+                        $canal => $payload,
+                    ],
+                ],
+                $typeKey,
+                $canal
+            );
+
+            return;
         }
 
-        foreach ($types as $type) {
-            $typeKey = $type->value;
+        $legacyTemplates = $data['templates'] ?? [];
+        $legacyType = isset($data['template_type']) ? (string) $data['template_type'] : null;
+
+        if (! empty($legacyTemplates)) {
+            $this->syncNotificationTemplates($legacyTemplates, $legacyType);
+        }
+    }
+
+    private function syncNotificationTemplates(array $templates, ?string $onlyType = null, ?string $onlyChannel = null): void
+    {
+        $types = $this->getTemplateTypeValues();
+
+        if ($onlyType) {
+            $types = array_values(array_filter($types, static fn (string $type) => $type === $onlyType));
+        }
+
+        $channels = $onlyChannel ? [$onlyChannel] : ['email', 'whatsapp'];
+
+        foreach ($types as $typeKey) {
             $typeTemplates = $templates[$typeKey] ?? [];
 
-            foreach (['email', 'whatsapp'] as $canal) {
+            foreach ($channels as $canal) {
                 $payload = $typeTemplates[$canal] ?? [];
                 $existing = NotificationTemplate::query()
                     ->where('notification_type', $typeKey)
@@ -484,9 +657,9 @@ class ConfiguracaoController extends Controller
                 $ativo = array_key_exists('ativo', $payload)
                     ? (bool) $payload['ativo']
                     : ($existing?->ativo ?? true);
-                if ($typeKey === NotificationType::MATRICULA_CONFIRMADA->value) {
+                if ($typeKey === LegacyNotificationType::MATRICULA_CONFIRMADA) {
                     $conteudo = $this->sanitizeMatriculaTemplate($conteudo);
-                } elseif ($typeKey === NotificationType::INSCRICAO_CONFIRMAR->value) {
+                } elseif ($typeKey === LegacyNotificationType::INSCRICAO_CONFIRMAR) {
                     $conteudo = $this->sanitizeConfirmacaoTemplate($conteudo);
                 } else {
                     $conteudo = $this->sanitizeLinkTemplate($conteudo);
@@ -520,6 +693,84 @@ class ConfiguracaoController extends Controller
         }
 
         return $value;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function parseBotEntryKeywords(string $raw): array
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return ['oi', 'ola'];
+        }
+
+        if (str_starts_with($raw, '[')) {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $keywords = [];
+                foreach ($decoded as $keyword) {
+                    $value = trim((string) $keyword);
+                    if ($value !== '') {
+                        $keywords[] = $value;
+                    }
+                }
+
+                if ($keywords !== []) {
+                    return array_values(array_unique($keywords));
+                }
+            }
+        }
+
+        $parts = preg_split('/[\r\n,;]+/', $raw) ?: [];
+        $keywords = [];
+        foreach ($parts as $part) {
+            $value = trim((string) $part);
+            if ($value !== '') {
+                $keywords[] = $value;
+            }
+        }
+
+        if ($keywords === []) {
+            return ['oi', 'ola'];
+        }
+
+        return array_values(array_unique($keywords));
+    }
+
+    private function formatBotEntryKeywordsForTextarea(mixed $value): string
+    {
+        $keywords = [];
+
+        if (is_array($value)) {
+            $keywords = $value;
+        } elseif (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed !== '' && str_starts_with($trimmed, '[')) {
+                $decoded = json_decode($trimmed, true);
+                if (is_array($decoded)) {
+                    $keywords = $decoded;
+                }
+            }
+
+            if ($keywords === []) {
+                $keywords = preg_split('/[\r\n,;]+/', $value) ?: [];
+            }
+        }
+
+        $normalized = [];
+        foreach ($keywords as $keyword) {
+            $entry = trim((string) $keyword);
+            if ($entry !== '') {
+                $normalized[] = $entry;
+            }
+        }
+
+        if ($normalized === []) {
+            $normalized = ['oi', 'ola'];
+        }
+
+        return implode("\n", array_values(array_unique($normalized)));
     }
 
     private function sanitizeMatriculaTemplate(string $conteudo): string
@@ -559,13 +810,13 @@ class ConfiguracaoController extends Controller
 
         foreach ($defaults as $template) {
             $query = NotificationTemplate::query()
-                ->where('notification_type', $template['type']->value)
+                ->where('notification_type', $template['type'])
                 ->where('canal', $template['canal']);
             $existing = $query->first();
 
             if (! $existing) {
                 NotificationTemplate::create([
-                    'notification_type' => $template['type']->value,
+                    'notification_type' => $template['type'],
                     'canal' => $template['canal'],
                     'assunto' => $template['subject'],
                     'conteudo' => $template['content'],
@@ -589,7 +840,7 @@ class ConfiguracaoController extends Controller
         $payload = [];
 
         foreach ($this->getDefaultNotificationTemplates() as $template) {
-            $typeKey = $template['type']->value;
+            $typeKey = $template['type'];
             $payload[$typeKey] ??= [
                 'email' => ['ativo' => true, 'assunto' => '', 'conteudo' => ''],
                 'whatsapp' => ['ativo' => true, 'conteudo' => ''],
@@ -615,30 +866,91 @@ class ConfiguracaoController extends Controller
     private function getDefaultNotificationTemplates(): array
     {
         $baseConteudo = "Olá {{aluno_nome}},\n\nTemos uma oportunidade no curso {{curso_nome}} ({{datas}}).\nVagas disponíveis: {{vagas}}\nGaranta sua vaga em {{link}}";
-        $eventoCriadoConteudo = "Olá {{aluno_nome}}!\nO Sindicato Rural de Miranda e Bodoquena informa a abertura de um novo curso. Confira os detalhes abaixo:\n\nCurso: {{curso_nome}}\nDatas: {{datas}}\nHorario: {{horario}}\nCarga horaria: {{carga_horaria}}\nTurno: {{turno}}\nVagas disponíveis: {{vagas}}\nGaranta sua vaga: {{link}}";
-        $inscricaoConfirmarConteudo = "Olá {{aluno_nome}},\n\nSua inscrição no curso {{curso_nome}} precisa ser confirmada.\nDatas: {{datas}}\nHorario: {{horario}}\nCarga horaria: {{carga_horaria}}\nTurno: {{turno}}\nConfirme sua participação: {{link}}";
-        $inscricaoCanceladaConteudo = "Olá {{aluno_nome}},\n\nSua inscrição no curso {{curso_nome}} foi cancelada.\nDatas: {{datas}}\nHorario: {{horario}}\nCarga horaria: {{carga_horaria}}\nTurno: {{turno}}";
-        $eventoCanceladoConteudo = "Olá {{aluno_nome}},\n\nO evento do curso {{curso_nome}} foi cancelado.\nDatas: {{datas}}\nHorario: {{horario}}\nCarga horaria: {{carga_horaria}}\nTurno: {{turno}}";
-
+        $eventoCriadoConteudo = "Olá {{aluno_nome}}!\nO Sindicato Rural de Miranda e Bodoquena informa a abertura de um novo curso. Confira os detalhes abaixo:\n\nCurso: {{curso_nome}}\nDatas: {{datas}}\nHorário: {{horario}}\nCarga horária: {{carga_horaria}}\nTurno: {{turno}}\nVagas disponíveis: {{vagas}}\nGaranta sua vaga: {{link}}";
+        $inscricaoConfirmarConteudo = "Olá {{aluno_nome}},\n\nSua inscrição no curso {{curso_nome}} precisa ser confirmada.\nDatas: {{datas}}\nHorário: {{horario}}\nCarga horária: {{carga_horaria}}\nTurno: {{turno}}\nConfirme sua participação: {{link}}";
+        $inscricaoCanceladaConteudo = "Olá {{aluno_nome}},\n\nSua inscrição no curso {{curso_nome}} foi cancelada.\nDatas: {{datas}}\nHorário: {{horario}}\nCarga horária: {{carga_horaria}}\nTurno: {{turno}}";
+        $eventoCanceladoConteudo = "Olá {{aluno_nome}},\n\nO evento do curso {{curso_nome}} foi cancelado.\nDatas: {{datas}}\nHorário: {{horario}}\nCarga horária: {{carga_horaria}}\nTurno: {{turno}}";
         return [
-            ['type' => NotificationType::CURSO_DISPONIVEL, 'canal' => 'email', 'subject' => 'Curso disponível: {{curso_nome}}', 'content' => $baseConteudo],
-            ['type' => NotificationType::CURSO_DISPONIVEL, 'canal' => 'whatsapp', 'subject' => null, 'content' => $baseConteudo],
-            ['type' => NotificationType::EVENTO_CRIADO, 'canal' => 'email', 'subject' => 'Novo curso disponível: {{curso_nome}}', 'content' => $eventoCriadoConteudo],
-            ['type' => NotificationType::EVENTO_CRIADO, 'canal' => 'whatsapp', 'subject' => null, 'content' => $eventoCriadoConteudo],
-            ['type' => NotificationType::INSCRICAO_CONFIRMAR, 'canal' => 'email', 'subject' => 'Confirme sua inscrição: {{curso_nome}}', 'content' => $inscricaoConfirmarConteudo],
-            ['type' => NotificationType::INSCRICAO_CONFIRMAR, 'canal' => 'whatsapp', 'subject' => null, 'content' => $inscricaoConfirmarConteudo],
-            ['type' => NotificationType::INSCRICAO_CANCELADA, 'canal' => 'email', 'subject' => 'Inscrição cancelada: {{curso_nome}}', 'content' => $inscricaoCanceladaConteudo],
-            ['type' => NotificationType::INSCRICAO_CANCELADA, 'canal' => 'whatsapp', 'subject' => null, 'content' => $inscricaoCanceladaConteudo],
-            ['type' => NotificationType::EVENTO_CANCELADO, 'canal' => 'email', 'subject' => 'Evento cancelado: {{curso_nome}}', 'content' => $eventoCanceladoConteudo],
-            ['type' => NotificationType::EVENTO_CANCELADO, 'canal' => 'whatsapp', 'subject' => null, 'content' => $eventoCanceladoConteudo],
-            ['type' => NotificationType::VAGA_ABERTA, 'canal' => 'email', 'subject' => 'Vaga aberta em {{curso_nome}}', 'content' => "Olá {{aluno_nome}},\nUma nova vaga foi aberta em {{curso_nome}} ({{datas}}). Acesse {{link}}"],
-            ['type' => NotificationType::VAGA_ABERTA, 'canal' => 'whatsapp', 'subject' => null, 'content' => "Vaga aberta: {{curso_nome}} ({{datas}}). Acesse {{link}}"],
-            ['type' => NotificationType::LEMBRETE_CURSO, 'canal' => 'email', 'subject' => 'Lembrete do curso {{curso_nome}}', 'content' => "Olá {{aluno_nome}},\nLembrete: o curso {{curso_nome}} começa em {{datas}}. Confira {{link}}"],
-            ['type' => NotificationType::LEMBRETE_CURSO, 'canal' => 'whatsapp', 'subject' => null, 'content' => "Lembrete: {{curso_nome}} em {{datas}}. {{link}}"],
-            ['type' => NotificationType::MATRICULA_CONFIRMADA, 'canal' => 'email', 'subject' => 'Matricula confirmada em {{curso_nome}}', 'content' => "Olá {{aluno_nome}},\nSua matricula no curso {{curso_nome}} foi confirmada. Veja detalhes em {{link}}"],
-            ['type' => NotificationType::MATRICULA_CONFIRMADA, 'canal' => 'whatsapp', 'subject' => null, 'content' => "Matricula confirmada: {{curso_nome}}. {{link}}"],
-            ['type' => NotificationType::LISTA_ESPERA_CHAMADA, 'canal' => 'email', 'subject' => 'Lista de espera chamada para {{curso_nome}}', 'content' => "Olá {{aluno_nome}},\nVocê foi chamado da lista de espera para {{curso_nome}} ({{datas}}). Acesse {{link}}"],
-            ['type' => NotificationType::LISTA_ESPERA_CHAMADA, 'canal' => 'whatsapp', 'subject' => null, 'content' => "Lista de espera chamada: {{curso_nome}}. {{link}}"],
+            ['type' => NotificationType::CURSO_DISPONIVEL->value, 'canal' => 'email', 'subject' => 'Curso disponível: {{curso_nome}}', 'content' => $baseConteudo],
+            ['type' => NotificationType::CURSO_DISPONIVEL->value, 'canal' => 'whatsapp', 'subject' => null, 'content' => $baseConteudo],
+            ['type' => LegacyNotificationType::EVENTO_CRIADO, 'canal' => 'email', 'subject' => 'Novo curso disponível: {{curso_nome}}', 'content' => $eventoCriadoConteudo],
+            ['type' => LegacyNotificationType::EVENTO_CRIADO, 'canal' => 'whatsapp', 'subject' => null, 'content' => $eventoCriadoConteudo],
+            ['type' => LegacyNotificationType::INSCRICAO_CONFIRMAR, 'canal' => 'email', 'subject' => 'Confirme sua inscrição: {{curso_nome}}', 'content' => $inscricaoConfirmarConteudo],
+            ['type' => LegacyNotificationType::INSCRICAO_CONFIRMAR, 'canal' => 'whatsapp', 'subject' => null, 'content' => $inscricaoConfirmarConteudo],
+            ['type' => LegacyNotificationType::INSCRICAO_CANCELADA, 'canal' => 'email', 'subject' => 'Inscrição cancelada: {{curso_nome}}', 'content' => $inscricaoCanceladaConteudo],
+            ['type' => LegacyNotificationType::INSCRICAO_CANCELADA, 'canal' => 'whatsapp', 'subject' => null, 'content' => $inscricaoCanceladaConteudo],
+            ['type' => LegacyNotificationType::EVENTO_CANCELADO, 'canal' => 'email', 'subject' => 'Evento cancelado: {{curso_nome}}', 'content' => $eventoCanceladoConteudo],
+            ['type' => LegacyNotificationType::EVENTO_CANCELADO, 'canal' => 'whatsapp', 'subject' => null, 'content' => $eventoCanceladoConteudo],
+            ['type' => NotificationType::VAGA_ABERTA->value, 'canal' => 'email', 'subject' => 'Vaga aberta em {{curso_nome}}', 'content' => "Olá {{aluno_nome}},\nUma nova vaga foi aberta em {{curso_nome}} ({{datas}}). Acesse {{link}}"],
+            ['type' => NotificationType::VAGA_ABERTA->value, 'canal' => 'whatsapp', 'subject' => null, 'content' => "Vaga aberta: {{curso_nome}} ({{datas}}). Acesse {{link}}"],
+            ['type' => LegacyNotificationType::LEMBRETE_CURSO, 'canal' => 'email', 'subject' => 'Lembrete do curso {{curso_nome}}', 'content' => "Olá {{aluno_nome}},\nLembrete: o curso {{curso_nome}} começa em {{datas}}. Confira {{link}}"],
+            ['type' => LegacyNotificationType::LEMBRETE_CURSO, 'canal' => 'whatsapp', 'subject' => null, 'content' => "Lembrete: {{curso_nome}} em {{datas}}. {{link}}"],
+            ['type' => LegacyNotificationType::MATRICULA_CONFIRMADA, 'canal' => 'email', 'subject' => 'Matrícula confirmada em {{curso_nome}}', 'content' => "Olá {{aluno_nome}},\nSua matrícula no curso {{curso_nome}} foi confirmada. Veja detalhes em {{link}}"],
+            ['type' => LegacyNotificationType::MATRICULA_CONFIRMADA, 'canal' => 'whatsapp', 'subject' => null, 'content' => "Matrícula confirmada: {{curso_nome}}. {{link}}"],
+            ['type' => NotificationType::LISTA_ESPERA->value, 'canal' => 'email', 'subject' => 'Lista de espera para {{curso_nome}}', 'content' => "Olá {{aluno_nome}},\nVocê foi chamado da lista de espera para {{curso_nome}} ({{datas}}). Acesse {{link}}"],
+            ['type' => NotificationType::LISTA_ESPERA->value, 'canal' => 'whatsapp', 'subject' => null, 'content' => "Lista de espera: {{curso_nome}}. {{link}}"],
+            ['type' => LegacyNotificationType::LISTA_ESPERA_CHAMADA, 'canal' => 'email', 'subject' => 'Lista de espera chamada para {{curso_nome}}', 'content' => "Olá {{aluno_nome}},\nVocê foi chamado da lista de espera para {{curso_nome}} ({{datas}}). Acesse {{link}}"],
+            ['type' => LegacyNotificationType::LISTA_ESPERA_CHAMADA, 'canal' => 'whatsapp', 'subject' => null, 'content' => "Lista de espera chamada: {{curso_nome}}. {{link}}"],
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function getTemplateTypeValues(): array
+    {
+        return array_values(array_unique(array_merge(
+            NotificationType::values(),
+            LegacyNotificationType::values()
+        )));
+    }
+
+    /**
+     * @return list<array{value: string, label: string}>
+     */
+    private function getTemplateTypeOptions(): array
+    {
+        $legacyLabels = [
+            LegacyNotificationType::EVENTO_CRIADO => 'Evento criado',
+            LegacyNotificationType::EVENTO_CANCELADO => 'Evento cancelado',
+            LegacyNotificationType::INSCRICAO_CONFIRMAR => 'Confirmação de inscrição',
+            LegacyNotificationType::INSCRICAO_CANCELADA => 'Inscrição cancelada',
+            LegacyNotificationType::LEMBRETE_CURSO => 'Lembrete de curso',
+            LegacyNotificationType::MATRICULA_CONFIRMADA => 'Matrícula confirmada',
+            LegacyNotificationType::LISTA_ESPERA_CHAMADA => 'Lista de espera chamada',
+        ];
+
+        return array_map(function (string $value) use ($legacyLabels): array {
+            $officialType = NotificationType::tryFrom($value);
+
+            if ($officialType !== null) {
+                return [
+                    'value' => $value,
+                    'label' => $officialType->label(),
+                ];
+            }
+
+            return [
+                'value' => $value,
+                'label' => $legacyLabels[$value] ?? $value,
+            ];
+        }, $this->getTemplateTypeValues());
+    }
+
+    /**
+     * @return list<array{variable: string, description: string}>
+     */
+    private function getTemplateVariables(): array
+    {
+        return [
+            ['variable' => '{{aluno_nome}}', 'description' => 'Nome do aluno'],
+            ['variable' => '{{curso_nome}}', 'description' => 'Nome do curso'],
+            ['variable' => '{{datas}}', 'description' => 'Datas do curso/evento'],
+            ['variable' => '{{horario}}', 'description' => 'Horário'],
+            ['variable' => '{{carga_horaria}}', 'description' => 'Carga horária'],
+            ['variable' => '{{turno}}', 'description' => 'Turno'],
+            ['variable' => '{{vagas}}', 'description' => 'Quantidade de vagas'],
+            ['variable' => '{{link}}', 'description' => 'Link da inscrição/detalhes'],
         ];
     }
 }

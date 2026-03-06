@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Enums\NotificationType;
 use App\Services\ConfiguracaoService;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class NotificationDispatchRequest extends FormRequest
@@ -16,10 +18,19 @@ class NotificationDispatchRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'notification_type' => ['required', 'string', Rule::in(NotificationType::values())],
             'curso_id' => ['nullable', 'required_without:evento_curso_id', 'exists:cursos,id'],
             'evento_curso_id' => ['nullable', 'required_without:curso_id', 'exists:evento_cursos,id'],
             'aluno_ids' => ['array'],
             'aluno_ids.*' => ['integer', 'exists:alunos,id'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'notification_type.required' => 'O tipo de notificação é obrigatório.',
+            'notification_type.in' => 'Tipo de notificação inválido.',
         ];
     }
 

@@ -103,6 +103,14 @@ class LoginController extends Controller
             }
 
             if ($twoFactorService->isEnabledForUser($user)) {
+                if ($twoFactorService->shouldBlockWhatsappChallengeForUser($user)) {
+                    $this->clearTwoFactorSession($request);
+
+                    return redirect()
+                        ->route('aluno.login')
+                        ->with('status', $twoFactorService->getWhatsappUnavailableMessage());
+                }
+
                 $request->session()->regenerate();
 
                 try {
@@ -192,5 +200,19 @@ class LoginController extends Controller
         $redirect = $guard === 'aluno' ? route('aluno.login') : route('admin.login');
 
         return redirect()->to($redirect);
+    }
+
+    private function clearTwoFactorSession(Request $request): void
+    {
+        $request->session()->forget([
+            '2fa.pending_user_id',
+            '2fa.challenge_id',
+            '2fa.remember',
+            '2fa.channel',
+            '2fa.destination',
+            '2fa.login_route',
+            '2fa.guard',
+        ]);
+        $request->session()->forget('url.intended');
     }
 }

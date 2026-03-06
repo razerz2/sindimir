@@ -13,12 +13,13 @@
         <div class="content-card">
             <div class="mb-6 flex flex-wrap gap-2">
                 <button class="btn btn-ghost tab-button active" type="button" data-tab="geral">Geral</button>
-                <button class="btn btn-ghost tab-button" type="button" data-tab="seguranca">Seguranca</button>
+                <button class="btn btn-ghost tab-button" type="button" data-tab="seguranca">Segurança</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="tema">Tema</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="catalogo">Catálogos</button>
-                <button class="btn btn-ghost tab-button" type="button" data-tab="notificacoes">Notificacoes</button>
+                <button class="btn btn-ghost tab-button" type="button" data-tab="notificacoes">Notificações</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="auto-notificacoes">Notificações Automáticas</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="whatsapp">WhatsApp</button>
+                <button class="btn btn-ghost tab-button" type="button" data-tab="bot">Bot</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="google-contatos">Google Contatos</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="email">E-mail (SMTP)</button>
                 <button class="btn btn-ghost tab-button" type="button" data-tab="footer">Footer</button>
@@ -26,7 +27,7 @@
             </div>
 
             <div class="tab-panel" data-tab-panel="geral">
-                <h3 class="section-title">Configuracoes gerais</h3>
+                <h3 class="section-title">Configurações gerais</h3>
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                     <x-admin.input
                         id="sistema_nome"
@@ -38,7 +39,7 @@
                     <x-admin.input
                         id="sistema_email"
                         name="sistema_email"
-                        label="E-mail padrao"
+                        label="E-mail padrão"
                         type="email"
                         :value="$settings['sistema_email'] ?? ''"
                     />
@@ -51,9 +52,9 @@
             </div>
 
             <div class="tab-panel hidden" data-tab-panel="seguranca">
-                <h3 class="section-title">Seguranca</h3>
+                <h3 class="section-title">Segurança</h3>
                 <p class="text-sm text-slate-500">
-                    Configure a autenticacao em dois fatores para acesso ao sistema.
+                    Configure a autenticação em dois fatores para acesso ao sistema.
                 </p>
                 <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
                     <x-admin.checkbox
@@ -64,7 +65,7 @@
                     <x-admin.select
                         id="two_factor_perfil"
                         name="two_factor_perfil"
-                        label="Perfis obrigatorios"
+                        label="Perfis obrigatórios"
                         :options="[
                             ['value' => 'admin', 'label' => 'Administradores'],
                             ['value' => 'aluno', 'label' => 'Alunos'],
@@ -87,7 +88,7 @@
                     <x-admin.input
                         id="two_factor_expiracao_minutos"
                         name="two_factor_expiracao_minutos"
-                        label="Expiracao do codigo (minutos)"
+                        label="Expiração do código (minutos)"
                         type="number"
                         :value="$settings['two_factor_expiracao_minutos'] ?? 10"
                     />
@@ -100,7 +101,7 @@
                     />
                 </div>
                 <p class="mt-3 text-xs text-slate-500">
-                    O canal escolhido deve estar ativo em Notificacoes e configurado em WhatsApp/E-mail.
+                    O canal escolhido deve estar ativo em Notificações e configurado em WhatsApp/E-mail.
                 </p>
             </div>
 
@@ -249,7 +250,7 @@
             </div>
 
             <div class="tab-panel hidden" data-tab-panel="notificacoes">
-                <h3 class="section-title">Notificacoes</h3>
+                <h3 class="section-title">Notificações</h3>
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <x-admin.checkbox
                         name="notificacao_email_ativo"
@@ -275,7 +276,28 @@
                     />
                 </div>
                 @php
-                    $types = \App\Enums\NotificationType::cases();
+                    $existingTemplatePayload = $templates->mapWithKeys(function ($group, $typeKey) {
+                        $email = $group->firstWhere('canal', 'email');
+                        $whatsapp = $group->firstWhere('canal', 'whatsapp');
+
+                        return [
+                            $typeKey => [
+                                'email' => $email
+                                    ? [
+                                        'ativo' => $email->ativo,
+                                        'assunto' => $email->assunto ?? '',
+                                        'conteudo' => $email->conteudo ?? '',
+                                    ]
+                                    : null,
+                                'whatsapp' => $whatsapp
+                                    ? [
+                                        'ativo' => $whatsapp->ativo,
+                                        'conteudo' => $whatsapp->conteudo ?? '',
+                                    ]
+                                    : null,
+                            ],
+                        ];
+                    })->toArray();
                     $templatePayload = $templates->mapWithKeys(function ($group, $typeKey) {
                         $email = $group->firstWhere('canal', 'email');
                         $whatsapp = $group->firstWhere('canal', 'whatsapp');
@@ -295,113 +317,134 @@
                         ];
                     })->toArray();
                     $templatePayload = array_replace_recursive($templateDefaults ?? [], $templatePayload);
+                    $defaultTemplateType = $templateTypeOptions[0]['value'] ?? '';
                 @endphp
 
-                <div class="mt-6 space-y-4" x-data="templateEditor({{ json_encode($templatePayload) }})">
+                <div
+                    class="mt-6 space-y-4"
+                    x-data="templateEditor(@js($templatePayload), @js($existingTemplatePayload), @js($defaultTemplateType), @js($templateVariables ?? []))"
+                >
                     <h4 class="section-title">Templates por tipo</h4>
                     <p class="text-sm text-slate-500">
-                        Selecione um tipo para editar o template correspondente.
+                        Selecione o canal e o tipo para editar o template correspondente.
                     </p>
 
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <div class="flex flex-col gap-2">
-                            <label for="template_type" class="text-sm font-semibold text-[var(--content-text)]">Tipo de notificação</label>
-                            <select
-                                id="template_type"
-                                name="template_type"
-                                class="w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40"
-                                x-model="selectedType"
-                                x-on:change="loadType()"
-                            >
-                                <option value="">Selecione um tipo</option>
-                                <option value="EVENTO_CRIADO">Evento criado</option>
-                                <option value="EVENTO_CANCELADO">Evento cancelado</option>
-                                <option value="INSCRICAO_CONFIRMAR">Confirmacao de inscricao</option>
-                                <option value="INSCRICAO_CANCELADA">Inscricao cancelada</option>
-                                <option value="CURSO_DISPONIVEL">Curso disponível</option>
-                                <option value="VAGA_ABERTA">Vaga aberta</option>
-                                <option value="LEMBRETE_CURSO">Lembrete de curso</option>
-                                <option value="MATRICULA_CONFIRMADA">Matrícula confirmada</option>
-                                <option value="LISTA_ESPERA_CHAMADA">Lista de espera chamada</option>
-                            </select>
-                        </div>
-                    </div>
+                    <input type="hidden" name="template_type" x-model="selectedType">
+                    <input type="hidden" name="template_channel" x-model="selectedChannel">
 
-                    <div class="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-500" x-show="selectedType && !hasTemplate">
-                        Nenhum template cadastrado para este tipo.
-                    </div>
-
-                    <div class="rounded-xl border border-slate-200 bg-white p-4" x-show="selectedType">
-                        <div class="mb-4 flex items-center justify-between">
-                            <h5 class="text-sm font-semibold text-slate-700">Editar template</h5>
-                            <span class="text-xs text-slate-400" x-show="loading">Carregando...</span>
-                        </div>
-                        <div class="grid gap-6 md:grid-cols-2">
-                            <div class="space-y-3">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-sm font-semibold text-slate-600">Email</span>
-                                    <label class="text-xs text-slate-500">
-                                        <input type="checkbox" x-model="email.ativo" x-bind:name="`templates[${selectedType}][email][ativo]`" value="1">
-                                        Ativo
-                                    </label>
-                                </div>
+                    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        <div class="space-y-4">
+                            <div class="grid gap-4 md:grid-cols-2">
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-sm font-semibold text-[var(--content-text)]">Assunto</label>
-                                    <input
-                                        type="text"
-                                        x-model="email.assunto"
-                                        x-bind:name="`templates[${selectedType}][email][assunto]`"
+                                    <label for="template_channel" class="text-sm font-semibold text-[var(--content-text)]">Canal</label>
+                                    <select
+                                        id="template_channel"
                                         class="w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40"
+                                        x-model="selectedChannel"
+                                        x-on:change="handleSelectionChange()"
                                     >
+                                        <option value="whatsapp">WhatsApp</option>
+                                        <option value="email">E-mail</option>
+                                    </select>
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-sm font-semibold text-[var(--content-text)]">Conteúdo (Email)</label>
-                                    <textarea
-                                        rows="4"
-                                        x-model="email.conteudo"
-                                        x-bind:name="`templates[${selectedType}][email][conteudo]`"
+                                    <label for="template_type" class="text-sm font-semibold text-[var(--content-text)]">Tipo de notificação</label>
+                                    <select
+                                        id="template_type"
                                         class="w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40"
-                                    ></textarea>
+                                        x-model="selectedType"
+                                        x-on:change="handleSelectionChange()"
+                                    >
+                                        @foreach ($templateTypeOptions as $typeOption)
+                                            <option value="{{ $typeOption['value'] }}">{{ $typeOption['label'] }}</option>
+                                        @endforeach
+                                    </select>
                                 </div>
                             </div>
-                            <div class="space-y-3">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-sm font-semibold text-slate-600">WhatsApp</span>
-                                    <label class="text-xs text-slate-500">
-                                        <input type="checkbox" x-model="whatsapp.ativo" x-bind:name="`templates[${selectedType}][whatsapp][ativo]`" value="1">
-                                        Ativo
-                                    </label>
+
+                            <div class="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-500" x-show="selectedType && !hasTemplate">
+                                Sem template cadastrado ainda.
+                            </div>
+
+                            <div class="rounded-xl border border-slate-200 bg-white p-4" x-show="selectedType">
+                                <div class="mb-4 flex items-center justify-between">
+                                    <h5 class="text-sm font-semibold text-slate-700">Editor do template</h5>
+                                    <span class="text-xs text-slate-400" x-show="loading">Carregando...</span>
                                 </div>
-                                <div class="flex flex-col gap-2">
-                                    <label class="text-sm font-semibold text-[var(--content-text)]">Conteúdo (WhatsApp)</label>
-                                    <textarea
-                                        rows="4"
-                                        x-model="whatsapp.conteudo"
-                                        x-bind:name="`templates[${selectedType}][whatsapp][conteudo]`"
-                                        class="w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40"
-                                    ></textarea>
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm font-semibold text-slate-600">Ativo</span>
+                                        <label class="text-xs text-slate-500">
+                                            <input type="hidden" name="template_active" value="0">
+                                            <input type="checkbox" x-model="editor.active" name="template_active" value="1">
+                                            Ativo
+                                        </label>
+                                    </div>
+
+                                    <div class="space-y-3" x-show="selectedChannel === 'email'">
+                                        <div class="flex flex-col gap-2">
+                                            <label class="text-sm font-semibold text-[var(--content-text)]">Assunto</label>
+                                            <input
+                                                type="text"
+                                                name="template_subject"
+                                                x-model="editor.subject"
+                                                x-on:focus="setFocusedField($event.target)"
+                                                class="w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40"
+                                            >
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-col gap-2">
+                                        <label class="text-sm font-semibold text-[var(--content-text)]" x-text="selectedChannel === 'email' ? 'Conteúdo (E-mail)' : 'Conteúdo (WhatsApp)'"></label>
+                                        <textarea
+                                            rows="6"
+                                            name="template_content"
+                                            x-model="editor.content"
+                                            x-on:focus="setFocusedField($event.target)"
+                                            class="w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40"
+                                        ></textarea>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4 flex items-center justify-between">
+                                    <span class="text-xs text-emerald-600" x-show="copyMessage" x-text="copyMessage"></span>
+                                    <button type="submit" name="submit_context" value="template" class="btn btn-primary">
+                                        Salvar template deste tipo
+                                    </button>
                                 </div>
                             </div>
                         </div>
-                        <p class="mt-3 text-xs text-slate-500">
-                            Variáveis disponíveis: <code>@{{aluno_nome}}</code>,
-                            <code>@{{curso_nome}}</code>, <code>@{{datas}}</code>,
-                            <code>@{{horario}}</code>, <code>@{{carga_horaria}}</code>,
-                            <code>@{{turno}}</code>, <code>@{{vagas}}</code>,
-                            <code>@{{link}}</code>.
-                        </p>
-                        <div class="mt-4 flex items-center justify-between">
-                            @if (session('status'))
-                                <span class="text-xs text-emerald-600">{{ session('status') }}</span>
-                            @endif
-                            <button type="submit" class="btn btn-primary">
-                                Salvar template deste tipo
-                            </button>
+
+                        <div class="rounded-xl border border-slate-200 bg-white p-4">
+                            <h5 class="mb-3 text-sm font-semibold text-slate-700">Variáveis disponíveis</h5>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full text-sm">
+                                    <thead>
+                                        <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                                            <th class="px-2 py-2">Variável</th>
+                                            <th class="px-2 py-2">Descrição</th>
+                                            <th class="px-2 py-2 text-right">Copiar</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="item in variables" :key="item.variable">
+                                            <tr class="border-b border-slate-100">
+                                                <td class="px-2 py-2"><code x-text="item.variable"></code></td>
+                                                <td class="px-2 py-2 text-slate-600" x-text="item.description"></td>
+                                                <td class="px-2 py-2 text-right">
+                                                    <button type="button" class="btn btn-ghost text-xs" x-on:click="copyVariable(item.variable)">
+                                                        Copiar
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-
             <div class="tab-panel hidden" data-tab-panel="whatsapp">
                 <h3 class="section-title">WhatsApp</h3>
                 <div class="mb-4 flex items-center gap-3">
@@ -512,6 +555,141 @@
                 </div>
             </div>
 
+            <div class="tab-panel hidden" data-tab-panel="bot">
+                <h3 class="section-title">Bot</h3>
+                <p class="text-sm text-slate-500">
+                    Configure o bot de atendimento via WhatsApp para menu de cursos e cancelamentos.
+                </p>
+
+                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <x-admin.checkbox
+                        name="bot_enabled"
+                        label="Ativar bot"
+                        :checked="$settings['bot_enabled'] ?? false"
+                    />
+                    <x-admin.select
+                        id="bot_provider"
+                        name="bot_provider"
+                        label="Provedor ativo"
+                        :options="[
+                            ['value' => 'meta', 'label' => 'Meta (Cloud API)'],
+                            ['value' => 'zapi', 'label' => 'Z-API'],
+                        ]"
+                        :selected="$settings['bot_provider'] ?? 'meta'"
+                    />
+                    <x-admin.input
+                        id="bot_session_timeout_minutes"
+                        name="bot_session_timeout_minutes"
+                        label="Timeout de sessão (min)"
+                        type="number"
+                        :value="$settings['bot_session_timeout_minutes'] ?? 15"
+                    />
+                    <x-admin.input
+                        id="bot_reset_keyword"
+                        name="bot_reset_keyword"
+                        label="Palavra de reset"
+                        :value="$settings['bot_reset_keyword'] ?? 'menu'"
+                        hint='Ex: "menu"'
+                    />
+                </div>
+
+                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <x-admin.textarea
+                        id="bot_welcome_message"
+                        name="bot_welcome_message"
+                        label="Mensagem de boas-vindas"
+                        rows="3"
+                        :value="$settings['bot_welcome_message'] ?? ''"
+                    />
+                    <x-admin.textarea
+                        id="bot_fallback_message"
+                        name="bot_fallback_message"
+                        label="Mensagem de fallback"
+                        rows="3"
+                        :value="$settings['bot_fallback_message'] ?? ''"
+                    />
+                </div>
+
+                <div class="mt-4">
+                    <x-admin.textarea
+                        id="bot_entry_keywords"
+                        name="bot_entry_keywords"
+                        label="Palavras-chave de entrada"
+                        rows="4"
+                        :value="$settings['bot_entry_keywords'] ?? ''"
+                    />
+                    <p class="mt-2 text-xs text-slate-500">
+                        Informe uma palavra por linha (ou JSON array), por exemplo: oi, olá, iniciar.
+                    </p>
+                </div>
+
+                <div class="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+                    <h4 class="text-sm font-semibold text-slate-700">Opções de cursos</h4>
+                    <div class="mt-3 grid gap-4 md:grid-cols-3">
+                        <x-admin.input
+                            id="bot_courses_limit"
+                            name="bot_courses_limit"
+                            label="Limite de cursos no menu"
+                            type="number"
+                            :value="$settings['bot_courses_limit'] ?? 10"
+                        />
+                        <x-admin.select
+                            id="bot_courses_order"
+                            name="bot_courses_order"
+                            label="Ordenação dos cursos"
+                            :options="[
+                                ['value' => 'asc', 'label' => 'Data crescente'],
+                                ['value' => 'desc', 'label' => 'Data decrescente'],
+                            ]"
+                            :selected="$settings['bot_courses_order'] ?? 'asc'"
+                        />
+                    </div>
+                </div>
+
+                <div class="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+                    <h4 class="text-sm font-semibold text-slate-700">Opções de cancelamento</h4>
+                    <div class="mt-3 grid gap-4 md:grid-cols-3">
+                        <x-admin.input
+                            id="bot_cancel_limit"
+                            name="bot_cancel_limit"
+                            label="Limite de inscrições listadas"
+                            type="number"
+                            :value="$settings['bot_cancel_limit'] ?? 10"
+                        />
+                        <x-admin.select
+                            id="bot_cancel_order"
+                            name="bot_cancel_order"
+                            label="Ordenação das inscrições"
+                            :options="[
+                                ['value' => 'desc', 'label' => 'Mais recentes'],
+                                ['value' => 'asc', 'label' => 'Mais antigas'],
+                            ]"
+                            :selected="$settings['bot_cancel_order'] ?? 'desc'"
+                        />
+                        <x-admin.checkbox
+                            name="bot_cancel_require_confirm"
+                            label="Exigir confirmação"
+                            :checked="$settings['bot_cancel_require_confirm'] ?? true"
+                        />
+                        <x-admin.checkbox
+                            name="bot_cancel_require_valid_cpf"
+                            label="Exigir CPF válido"
+                            :checked="$settings['bot_cancel_require_valid_cpf'] ?? true"
+                        />
+                        <x-admin.checkbox
+                            name="bot_cancel_only_active_events"
+                            label="Somente eventos ativos"
+                            :checked="$settings['bot_cancel_only_active_events'] ?? true"
+                        />
+                        <x-admin.checkbox
+                            name="bot_audit_log_enabled"
+                            label="Salvar log de mensagens"
+                            :checked="$settings['bot_audit_log_enabled'] ?? true"
+                        />
+                    </div>
+                </div>
+            </div>
+
             <div class="tab-panel hidden" data-tab-panel="google-contatos">
                 <h3 class="section-title">Google Contacts</h3>
                 <p class="text-sm text-slate-500">
@@ -603,7 +781,7 @@
                             />
                             <x-admin.checkbox
                                 name="auto_lembrete_email"
-                                label="Email"
+                                label="E-mail"
                                 :checked="$settings['auto_lembrete_email'] ?? true"
                             />
                             <x-admin.checkbox
@@ -639,7 +817,7 @@
                             />
                             <x-admin.checkbox
                                 name="auto_evento_criado_email"
-                                label="Email"
+                                label="E-mail"
                                 :checked="$settings['auto_evento_criado_email'] ?? true"
                             />
                             <x-admin.checkbox
@@ -651,7 +829,7 @@
                     </div>
 
                     <div class="rounded-xl border border-slate-200 bg-white p-4">
-                        <h4 class="text-sm font-semibold text-slate-700">Confirmacao de inscricao</h4>
+                        <h4 class="text-sm font-semibold text-slate-700">Confirmação de inscrição</h4>
                         <p class="text-xs text-slate-500">Usa o tipo <code>INSCRICAO_CONFIRMAR</code>.</p>
                         <p class="text-xs text-slate-500">Envia o link de confirmação para o aluno concluir a inscrição no evento.</p>
                         <div class="mt-3 grid gap-4 md:grid-cols-3">
@@ -662,7 +840,7 @@
                             />
                             <x-admin.checkbox
                                 name="auto_confirmacao_email"
-                                label="Email"
+                                label="E-mail"
                                 :checked="$settings['auto_confirmacao_email'] ?? true"
                             />
                             <x-admin.checkbox
@@ -699,7 +877,7 @@
                             />
                             <x-admin.checkbox
                                 name="auto_matricula_email"
-                                label="Email"
+                                label="E-mail"
                                 :checked="$settings['auto_matricula_email'] ?? true"
                             />
                             <x-admin.checkbox
@@ -722,7 +900,7 @@
                             />
                             <x-admin.checkbox
                                 name="auto_vaga_email"
-                                label="Email"
+                                label="E-mail"
                                 :checked="$settings['auto_vaga_email'] ?? true"
                             />
                             <x-admin.checkbox
@@ -762,7 +940,7 @@
                             />
                             <x-admin.checkbox
                                 name="auto_evento_cancelado_email"
-                                label="Email"
+                                label="E-mail"
                                 :checked="$settings['auto_evento_cancelado_email'] ?? true"
                             />
                             <x-admin.checkbox
@@ -785,7 +963,7 @@
                             />
                             <x-admin.checkbox
                                 name="auto_curso_email"
-                                label="Email"
+                                label="E-mail"
                                 :checked="$settings['auto_curso_email'] ?? true"
                             />
                             <x-admin.checkbox
@@ -833,7 +1011,7 @@
                     <x-admin.input
                         id="smtp_username"
                         name="smtp_username"
-                        label="Usuario"
+                        label="Usuário"
                         :value="$settings['smtp_username'] ?? ''"
                     />
                     <x-admin.input
@@ -876,14 +1054,14 @@
                     <x-admin.input
                         id="footer_titulo"
                         name="footer_titulo"
-                        label="Titulo"
+                        label="Título"
                         :value="$settings['footer_titulo'] ?? ''"
                         required
                     />
                     <x-admin.input
                         id="footer_contato_titulo"
                         name="footer_contato_titulo"
-                        label="Titulo de contato"
+                        label="Título de contato"
                         :value="$settings['footer_contato_titulo'] ?? ''"
                         required
                     />
@@ -903,21 +1081,21 @@
                     <x-admin.input
                         id="footer_endereco_titulo"
                         name="footer_endereco_titulo"
-                        label="Titulo de endereco"
+                        label="Título de endereço"
                         :value="$settings['footer_endereco_titulo'] ?? ''"
                         required
                     />
                     <x-admin.input
                         id="footer_endereco_linha1"
                         name="footer_endereco_linha1"
-                        label="Endereco linha 1"
+                        label="Endereço linha 1"
                         :value="$settings['footer_endereco_linha1'] ?? ''"
                         required
                     />
                     <x-admin.input
                         id="footer_endereco_linha2"
                         name="footer_endereco_linha2"
-                        label="Endereco linha 2"
+                        label="Endereço linha 2"
                         :value="$settings['footer_endereco_linha2'] ?? ''"
                         required
                     />
@@ -926,7 +1104,7 @@
                     <x-admin.textarea
                         id="footer_descricao"
                         name="footer_descricao"
-                        label="Descricao"
+                        label="Descrição"
                         rows="3"
                         :value="$settings['footer_descricao'] ?? ''"
                         required
@@ -939,46 +1117,99 @@
                 <div class="flex items-center gap-3">
                     <span class="badge">Ativo</span>
                     <p class="text-sm text-slate-500">
-                        Alteracoes registradas automaticamente via AuditoriaObserver.
+                        Alterações registradas automaticamente via AuditoriaObserver.
                     </p>
                 </div>
             </div>
         </div>
 
         <div class="flex justify-end gap-2">
-            <button class="btn btn-primary" type="submit">Salvar configuracoes</button>
+            <button class="btn btn-primary" type="submit" name="submit_context" value="all">Salvar configurações</button>
         </div>
     </form>
 
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script>
-        function templateEditor(templates) {
+        function templateEditor(templates, existingTemplates, defaultType, variables) {
             return {
-                selectedType: '',
+                templates,
+                existingTemplates,
+                variables,
+                defaultType,
+                selectedType: defaultType || '',
+                selectedChannel: 'whatsapp',
                 loading: false,
                 hasTemplate: false,
-                email: { ativo: true, assunto: '', conteudo: '' },
-                whatsapp: { ativo: true, conteudo: '' },
-                loadType() {
+                copyMessage: '',
+                focusedField: null,
+                editor: { active: true, subject: '', content: '' },
+                init() {
+                    this.loadEditor();
+                },
+                setFocusedField(field) {
+                    this.focusedField = field;
+                },
+                handleSelectionChange() {
+                    this.loadEditor();
+                },
+                loadEditor() {
                     if (!this.selectedType) {
                         this.hasTemplate = false;
+                        this.editor = { active: true, subject: '', content: '' };
                         return;
                     }
+
                     this.loading = true;
-                    const data = templates[this.selectedType] || null;
+                    const typeData = this.templates[this.selectedType] || {};
+                    const channelData = typeData[this.selectedChannel] || null;
+                    const existingByType = this.existingTemplates[this.selectedType] || {};
+                    this.hasTemplate = !!existingByType[this.selectedChannel];
+
                     setTimeout(() => {
-                        this.hasTemplate = !!data;
-                        this.email = {
-                            ativo: data?.email?.ativo ?? true,
-                            assunto: data?.email?.assunto ?? '',
-                            conteudo: data?.email?.conteudo ?? '',
-                        };
-                        this.whatsapp = {
-                            ativo: data?.whatsapp?.ativo ?? true,
-                            conteudo: data?.whatsapp?.conteudo ?? '',
+                        this.editor = {
+                            active: channelData?.ativo ?? true,
+                            subject: channelData?.assunto ?? '',
+                            content: channelData?.conteudo ?? '',
                         };
                         this.loading = false;
                     }, 150);
+                },
+                async copyVariable(variable) {
+                    const inserted = this.insertIntoFocusedField(variable);
+
+                    try {
+                        await navigator.clipboard.writeText(variable);
+                        this.copyMessage = inserted
+                            ? 'Variável copiada e inserida no campo.'
+                            : 'Variável copiada para a área de transferência.';
+                    } catch (error) {
+                        this.copyMessage = inserted
+                            ? 'Variável inserida no campo.'
+                            : 'Não foi possível copiar automaticamente.';
+                    }
+
+                    setTimeout(() => {
+                        this.copyMessage = '';
+                    }, 2500);
+                },
+                insertIntoFocusedField(variable) {
+                    if (!this.focusedField || !(this.focusedField instanceof HTMLInputElement || this.focusedField instanceof HTMLTextAreaElement)) {
+                        return false;
+                    }
+
+                    const field = this.focusedField;
+                    const start = typeof field.selectionStart === 'number' ? field.selectionStart : field.value.length;
+                    const end = typeof field.selectionEnd === 'number' ? field.selectionEnd : field.value.length;
+                    field.value = field.value.slice(0, start) + variable + field.value.slice(end);
+                    field.dispatchEvent(new Event('input', { bubbles: true }));
+                    field.focus();
+
+                    const cursor = start + variable.length;
+                    if (typeof field.setSelectionRange === 'function') {
+                        field.setSelectionRange(cursor, cursor);
+                    }
+
+                    return true;
                 },
             };
         }

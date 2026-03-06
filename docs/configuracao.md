@@ -12,6 +12,7 @@
 - MAIL_MAILER, MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM_ADDRESS, MAIL_FROM_NAME
 - WHATSAPP_ZAPI_ENABLED, WHATSAPP_ZAPI_BASE_URL, WHATSAPP_ZAPI_TOKEN, WHATSAPP_ZAPI_INSTANCE
 - WHATSAPP_META_ENABLED, WHATSAPP_META_BASE_URL, WHATSAPP_META_TOKEN, WHATSAPP_META_PHONE_NUMBER_ID
+- GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
 - NOTIFICATION_LINK_VALIDITY_MINUTES
 - NOTIFICATION_MESSAGE_TEMPLATE
 
@@ -53,6 +54,7 @@ Tabela `configuracoes` (via tela de configuracoes do admin):
 - sistema.ativo
 - notificacao.email_ativo
 - notificacao.whatsapp_ativo
+- notificacao.destinatarios
 - tema.cor_primaria
 - tema.cor_secundaria
 - tema.cor_fundo
@@ -101,5 +103,12 @@ Se nenhum provedor estiver ativo, o envio de WhatsApp falhara.
 
 - `NOTIFICATION_LINK_VALIDITY_MINUTES` define em minutos o tempo de vida dos links de inscrição enviados nas notificações (padrão 1440).
 - Tabela `notificacao_links`: registra token exclusivo por aluno+curso (opcionalmente evento) com `expires_at`.
-- Tabela `notificacao_logs`: armazena cada tentativa de envio (`canal`, `status`, `erro`, `notificacao_link_id`).
-- Tabela `notification_templates`: guarda os templates ativos por `notification_type` + `canal` e define assunto/conteúdo com variáveis (`{{aluno_nome}}`, `{{curso_nome}}`, `{{datas}}`, `{{vagas}}`, `{{link}}`).
+- Tabela `notificacao_logs`: armazena cada tentativa de envio (`canal`, `status`, `erro`, `notificacao_link_id`) com `tipo_destinatario`, `aluno_id` e `contato_externo_id`.
+- Tabela `notification_templates`: guarda os templates ativos por `notification_type` + `canal` e define assunto/conteúdo com variáveis (`{{aluno_nome}}`, `{{destinatario_nome}}`, `{{curso_nome}}`, `{{datas}}`, `{{vagas}}`, `{{link}}`).
+- `notificacao.destinatarios` define se as notificações atendem alunos, contatos externos ou ambos.
+
+## Google Contacts
+
+- Integração OAuth 2.0 com Google People API (somente leitura).
+- Configure `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` e `GOOGLE_REDIRECT_URI`.
+- A conexão e importação ficam em Admin > Configurações > Google Contatos.

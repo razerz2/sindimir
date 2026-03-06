@@ -7,6 +7,7 @@ use App\Mail\GenericNotificationMail;
 use App\Models\TwoFactorChallenge;
 use App\Models\TwoFactorLog;
 use App\Models\User;
+use App\Services\NotificationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -17,7 +18,8 @@ class TwoFactorService
 {
     public function __construct(
         private readonly ConfiguracaoService $configuracaoService,
-        private readonly WhatsAppService $whatsAppService
+        private readonly WhatsAppService $whatsAppService,
+        private readonly NotificationService $notificationService
     ) {
     }
 
@@ -125,6 +127,30 @@ class TwoFactorService
         $channel = (string) $this->configuracaoService->get('seguranca.2fa.canal', 'email');
 
         return in_array($channel, ['email', 'whatsapp'], true) ? $channel : 'email';
+    }
+
+    public function shouldBlockWhatsappChallengeForUser(User $user): bool
+    {
+        if ($user->role !== UserRole::Aluno) {
+            return false;
+        }
+
+        if ($this->resolveChannel() !== 'whatsapp') {
+            return false;
+        }
+
+        $provider = (string) $this->configuracaoService->get('whatsapp.provedor', '');
+        if ($provider !== 'zapi') {
+            return false;
+        }
+
+        return ! $this->notificationService->isWhatsAppAvailable();
+    }
+
+    public function getWhatsappUnavailableMessage(): string
+    {
+        return "Não foi possível enviar o código de verificação por WhatsApp neste momento.\n"
+            . 'Por favor, tente novamente mais tarde.';
     }
 
     public function getExpiryMinutes(): int

@@ -121,6 +121,13 @@ class TwoFactorController extends Controller
             return $this->redirectToLogin($request);
         }
 
+        if ($this->twoFactorService->shouldBlockWhatsappChallengeForUser($user)) {
+            $this->clearSession($request);
+
+            return $this->redirectToLogin($request)
+                ->with('status', $this->twoFactorService->getWhatsappUnavailableMessage());
+        }
+
         try {
             $challenge = $this->twoFactorService->startChallenge($user, $request);
         } catch (\RuntimeException $exception) {

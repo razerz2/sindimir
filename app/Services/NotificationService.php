@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\LegacyNotificationType;
 use App\Enums\NotificationType;
 use App\Enums\StatusMatricula;
 use App\Jobs\SendEmailNotificationJob;
@@ -13,6 +14,7 @@ use App\Models\EventoCurso;
 use App\Models\NotificationLink;
 use App\Models\NotificationLog;
 use App\Models\NotificationTemplate;
+use App\Services\WhatsApp\ZApiStatusService;
 use App\Support\WhatsAppMessageFormatter;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -25,18 +27,35 @@ class NotificationService
 
     public function __construct(
         private readonly ConfiguracaoService $configuracaoService,
-        private readonly NotificationLinkService $linkService
+        private readonly NotificationLinkService $linkService,
+        private readonly ZApiStatusService $zApiStatusService
     ) {
     }
 
-    public function previewTemplate(Aluno $aluno, Curso $curso, NotificationType $notificationType): array
+    public function isWhatsAppAvailable(): bool
     {
+        $provider = (string) $this->configuracaoService->get('whatsapp.provedor', '');
+
+        if ($provider === 'meta') {
+            return true;
+        }
+
+        if ($provider === 'zapi') {
+            return $this->zApiStatusService->canSend();
+        }
+
+        return false;
+    }
+
+    public function previewTemplate(Aluno $aluno, Curso $curso, NotificationType|string $notificationType): array
+    {
+        $notificationType = $this->normalizeType($notificationType);
         $datas = 'Datas definidas pela equipe.';
         $vagasDisponiveis = (int) $curso->limite_vagas;
-        $linkUrl = $notificationType === NotificationType::INSCRICAO_CONFIRMAR
+        $linkUrl = $notificationType === LegacyNotificationType::INSCRICAO_CONFIRMAR
             ? route('public.inscricao.confirmar', ['token' => 'preview'])
             : route('public.cursos');
-        if (in_array($notificationType, [NotificationType::EVENTO_CANCELADO, NotificationType::INSCRICAO_CANCELADA], true)) {
+        if (in_array($notificationType, [LegacyNotificationType::EVENTO_CANCELADO, LegacyNotificationType::INSCRICAO_CANCELADA], true)) {
             $linkUrl = '';
         }
         $destinatarioNome = (string) $aluno->nome_completo;
@@ -87,12 +106,13 @@ class NotificationService
     public function disparar(
         iterable $alunos,
         Curso|EventoCurso $destino,
-        NotificationType $notificationType = NotificationType::CURSO_DISPONIVEL,
+        NotificationType|string $notificationType = NotificationType::CURSO_DISPONIVEL,
         ?bool $forcarEmail = null,
         ?bool $forcarWhatsApp = null,
         ?int $validadeMinutos = null
     ): void
     {
+        $notificationType = $this->normalizeType($notificationType);
         $destinoEvento = $destino instanceof EventoCurso ? $destino->loadMissing('curso') : null;
         $curso = $destinoEvento ? $destinoEvento->curso : $destino;
 
@@ -113,7 +133,7 @@ class NotificationService
         Log::info('Disparo de notificações iniciado.', [
             'destinatarios' => $destinatarios->count(),
             'destinatarios_config' => $this->resolveDestinatariosConfig(),
-            'notification_type' => $notificationType->value,
+            'notification_type' => $notificationType,
         ]);
 
         $emailsEnviados = [];
@@ -132,7 +152,7 @@ class NotificationService
                 );
             }
             $linkUrl = $this->resolveLinkUrl($link, $notificationType);
-            if (in_array($notificationType, [NotificationType::EVENTO_CANCELADO, NotificationType::INSCRICAO_CANCELADA], true)) {
+            if (in_array($notificationType, [LegacyNotificationType::EVENTO_CANCELADO, LegacyNotificationType::INSCRICAO_CANCELADA], true)) {
                 $linkUrl = '';
             }
             $context = $this->buildTemplateContext(
@@ -193,7 +213,7 @@ class NotificationService
                         $curso->id,
                         $destinoEvento?->id,
                         $link?->id,
-                        $notificationType->value,
+                        $notificationType,
                         $assunto,
                         $mensagemEmail
                     );
@@ -220,7 +240,7 @@ class NotificationService
                         $curso->id,
                         $destinoEvento?->id,
                         $link?->id,
-                        $notificationType->value,
+                        $notificationType,
                         $mensagemWhatsApp
                     );
                     $telefonesEnviados[$numeroNormalizado] = true;
@@ -339,9 +359,9 @@ class NotificationService
         string $linkUrl,
         string $datas,
         int $vagasDisponiveis,
-        NotificationType $notificationType
+        string $notificationType
     ): string {
-        if ($notificationType === NotificationType::EVENTO_CRIADO) {
+        if ($notificationType === LegacyNotificationType::EVENTO_CRIADO) {
             return $this->buildEventoCriadoMessage($destinatarioNome, $curso, $evento, $linkUrl, $datas, $vagasDisponiveis);
         }
 
@@ -359,14 +379,14 @@ class NotificationService
         }
 
         $linhas = match ($notificationType) {
-            NotificationType::EVENTO_CANCELADO => [
+            LegacyNotificationType::EVENTO_CANCELADO => [
                 "Olá {$primeiroNome},",
                 '',
                 "O evento do curso {$curso->nome} foi cancelado.",
                 "Datas: {$datas}",
                 ...$detalhesEvento,
             ],
-            NotificationType::INSCRICAO_CONFIRMAR => [
+            LegacyNotificationType::INSCRICAO_CONFIRMAR => [
                 "Olá {$primeiroNome},",
                 '',
                 "Sua inscrição no curso {$curso->nome} precisa ser confirmada.",
@@ -375,14 +395,15 @@ class NotificationService
                 '',
                 "Confirme sua participação: {$linkUrl}",
             ],
-            NotificationType::INSCRICAO_CANCELADA => [
+            LegacyNotificationType::INSCRICAO_CANCELADA => [
                 "Olá {$primeiroNome},",
                 '',
                 "Sua inscrição no curso {$curso->nome} foi cancelada.",
                 "Datas: {$datas}",
                 ...$detalhesEvento,
             ],
-            NotificationType::LISTA_ESPERA_CHAMADA => [
+            NotificationType::LISTA_ESPERA->value,
+            LegacyNotificationType::LISTA_ESPERA_CHAMADA => [
                 "Olá {$primeiroNome},",
                 '',
                 "Uma vaga foi liberada para o curso {$curso->nome}.",
@@ -391,7 +412,7 @@ class NotificationService
                 '',
                 "Garanta sua vaga: {$linkUrl}",
             ],
-            NotificationType::MATRICULA_CONFIRMADA => [
+            LegacyNotificationType::MATRICULA_CONFIRMADA => [
                 "Olá {$primeiroNome},",
                 '',
                 "Sua matrícula no curso {$curso->nome} foi confirmada.",
@@ -487,12 +508,12 @@ class NotificationService
         return [$emailAtivo, $whatsappAtivo];
     }
 
-    private function resolveLinkUrl(?NotificationLink $link, NotificationType $notificationType): string
+    private function resolveLinkUrl(?NotificationLink $link, string $notificationType): string
     {
         if (! $link) {
             $route = match ($notificationType) {
-                NotificationType::INSCRICAO_CONFIRMAR,
-                NotificationType::MATRICULA_CONFIRMADA => 'public.cpf',
+                LegacyNotificationType::INSCRICAO_CONFIRMAR,
+                LegacyNotificationType::MATRICULA_CONFIRMADA => 'public.cpf',
                 default => 'public.cursos',
             };
 
@@ -502,8 +523,8 @@ class NotificationService
         }
 
         $route = match ($notificationType) {
-            NotificationType::INSCRICAO_CONFIRMAR => 'public.inscricao.confirmar',
-            NotificationType::MATRICULA_CONFIRMADA => 'public.matricula.visualizar',
+            LegacyNotificationType::INSCRICAO_CONFIRMAR => 'public.inscricao.confirmar',
+            LegacyNotificationType::MATRICULA_CONFIRMADA => 'public.matricula.visualizar',
             default => 'public.inscricao.token',
         };
 
@@ -552,7 +573,7 @@ class NotificationService
     }
 
     private function resolveMensagem(
-        NotificationType $notificationType,
+        string $notificationType,
         ?string $template,
         array $context,
         string $destinatarioNome,
@@ -562,7 +583,7 @@ class NotificationService
         string $datas,
         int $vagasDisponiveis
     ): string {
-        if ($notificationType === NotificationType::EVENTO_CANCELADO || ! $template) {
+        if ($notificationType === LegacyNotificationType::EVENTO_CANCELADO || ! $template) {
             return $this->buildFallbackMessage(
                 $destinatarioNome,
                 $curso,
@@ -593,7 +614,7 @@ class NotificationService
     private function normalizeMensagem(
         string $mensagem,
         string $destinatarioNome,
-        NotificationType $notificationType,
+        string $notificationType,
         string $linkUrl
     ): string {
         $mensagem = $this->normalizeNomeDestinatario($mensagem, $destinatarioNome);
@@ -623,13 +644,14 @@ class NotificationService
         return $mensagem;
     }
 
-    private function shouldNormalizeLinks(NotificationType $notificationType): bool
+    private function shouldNormalizeLinks(string $notificationType): bool
     {
         return in_array($notificationType, [
-            NotificationType::CURSO_DISPONIVEL,
-            NotificationType::INSCRICAO_CONFIRMAR,
-            NotificationType::LISTA_ESPERA_CHAMADA,
-            NotificationType::MATRICULA_CONFIRMADA,
+            NotificationType::CURSO_DISPONIVEL->value,
+            NotificationType::VAGA_ABERTA->value,
+            NotificationType::LISTA_ESPERA->value,
+            LegacyNotificationType::INSCRICAO_CONFIRMAR,
+            LegacyNotificationType::MATRICULA_CONFIRMADA,
         ], true);
     }
 
@@ -646,10 +668,10 @@ class NotificationService
         return preg_replace('/https?:\/\/\S+/i', $linkUrl, $mensagem);
     }
 
-    private function getTemplate(NotificationType $type, string $canal): ?NotificationTemplate
+    private function getTemplate(string $type, string $canal): ?NotificationTemplate
     {
         return NotificationTemplate::query()
-            ->where('notification_type', $type->value)
+            ->where('notification_type', $type)
             ->where('canal', $canal)
             ->where('ativo', true)
             ->first();
@@ -668,7 +690,7 @@ class NotificationService
         Curso $curso,
         ?EventoCurso $evento,
         ?NotificationLink $link,
-        NotificationType $notificationType
+        string $notificationType
     ): void {
         NotificationLog::create([
             'aluno_id' => $destinatario['tipo'] === self::DESTINATARIO_ALUNO ? $destinatario['id'] : null,
@@ -679,7 +701,7 @@ class NotificationService
             'curso_id' => $curso->id,
             'evento_curso_id' => $evento?->id,
             'notificacao_link_id' => $link?->id,
-            'notification_type' => $notificationType->value,
+            'notification_type' => $notificationType,
             'canal' => $canal,
             'status' => $status,
             'erro' => $erro,
@@ -690,11 +712,12 @@ class NotificationService
         Aluno $aluno,
         Curso $curso,
         ?EventoCurso $evento,
-        NotificationType $notificationType,
+        NotificationType|string $notificationType,
         string $canal,
         string $motivo,
         ?int $validadeMinutos = null
     ): void {
+        $notificationType = $this->normalizeType($notificationType);
         $link = $this->linkService->resolve($aluno, $curso, $evento, $notificationType, $validadeMinutos);
         $destinatario = [
             'tipo' => self::DESTINATARIO_ALUNO,
@@ -747,7 +770,7 @@ class NotificationService
         array $destinatario,
         Curso $curso,
         ?EventoCurso $evento,
-        NotificationType $notificationType,
+        string $notificationType,
         string $canal
     ): bool {
         $rateLimitAtivo = (bool) $this->configuracaoService->get('notificacao.rate_limit.ativo', true);
@@ -762,7 +785,7 @@ class NotificationService
 
         $query = NotificationLog::query()
             ->where('curso_id', $curso->id)
-            ->where('notification_type', $notificationType->value)
+            ->where('notification_type', $notificationType)
             ->where('canal', $canal)
             ->where('status', '!=', 'blocked')
             ->whereDate('created_at', CarbonImmutable::today());
@@ -782,5 +805,14 @@ class NotificationService
         $count = $query->count();
 
         return $count >= $limiteDiario;
+    }
+
+    private function normalizeType(NotificationType|string $notificationType): string
+    {
+        if ($notificationType instanceof NotificationType) {
+            return $notificationType->value;
+        }
+
+        return trim($notificationType);
     }
 }

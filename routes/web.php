@@ -18,7 +18,10 @@ use App\Http\Controllers\Admin\SiteSectionController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\TwoFactorController;
+use App\Http\Controllers\Webhooks\BotMetaWebhookController;
+use App\Http\Controllers\Webhooks\BotZapiWebhookController;
 use App\Http\Controllers\Public\ContatoController;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 
 Route::get('/', [\App\Http\Controllers\Public\PublicController::class, 'index'])
     ->name('public.home');
@@ -59,6 +62,13 @@ Route::post('/matricula/{token}/cancelar', [\App\Http\Controllers\Public\Inscric
 
 Route::get('/catalogos/estados/{estado}/municipios', [MunicipioController::class, 'byEstado'])
     ->name('public.catalogo.estados.municipios');
+
+Route::post('/webhooks/bot/meta', [BotMetaWebhookController::class, 'handle'])
+    ->withoutMiddleware([ValidateCsrfToken::class])
+    ->name('webhooks.bot.meta');
+Route::post('/webhooks/bot/zapi', [BotZapiWebhookController::class, 'handle'])
+    ->withoutMiddleware([ValidateCsrfToken::class])
+    ->name('webhooks.bot.zapi');
 
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware('guest:admin')->group(function () {

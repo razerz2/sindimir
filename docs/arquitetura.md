@@ -51,9 +51,10 @@ Por padrão, o Laravel pode salvar `url.intended` na **sessão** quando uma rota
 
 ## Integracoes e suporte
 
-- Notificacoes: email e WhatsApp via `NotificationService` e `WhatsAppService`.
+- Notificacoes: email e WhatsApp via `NotificationService` e `WhatsAppService`, com destinatários configuráveis (alunos/contatos externos).
 - Tipos de notificação (`NotificationTypeEnum`) enriquecem `notificacao_links` e `notificacao_logs` sem alterar o fluxo de envio.
 - Templates são persistidos em `notification_templates`, permitindo conteúdo e assunto personalizados por canal.
+- Contatos externos: integração Google Contacts (People API) com importação para `contatos_externos`.
 - Tema: cores default definidas em `config/app.php` e override via tabela `configuracoes`.
 - Auditoria: eventos de criacao/alteracao registrados via `AuditoriaObserver`.
 - Home institucional: layout fixo com slots definidos por slug na tabela `site_sections`.

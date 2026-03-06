@@ -15,12 +15,14 @@ e área do aluno.
 - Admin: usuários, configurações do sistema, tema, SMTP e provedores WhatsApp.
 - Admin: gestão de usuários com permissões por módulo e nome de exibição.
 - Admin: envio de notificações (email/WhatsApp) com templates e preview.
+- Admin: integração Google Contacts para importar contatos externos.
 - Admin: CMS institucional com sections fixas da home, ordenação e estilos visuais.
 - Admin: relatórios (cursos, eventos, matrículas, inscrições, lista de espera, auditoria).
 - Aluno: dashboard, perfil, inscrições, histórico e preferências.
 - Automacoes: fila de envios, rate limit de notificacoes e links com validade.
 - Agendamentos: expiração de matrículas, chamadas da lista de espera e lembretes.
 - Segurança: autenticação em dois fatores (2FA) por email ou WhatsApp.
+- Integrações: importação de contatos externos via Google Contacts (People API).
 
 ## Acesso e perfis
 
@@ -124,6 +126,7 @@ Os valores podem ser sobrescritos via `ADMIN_NAME`, `ADMIN_EMAIL`,
 - WHATSAPP_ZAPI_ENABLED, WHATSAPP_ZAPI_BASE_URL, WHATSAPP_ZAPI_TOKEN, WHATSAPP_ZAPI_INSTANCE
 - WHATSAPP_ZAPI_CLIENT_TOKEN
 - WHATSAPP_META_ENABLED, WHATSAPP_META_BASE_URL, WHATSAPP_META_TOKEN, WHATSAPP_META_PHONE_NUMBER_ID
+- GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
 
 ## Banco de dados
 
@@ -139,6 +142,7 @@ Tabela `configuracoes` (via tela de configurações do admin):
 - sistema.ativo
 - notificacao.email_ativo
 - notificacao.whatsapp_ativo
+- notificacao.destinatarios
 - tema.cor_primaria
 - tema.cor_secundaria
 - tema.cor_fundo
@@ -235,6 +239,16 @@ Somente um provedor deve ficar ativo por vez:
 
 Se nenhum provedor estiver ativo, o envio de WhatsApp falhara.
 
+## Google Contacts (contatos externos)
+
+Integração OAuth 2.0 com Google People API para importar contatos do telefone da empresa.
+
+- Escopo: contatos em modo somente leitura.
+- Tabela `contatos_externos`: nome, telefone normalizado, origem e `google_contact_id`.
+- Contatos externos não têm login nem acesso ao sistema; podem receber notificações.
+- Configuração via `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`.
+- Conexão e importação ficam em Admin > Configurações > Google Contatos.
+
 ## Autenticação em dois fatores (2FA)
 
 - Ativação e parâmetros via configurações do admin (segurança).
@@ -245,22 +259,28 @@ Se nenhum provedor estiver ativo, o envio de WhatsApp falhara.
 
 O código é enviado ao email do usuário ou ao WhatsApp do aluno (quando disponível).
 
-## Notificações para alunos
+## Notificações para alunos e contatos externos
 
 - Disparo via `POST /admin/notificacoes/disparar` (autorizações `auth` + `role:admin`). Informe `curso_id` ou `evento_curso_id` e, quando for curso único, a lista de `aluno_ids`. Para eventos, a lista pode vir vazia e o sistema usará as matrículas confirmadas.
-- `NotificationService` monta assunto/mensagem com nome do aluno, nome do curso, datas do evento (quando houver), vagas disponíveis e link exclusivo.
+- A configuração `notificacao.destinatarios` define o público: `alunos`, `contatos_externos` ou `ambos`.
+- `NotificationService` monta assunto/mensagem com nome do destinatário, nome do curso, datas do evento (quando houver), vagas disponíveis e link exclusivo.
 - Os templates são configurados por tipo (select “Tipo de notificação”) e editados separadamente para Email e WhatsApp; se não houver template para um tipo, a UI mostra aviso.
-- Cada disparo registra um `NotificationType` (`EVENTO_CRIADO`, `EVENTO_CANCELADO`, `INSCRICAO_CONFIRMAR`, `CURSO_DISPONIVEL`, `VAGA_ABERTA`, `LEMBRETE_CURSO`, `MATRICULA_CONFIRMADA`, `LISTA_ESPERA_CHAMADA`) em `notificacao_links` e `notificacao_logs`, mantendo a lógica atual intacta.
-- Templates dinâmicos residem em `notification_templates` (notification_type + canal) e podem usar variáveis como `{{aluno_nome}}`, `{{curso_nome}}`, `{{datas}}`, `{{vagas}}`, `{{link}}`.
-- Cada canal respeita um rate limit: um aluno não recebe mais de 2 notificações do mesmo tipo para o mesmo curso por dia; tentativas bloqueadas aparecem como `status = blocked` em `notificacao_logs`.
+- Tipos de notificação suportados no envio manual e nos templates: `CURSO_DISPONIVEL` (Curso Disponível), `VAGA_ABERTA` (Vaga Aberta) e `LISTA_ESPERA` (Lista de espera).
+- Cada disparo registra o `notification_type` em `notificacao_links` e `notificacao_logs`; registros antigos com tipos removidos continuam legíveis no relatório com fallback de tipo.
+- Templates dinâmicos residem em `notification_templates` (notification_type + canal) e podem usar variáveis como `{{aluno_nome}}`, `{{destinatario_nome}}`, `{{curso_nome}}`, `{{datas}}`, `{{vagas}}`, `{{link}}`.
+- Deduplicação final por canal evita envio duplicado para o mesmo email/telefone.
+- Rate limit por canal:
+  - alunos: por `aluno_id` + `notification_type` + `curso_id`
+  - contatos externos: por `telefone` + `notification_type` + `curso_id`
+- `notificacao_logs` registra `tipo_destinatario`, `aluno_id` (nullable) e `contato_externo_id` (nullable).
 - Há um endpoint `POST /admin/notificacoes/preview` (auth + role:admin) que recebe `aluno_id`, `curso_id` e `notification_type` e retorna o assunto/corpo de email e o texto WhatsApp renderizados sem enfileirar jobs.
 - Links são gerados pela tabela `notificacao_links` e valem por `NOTIFICATION_LINK_VALIDITY_MINUTES` (padrão 1440). O acesso público ocorre em `/inscricao/token/{token}` (inscrição) e `/inscricao/confirmar/{token}` (confirmação).
 - Jobs `SendEmailNotificationJob` e `SendWhatsAppNotificationJob` disparam as notificações com `QUEUE_CONNECTION=database` e gravam um registro em `notificacao_logs` com canal, status e eventual erro.
 - O prazo de confirmação é configurado em `notificacao.auto.inscricao_confirmacao.tempo_limite_horas` (padrão 24).
 - A lista de espera suporta modos `todos` e `sequencial` em `notificacao.auto.lista_espera.modo`, com intervalo de envio em `notificacao.auto.lista_espera.intervalo_minutos`.
 - Curso disponível respeita `notificacao.auto.curso_disponivel.horario_envio` (padrão 08:00) e `notificacao.auto.curso_disponivel.dias_antes` (padrão 0); fora do horário apenas ignora o envio.
-- Inscrições em eventos geram notificação de confirmação (`INSCRICAO_CONFIRMAR`); se não confirmadas até o prazo, a matrícula expira e a lista de espera é acionada.
-- Cancelamentos de evento disparam notificações para inscritos e lista de espera (`EVENTO_CANCELADO`).
+- Inscrições em eventos geram notificações internas legadas de confirmação; se não confirmadas até o prazo, a matrícula expira e a lista de espera é acionada.
+- Cancelamentos de evento podem disparar notificações internas legadas para inscritos e lista de espera.
 
 ## Arquitetura interna
 

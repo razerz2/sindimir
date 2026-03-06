@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Enums\Escolaridade;
 use App\Enums\EstadoCivil;
-use App\Enums\NotificationType;
+use App\Enums\LegacyNotificationType;
 use App\Enums\RacaCor;
 use App\Enums\RendaFamiliar;
 use App\Enums\Sexo;
@@ -163,13 +163,13 @@ class InscricaoController extends Controller
                             $aluno,
                             $evento->curso,
                             $evento,
-                            NotificationType::INSCRICAO_CONFIRMAR
+                            LegacyNotificationType::INSCRICAO_CONFIRMAR
                         );
 
                         $this->notificationService->disparar(
                             [$aluno],
                             $evento,
-                            NotificationType::INSCRICAO_CONFIRMAR,
+                            LegacyNotificationType::INSCRICAO_CONFIRMAR,
                             false,
                             true
                         );
@@ -204,12 +204,12 @@ class InscricaoController extends Controller
                 ->with('status', 'Link de inscrição inválido ou expirado.');
         }
 
-        if ($link->notification_type === NotificationType::MATRICULA_CONFIRMADA->value) {
+        if ($link->notification_type === LegacyNotificationType::MATRICULA_CONFIRMADA) {
             return redirect()
                 ->route('public.matricula.visualizar', ['token' => $link->token]);
         }
 
-        if ($link->notification_type === NotificationType::INSCRICAO_CONFIRMAR->value) {
+        if ($link->notification_type === LegacyNotificationType::INSCRICAO_CONFIRMAR) {
             return redirect()
                 ->route('public.inscricao.confirmar', ['token' => $link->token]);
         }
@@ -229,7 +229,7 @@ class InscricaoController extends Controller
                         $link->aluno,
                         $evento->curso,
                         $evento,
-                        NotificationType::MATRICULA_CONFIRMADA
+                        LegacyNotificationType::MATRICULA_CONFIRMADA
                     );
 
                     return redirect()
@@ -246,7 +246,7 @@ class InscricaoController extends Controller
                         $link->aluno,
                         $evento->curso,
                         $evento,
-                        NotificationType::INSCRICAO_CONFIRMAR
+                        LegacyNotificationType::INSCRICAO_CONFIRMAR
                     );
 
                     return redirect()
@@ -270,7 +270,7 @@ class InscricaoController extends Controller
                         $link->aluno,
                         $evento->curso,
                         $evento,
-                        NotificationType::MATRICULA_CONFIRMADA
+                        LegacyNotificationType::MATRICULA_CONFIRMADA
                     );
 
                     return redirect()
@@ -287,7 +287,7 @@ class InscricaoController extends Controller
                         $link->aluno,
                         $evento->curso,
                         $evento,
-                        NotificationType::INSCRICAO_CONFIRMAR
+                        LegacyNotificationType::INSCRICAO_CONFIRMAR
                     );
 
                     return redirect()
@@ -449,7 +449,7 @@ class InscricaoController extends Controller
             $matricula->aluno,
             $evento->curso,
             $evento,
-            NotificationType::MATRICULA_CONFIRMADA
+            LegacyNotificationType::MATRICULA_CONFIRMADA
         );
 
         return redirect()
@@ -496,7 +496,7 @@ class InscricaoController extends Controller
                 $this->notificationService->disparar(
                     [$matricula->aluno],
                 $evento,
-                NotificationType::INSCRICAO_CANCELADA
+                LegacyNotificationType::INSCRICAO_CANCELADA
                 );
             }
         }
@@ -605,7 +605,7 @@ class InscricaoController extends Controller
             ->where('token', $token)
             ->first();
 
-        if (! $link || ! $link->isValid() || $link->notification_type !== NotificationType::MATRICULA_CONFIRMADA->value) {
+        if (! $link || ! $link->isValid() || $link->notification_type !== LegacyNotificationType::MATRICULA_CONFIRMADA) {
             return redirect()
                 ->route('public.cursos')
                 ->with('status', 'Link de matrícula inválido ou expirado.');

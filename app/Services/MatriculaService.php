@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\LegacyNotificationType;
 use App\Enums\NotificationType;
 use App\Enums\StatusListaEspera;
 use App\Enums\StatusMatricula;
@@ -573,7 +574,7 @@ class MatriculaService
             $this->notificationService->disparar(
                 [$item->aluno],
                 $evento,
-                NotificationType::LISTA_ESPERA_CHAMADA,
+                NotificationType::LISTA_ESPERA,
                 $emailAtivo,
                 $whatsappAtivo
             );
@@ -871,7 +872,7 @@ class MatriculaService
         $this->notificationService->disparar(
             [$aluno],
             $evento,
-            NotificationType::INSCRICAO_CONFIRMAR,
+            LegacyNotificationType::INSCRICAO_CONFIRMAR,
             $emailAtivo,
             $whatsappAtivo,
             $validadeMinutos
@@ -898,7 +899,7 @@ class MatriculaService
         return NotificationLog::query()
             ->where('aluno_id', $matricula->aluno_id)
             ->where('evento_curso_id', $evento->id)
-            ->where('notification_type', NotificationType::INSCRICAO_CONFIRMAR->value)
+            ->where('notification_type', LegacyNotificationType::INSCRICAO_CONFIRMAR)
             ->where('status', 'success')
             ->exists();
     }
@@ -923,7 +924,7 @@ class MatriculaService
         $this->notificationService->disparar(
             [$aluno],
             $evento,
-            NotificationType::MATRICULA_CONFIRMADA,
+            LegacyNotificationType::MATRICULA_CONFIRMADA,
             $emailAtivo,
             $whatsappAtivo
         );

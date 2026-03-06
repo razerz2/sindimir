@@ -19,6 +19,7 @@ O script abaixo sobe servidor, fila, logs e Vite em paralelo:
 
 - Ajuste as variáveis de ambiente antes de semear o admin padrão.
 - Para notificações WhatsApp, ative apenas um provedor por vez.
+- Para contatos externos, configure credenciais Google e conecte a conta em Admin > Configurações > Google Contatos.
 - Em produção, use `php artisan queue:work` e agende `php artisan schedule:run`
   via cron (a cada minuto).
 - Para validar o isolamento de autenticação, teste logins em `/admin/login` e

@@ -64,7 +64,7 @@
                         <select id="notification-type" name="notification_type" class="input-field">
                             <option value="" disabled selected>Selecione o tipo</option>
                             @foreach ($notificationTypes as $type)
-                                <option value="{{ $type->value }}">{{ str_replace('_', ' ', ucfirst(strtolower($type->value))) }}</option>
+                                <option value="{{ $type->value }}">{{ $type->label() }}</option>
                             @endforeach
                         </select>
                         <span class="helper-text">Escolha o tipo de comunicação.</span>

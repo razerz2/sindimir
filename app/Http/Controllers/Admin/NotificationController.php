@@ -26,6 +26,7 @@ class NotificationController extends Controller
 
     public function store(NotificationDispatchRequest $request): JsonResponse
     {
+        $tipo = NotificationType::from((string) $request->input('notification_type'));
         $destino = $this->resolveDestino($request);
         $alunos = $this->resolveAlunos($request, $destino);
 
@@ -38,7 +39,30 @@ class NotificationController extends Controller
             return response()->json(['message' => 'Nenhum aluno válido encontrado.'], 422);
         }
 
-        $this->notificationService->disparar($alunos, $destino);
+        $whatsappAtivo = (bool) $this->configuracaoService->get('notificacao.whatsapp_ativo', false);
+        $whatsappProvedor = (string) $this->configuracaoService->get('whatsapp.provedor', '');
+        $whatsappDisponivel = true;
+        $mostrarAviso = false;
+
+        if ($whatsappAtivo && $whatsappProvedor === 'zapi') {
+            $whatsappDisponivel = $this->notificationService->isWhatsAppAvailable();
+            $mostrarAviso = ! $whatsappDisponivel;
+        }
+
+        $this->notificationService->disparar(
+            $alunos,
+            $destino,
+            $tipo,
+            null,
+            $whatsappDisponivel ? null : false
+        );
+
+        if ($mostrarAviso) {
+            return response()->json([
+                'status' => 'warning',
+                'message' => 'WhatsApp indisponível no momento: nenhum dispositivo conectado à instância Z-API.',
+            ]);
+        }
 
         return response()->json(['message' => 'Notificações enfileiradas com sucesso.']);
     }

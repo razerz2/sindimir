@@ -176,16 +176,10 @@ class RelatorioNotificacaoService
     private function getTipoLabel(string $tipo): string
     {
         return match ($tipo) {
-            NotificationType::EVENTO_CRIADO->value => 'Evento criado',
-            NotificationType::EVENTO_CANCELADO->value => 'Evento cancelado',
-            NotificationType::INSCRICAO_CONFIRMAR->value => 'Confirmacao de inscricao',
-            NotificationType::INSCRICAO_CANCELADA->value => 'Inscricao cancelada',
-            NotificationType::CURSO_DISPONIVEL->value => 'Curso disponivel',
-            NotificationType::VAGA_ABERTA->value => 'Vaga aberta',
-            NotificationType::LEMBRETE_CURSO->value => 'Lembrete de curso',
-            NotificationType::MATRICULA_CONFIRMADA->value => 'Matricula confirmada',
-            NotificationType::LISTA_ESPERA_CHAMADA->value => 'Lista de espera chamada',
-            default => $tipo,
+            NotificationType::CURSO_DISPONIVEL->value => NotificationType::CURSO_DISPONIVEL->label(),
+            NotificationType::VAGA_ABERTA->value => NotificationType::VAGA_ABERTA->label(),
+            NotificationType::LISTA_ESPERA->value => NotificationType::LISTA_ESPERA->label(),
+            default => 'Tipo removido',
         };
     }
 

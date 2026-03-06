@@ -8,6 +8,7 @@ Esta pasta centraliza a documentação técnica do sistema de cursos Sindimir.
 - `configuracao.md` - Variáveis de ambiente e ajustes básicos do sistema.
 - `operacao.md` - Comandos e rotinas de operação.
 - `arquitetura.md` - Visão geral, camadas e componentes principais.
+- Integrações: Google Contacts para contatos externos e notificações configuráveis.
 
 ## Nota sobre autenticação
 

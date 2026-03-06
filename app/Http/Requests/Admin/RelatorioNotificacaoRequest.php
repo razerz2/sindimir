@@ -16,10 +16,7 @@ class RelatorioNotificacaoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'notification_type' => ['nullable', Rule::in(array_map(
-                fn (NotificationType $type) => $type->value,
-                NotificationType::cases()
-            ))],
+            'notification_type' => ['nullable', Rule::in(NotificationType::values())],
             'canal' => ['nullable', Rule::in(['email', 'whatsapp'])],
             'status' => ['nullable', Rule::in(['success', 'failed', 'blocked'])],
             'curso_id' => ['nullable', 'integer', 'exists:cursos,id'],

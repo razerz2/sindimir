@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Enums\NotificationType;
+use App\Enums\LegacyNotificationType;
 use App\Enums\StatusListaEspera;
 use App\Enums\StatusMatricula;
 use App\Models\Aluno;
@@ -155,7 +155,7 @@ class EventoCursoService
         $this->notificationService->disparar(
             $alunos,
             $evento,
-            NotificationType::EVENTO_CRIADO,
+            LegacyNotificationType::EVENTO_CRIADO,
             $emailAtivo,
             $whatsappAtivo
         );
@@ -198,7 +198,7 @@ class EventoCursoService
         $this->notificationService->disparar(
             $alunos,
             $evento,
-            NotificationType::EVENTO_CANCELADO,
+            LegacyNotificationType::EVENTO_CANCELADO,
             $emailAtivo,
             $whatsappAtivo
         );
