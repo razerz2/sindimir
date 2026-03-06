@@ -19,6 +19,7 @@ use App\Support\Cpf;
 use App\Support\Phone;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 class BotEngine
 {
@@ -80,6 +81,8 @@ class BotEngine
         $response = match ($state) {
             BotState::MENU => $this->handleMenuInput($conversation, $text),
             BotState::CURSOS_LIST => $this->handleCoursesInput($conversation, $text),
+            BotState::CURSO_ACTION => $this->handleCourseActionInput($conversation, $text),
+            BotState::CURSO_CPF => $this->handleCourseCpfInput($conversation, $text),
             BotState::CANCEL_CPF => $this->handleCancelCpfInput($conversation, $text),
             BotState::CANCEL_LIST => $this->handleCancelSelectionInput($conversation, $text),
             BotState::CANCEL_CONFIRM => $this->handleCancelConfirmInput($conversation, $text),
@@ -186,10 +189,10 @@ class BotEngine
             );
         }
 
-        $inscricaoUrl = route('public.cpf', ['evento_curso_id' => $evento->id]);
         $turno = $evento->turno?->value ? ucfirst(str_replace('_', ' ', $evento->turno->value)) : 'Nao informado';
-
-        $this->setConversationState($conversation, BotState::MENU, []);
+        $context['selected_evento_id'] = $evento->id;
+        $context['selected_index'] = $option;
+        $this->setConversationState($conversation, BotState::CURSO_ACTION, $context);
 
         return implode("\n", [
             'Resumo do curso:',
@@ -200,10 +203,148 @@ class BotEngine
             'Turno: ' . $turno,
             'Municipio: ' . ($evento->municipio ?: 'Nao informado'),
             'Local: ' . ($evento->local_realizacao ?: 'Nao informado'),
-            'Inscricao: ' . $inscricaoUrl,
             '',
-            'Digite ' . $this->getResetKeyword() . ' para voltar ao menu.',
+            'O que voce deseja fazer?',
+            '1) Inscrever pelo WhatsApp (CPF)',
+            '2) Receber link do site',
+            'Responda com 1 ou 2.',
         ]);
+    }
+
+    private function handleCourseActionInput(BotConversation $conversation, string $text): string
+    {
+        $context = $this->getConversationContext($conversation);
+        $evento = $this->getSelectedEventoFromContext($context);
+
+        if (! $evento || ! $evento->curso) {
+            return $this->respondWithMenu($conversation, false, 'Curso selecionado nao encontrado.');
+        }
+
+        $option = $this->parseNumericOption($text);
+
+        if ($option === 1) {
+            $this->setConversationState($conversation, BotState::CURSO_CPF, $context);
+
+            return 'Informe seu CPF (somente numeros).';
+        }
+
+        if ($option === 2) {
+            $this->setConversationState($conversation, BotState::MENU, []);
+
+            return implode("\n", [
+                'Acesse o link para se inscrever:',
+                $this->buildInscricaoLink($evento->id),
+                '',
+                'Digite menu para voltar ao inicio.',
+            ]);
+        }
+
+        return implode("\n", [
+            'Opcao invalida.',
+            '1) Inscrever pelo WhatsApp (CPF)',
+            '2) Receber link do site',
+            'Responda com 1 ou 2.',
+        ]);
+    }
+
+    private function handleCourseCpfInput(BotConversation $conversation, string $text): string
+    {
+        $context = $this->getConversationContext($conversation);
+        $evento = $this->getSelectedEventoFromContext($context);
+
+        if (! $evento || ! $evento->curso) {
+            return $this->respondWithMenu(
+                $conversation,
+                false,
+                'Nao foi possivel localizar o curso selecionado. Tente novamente.'
+            );
+        }
+
+        $cpf = Cpf::normalize($text);
+        if ($cpf === '') {
+            return 'CPF nao informado. Envie somente numeros.';
+        }
+
+        if (! Cpf::isValid($cpf)) {
+            return 'CPF invalido. Envie um CPF valido com 11 numeros.';
+        }
+
+        $aluno = $this->findAlunoByCpf($cpf);
+        $link = $this->buildInscricaoLink($evento->id);
+
+        if (! $aluno) {
+            return $this->respondWithMenu(
+                $conversation,
+                false,
+                "Nao encontrei seu cadastro. Para se inscrever, conclua no site:\n{$link}"
+            );
+        }
+
+        $matriculaAtiva = Matricula::query()
+            ->where('aluno_id', $aluno->id)
+            ->where('evento_curso_id', $evento->id)
+            ->whereIn('status', [StatusMatricula::Pendente->value, StatusMatricula::Confirmada->value])
+            ->exists();
+
+        if ($matriculaAtiva) {
+            return $this->respondWithMenu(
+                $conversation,
+                false,
+                "Voce ja possui inscricao neste curso. Se precisar, acesse:\n{$link}"
+            );
+        }
+
+        try {
+            $resultado = $this->matriculaService->solicitarInscricao($aluno->id, $evento->id);
+        } catch (Throwable) {
+            return $this->respondWithMenu(
+                $conversation,
+                false,
+                "Nao foi possivel concluir sua inscricao agora. Tente pelo site:\n{$link}"
+            );
+        }
+
+        if (($resultado['tipo'] ?? null) === 'lista_espera') {
+            return $this->respondWithMenu(
+                $conversation,
+                false,
+                implode("\n", [
+                    'No momento nao ha vagas imediatas.',
+                    'Voce foi incluido na lista de espera com sucesso.',
+                    'Curso: ' . $evento->curso->nome,
+                    'Periodo: ' . $this->formatPeriodo($evento),
+                    'Local: ' . ($evento->local_realizacao ?: 'Nao informado'),
+                ])
+            );
+        }
+
+        $registro = $resultado['registro'] ?? null;
+        if (! $registro instanceof Matricula) {
+            return $this->respondWithMenu(
+                $conversation,
+                false,
+                "Nao foi possivel concluir sua inscricao agora. Use o link:\n{$link}"
+            );
+        }
+
+        if (! in_array($registro->status, [StatusMatricula::Pendente, StatusMatricula::Confirmada], true)) {
+            return $this->respondWithMenu(
+                $conversation,
+                false,
+                "Nao foi possivel concluir sua inscricao com este CPF. Use o link:\n{$link}"
+            );
+        }
+
+        return $this->respondWithMenu(
+            $conversation,
+            false,
+            implode("\n", [
+                'Inscricao realizada com sucesso.',
+                'Curso: ' . $evento->curso->nome,
+                'Periodo: ' . $this->formatPeriodo($evento),
+                'Local: ' . ($evento->local_realizacao ?: 'Nao informado'),
+            ])
+        );
     }
 
     private function askCancelCpf(BotConversation $conversation): string
@@ -593,6 +734,36 @@ class BotEngine
         $context = $conversation->context;
 
         return is_array($context) ? $context : [];
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    private function getSelectedEventoFromContext(array $context): ?EventoCurso
+    {
+        $eventoId = (int) ($context['selected_evento_id'] ?? 0);
+        if ($eventoId <= 0) {
+            return null;
+        }
+
+        return EventoCurso::query()
+            ->with('curso')
+            ->where('id', $eventoId)
+            ->where('ativo', true)
+            ->whereHas('curso', fn ($query) => $query->where('ativo', true))
+            ->first();
+    }
+
+    private function buildInscricaoLink(int $eventoId): string
+    {
+        return route('public.cpf', ['evento_curso_id' => $eventoId]);
+    }
+
+    private function findAlunoByCpf(string $cpf): ?Aluno
+    {
+        return Aluno::query()
+            ->whereCpf($cpf)
+            ->first();
     }
 
     private function isSessionExpired(BotConversation $conversation): bool
