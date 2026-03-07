@@ -212,21 +212,25 @@ class BotEngine
         $context['selected_index'] = $option;
         $this->setConversationState($conversation, BotState::CURSO_ACTION, $context);
 
-        return implode("\n", [
-            'Resumo do curso:',
-            'Curso: ' . $evento->curso->nome,
-            'Evento: ' . ($evento->numero_evento ?: '#' . $evento->id),
-            'Período: ' . $this->formatPeriodo($evento),
-            'Horário: ' . $this->formatHorario($evento),
-            'Turno: ' . $turno,
-            'Município: ' . ($evento->municipio ?: 'Não informado'),
-            'Local: ' . ($evento->local_realizacao ?: 'Não informado'),
-            '',
-            'O que você deseja fazer?',
-            '1) Inscrever pelo WhatsApp (CPF)',
-            '2) Receber link do site',
-            'Responda com 1 ou 2.',
-        ]);
+        return $this->buildOptionsMessage(
+            [
+                'Resumo do curso:',
+                'Curso: ' . $evento->curso->nome,
+                'Evento: ' . ($evento->numero_evento ?: '#' . $evento->id),
+                'Período: ' . $this->formatPeriodo($evento),
+                'Horário: ' . $this->formatHorario($evento),
+                'Turno: ' . $turno,
+                'Município: ' . ($evento->municipio ?: 'Não informado'),
+                'Local: ' . ($evento->local_realizacao ?: 'Não informado'),
+                '',
+                'O que você deseja fazer?',
+            ],
+            [
+                '1) Inscrever pelo WhatsApp (CPF)',
+                '2) Receber link do site',
+            ],
+            'Responda com 1 ou 2.'
+        );
     }
 
     private function handleCourseActionInput(BotConversation $conversation, string $text): string
@@ -257,12 +261,14 @@ class BotEngine
             ]);
         }
 
-        return implode("\n", [
-            'Opção inválida.',
-            '1) Inscrever pelo WhatsApp (CPF)',
-            '2) Receber link do site',
-            'Responda com 1 ou 2.',
-        ]);
+        return $this->buildOptionsMessage(
+            ['Opção inválida.'],
+            [
+                '1) Inscrever pelo WhatsApp (CPF)',
+                '2) Receber link do site',
+            ],
+            'Responda com 1 ou 2.'
+        );
     }
 
     private function handleCourseCpfInput(BotConversation $conversation, string $text): string
@@ -319,7 +325,7 @@ class BotEngine
             return $this->respondWithMenu(
                 $conversation,
                 false,
-                'Nao foi possivel localizar os dados para concluir sua inscricao.'
+                'Não foi possível localizar os dados para concluir sua inscrição.'
             );
         }
 
@@ -341,17 +347,19 @@ class BotEngine
             $context = $this->clearAlunoEditContext($context);
             $this->setConversationState($conversation, BotState::CURSO_ACTION, $context);
 
-            return implode("\n", [
-                'O que voce deseja fazer?',
-                '1) Inscrever pelo WhatsApp (CPF)',
-                '2) Receber link do site',
-                'Responda com 1 ou 2.',
-            ]);
+            return $this->buildOptionsMessage(
+                ['O que você deseja fazer?'],
+                [
+                    '1) Inscrever pelo WhatsApp (CPF)',
+                    '2) Receber link do site',
+                ],
+                'Responda com 1 ou 2.'
+            );
         }
 
         return $this->buildAlunoConfirmMessage(
             $context['aluno_snapshot'] ?? [],
-            'Opcao invalida. Escolha 1, 2 ou 3.'
+            'Opção inválida. Escolha 1, 2 ou 3.'
         );
     }
 
@@ -396,7 +404,7 @@ class BotEngine
 
         $validation = $this->validateAlunoEditValue((string) $field['key'], $text);
         if (($validation['ok'] ?? false) !== true) {
-            $error = (string) ($validation['message'] ?? 'Valor invalido.');
+            $error = (string) ($validation['message'] ?? 'Valor inválido.');
 
             return $this->buildAlunoEditFieldPrompt($context, $error);
         }
@@ -429,7 +437,7 @@ class BotEngine
         if ($option === 1) {
             $aluno = $this->getSelectedAlunoFromContext($context);
             if (! $aluno) {
-                return $this->respondWithMenu($conversation, false, 'Nao foi possivel localizar seu cadastro.');
+                return $this->respondWithMenu($conversation, false, 'Não foi possível localizar seu cadastro.');
             }
 
             $editValues = $context['edit_values'] ?? [];
@@ -449,7 +457,7 @@ class BotEngine
                 } catch (Throwable) {
                     return $this->buildAlunoEditReviewMessage(
                         $context,
-                        'Nao foi possivel atualizar seus dados. Revise as informacoes.'
+                        'Não foi possível atualizar seus dados. Revise as informações.'
                     );
                 }
             }
@@ -461,7 +469,7 @@ class BotEngine
 
             return $this->buildAlunoConfirmMessage(
                 $context['aluno_snapshot'],
-                'Dados atualizados. Confirme para concluir a inscricao.'
+                'Dados atualizados. Confirme para concluir a inscrição.'
             );
         }
 
@@ -480,7 +488,7 @@ class BotEngine
             return $this->buildAlunoConfirmMessage($context['aluno_snapshot'] ?? []);
         }
 
-        return $this->buildAlunoEditReviewMessage($context, 'Opcao invalida. Escolha 1, 2 ou 3.');
+        return $this->buildAlunoEditReviewMessage($context, 'Opção inválida. Escolha 1, 2 ou 3.');
     }
 
     private function executeCourseEnrollment(BotConversation $conversation, EventoCurso $evento, Aluno $aluno): string
@@ -620,25 +628,28 @@ class BotEngine
      */
     private function buildAlunoConfirmMessage(array $snapshot, ?string $prefix = null): string
     {
-        $lines = [];
+        $headerLines = [];
 
         if ($prefix !== null && trim($prefix) !== '') {
-            $lines[] = trim($prefix);
-            $lines[] = '';
+            $headerLines[] = trim($prefix);
+            $headerLines[] = '';
         }
 
-        $lines[] = 'Encontrei seu cadastro. Confira seus dados:';
-        $lines[] = 'Nome: ' . (($snapshot['nome_completo'] ?? '') ?: 'Nao informado');
-        $lines[] = 'CPF: ' . (($snapshot['cpf'] ?? '') ?: 'Nao informado');
-        $lines[] = 'Telefone: ' . (($snapshot['contato'] ?? '') ?: 'Nao informado');
-        $lines[] = 'E-mail: ' . (($snapshot['email'] ?? '') ?: 'Nao informado');
-        $lines[] = '';
-        $lines[] = '1) Confirmar inscricao';
-        $lines[] = '2) Corrigir informacoes';
-        $lines[] = '3) Voltar';
-        $lines[] = 'Responda com 1, 2 ou 3.';
+        $headerLines[] = 'Encontrei seu cadastro. Confira seus dados:';
+        $headerLines[] = 'Nome: ' . (($snapshot['nome_completo'] ?? '') ?: 'Não informado');
+        $headerLines[] = 'CPF: ' . (($snapshot['cpf'] ?? '') ?: 'Não informado');
+        $headerLines[] = 'Telefone: ' . (($snapshot['contato'] ?? '') ?: 'Não informado');
+        $headerLines[] = 'E-mail: ' . (($snapshot['email'] ?? '') ?: 'Não informado');
 
-        return implode("\n", $lines);
+        return $this->buildOptionsMessage(
+            $headerLines,
+            [
+                '1) Confirmar inscrição',
+                '2) Corrigir informações',
+                '3) Voltar',
+            ],
+            'Responda com 1, 2 ou 3.'
+        );
     }
 
     /**
@@ -698,24 +709,27 @@ class BotEngine
             $snapshot[$key] = $scalarValue;
         }
 
-        $lines = [];
+        $headerLines = [];
         if ($prefix !== null && trim($prefix) !== '') {
-            $lines[] = trim($prefix);
-            $lines[] = '';
+            $headerLines[] = trim($prefix);
+            $headerLines[] = '';
         }
 
-        $lines[] = 'Confira os dados atualizados:';
-        $lines[] = 'Nome: ' . (($snapshot['nome_completo'] ?? '') ?: 'Nao informado');
-        $lines[] = 'CPF: ' . (($snapshot['cpf'] ?? '') ?: 'Nao informado');
-        $lines[] = 'Telefone: ' . (($snapshot['contato'] ?? '') ?: 'Nao informado');
-        $lines[] = 'E-mail: ' . (($snapshot['email'] ?? '') ?: 'Nao informado');
-        $lines[] = '';
-        $lines[] = '1) Confirmar atualizacao';
-        $lines[] = '2) Refazer correcao';
-        $lines[] = '3) Voltar';
-        $lines[] = 'Responda com 1, 2 ou 3.';
+        $headerLines[] = 'Confira os dados atualizados:';
+        $headerLines[] = 'Nome: ' . (($snapshot['nome_completo'] ?? '') ?: 'Não informado');
+        $headerLines[] = 'CPF: ' . (($snapshot['cpf'] ?? '') ?: 'Não informado');
+        $headerLines[] = 'Telefone: ' . (($snapshot['contato'] ?? '') ?: 'Não informado');
+        $headerLines[] = 'E-mail: ' . (($snapshot['email'] ?? '') ?: 'Não informado');
 
-        return implode("\n", $lines);
+        return $this->buildOptionsMessage(
+            $headerLines,
+            [
+                '1) Confirmar atualização',
+                '2) Refazer correção',
+                '3) Voltar',
+            ],
+            'Responda com 1, 2 ou 3.'
+        );
     }
 
     /**
@@ -728,7 +742,7 @@ class BotEngine
         if ($fieldKey === 'nome_completo') {
             $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
             if (mb_strlen($value) < 5) {
-                return ['ok' => false, 'message' => 'Nome invalido. Informe ao menos 5 caracteres.'];
+                return ['ok' => false, 'message' => 'Nome inválido. Informe ao menos 5 caracteres.'];
             }
 
             return ['ok' => true, 'value' => $value];
@@ -737,7 +751,7 @@ class BotEngine
         if (in_array($fieldKey, ['celular', 'telefone'], true)) {
             $phone = Phone::normalize($value);
             if ($phone === '' || preg_match('/^\d{10,13}$/', $phone) !== 1) {
-                return ['ok' => false, 'message' => 'Telefone invalido. Envie apenas numeros (10 a 13 digitos).'];
+                return ['ok' => false, 'message' => 'Telefone inválido. Envie apenas números (10 a 13 dígitos).'];
             }
 
             return ['ok' => true, 'value' => $phone];
@@ -746,14 +760,14 @@ class BotEngine
         if ($fieldKey === 'email') {
             $email = mb_strtolower($value);
             if ($email === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
-                return ['ok' => false, 'message' => 'E-mail invalido. Informe um e-mail valido.'];
+                return ['ok' => false, 'message' => 'E-mail inválido. Informe um e-mail válido.'];
             }
 
             return ['ok' => true, 'value' => $email];
         }
 
         if ($value === '') {
-            return ['ok' => false, 'message' => 'Valor invalido. Tente novamente.'];
+            return ['ok' => false, 'message' => 'Valor inválido. Tente novamente.'];
         }
 
         return ['ok' => true, 'value' => $value];
@@ -889,15 +903,19 @@ class BotEngine
 
         $typeLabel = ($selectedItem['type'] ?? '') === 'matricula' ? 'Matrícula' : 'Inscrição';
 
-        return implode("\n", [
-            'Confirmar cancelamento?',
-            'Tipo: ' . $typeLabel,
-            'Curso: ' . ($selectedItem['curso_nome'] ?? 'Curso'),
-            'Período: ' . ($selectedItem['periodo'] ?? 'Data não informada'),
-            '1) Sim',
-            '2) Não',
-            'Responda com 1 ou 2.',
-        ]);
+        return $this->buildOptionsMessage(
+            [
+                'Confirmar cancelamento?',
+                'Tipo: ' . $typeLabel,
+                'Curso: ' . ($selectedItem['curso_nome'] ?? 'Curso'),
+                'Período: ' . ($selectedItem['periodo'] ?? 'Data não informada'),
+            ],
+            [
+                '1) Sim',
+                '2) Não',
+            ],
+            'Responda com 1 ou 2.'
+        );
     }
 
     private function handleCancelConfirmInput(BotConversation $conversation, string $text): string
@@ -1002,12 +1020,36 @@ class BotEngine
 
     private function buildMenuOnlyText(): string
     {
-        return implode("\n", [
-            '1) Cursos Disponíveis',
-            '2) Cancelar Inscrição',
-            '',
-            'Responda com 1 ou 2.',
-        ]);
+        return $this->buildOptionsMessage(
+            [],
+            [
+                '1) Cursos Disponíveis',
+                '2) Cancelar Inscrição',
+            ],
+            'Responda com 1 ou 2.'
+        );
+    }
+
+    /**
+     * @param list<string> $headerLines
+     * @param list<string> $options
+     */
+    private function buildOptionsMessage(array $headerLines, array $options, string $footerLine): string
+    {
+        $lines = [];
+
+        foreach ($headerLines as $line) {
+            $lines[] = $line;
+        }
+
+        foreach ($options as $option) {
+            $lines[] = $option;
+        }
+
+        $lines[] = '';
+        $lines[] = $footerLine;
+
+        return implode("\n", $lines);
     }
 
     private function listCoursesWithPrefix(BotConversation $conversation, string $prefix): string
@@ -1377,11 +1419,11 @@ class BotEngine
     {
         $message = trim((string) $this->configuracaoService->get(
             'bot.close_message',
-            'Atendimento encerrado. Quando precisar, digite *menu* para comecar novamente.'
+            'Atendimento encerrado. Quando precisar, digite *menu* para começar novamente.'
         ));
 
         if ($message === '') {
-            return 'Atendimento encerrado. Quando precisar, digite *menu* para comecar novamente.';
+            return 'Atendimento encerrado. Quando precisar, digite *menu* para começar novamente.';
         }
 
         return $message;
@@ -1391,11 +1433,11 @@ class BotEngine
     {
         $message = trim((string) $this->configuracaoService->get(
             'bot.welcome_message',
-            'Bem-vindo ao bot do Sindimir. Escolha uma opcao:'
+            'Bem-vindo ao bot do Sindimir. Escolha uma opção:'
         ));
 
         if ($message === '') {
-            return 'Bem-vindo ao bot do Sindimir. Escolha uma opcao:';
+            return 'Bem-vindo ao bot do Sindimir. Escolha uma opção:';
         }
 
         return $message;
