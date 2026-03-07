@@ -561,7 +561,7 @@ class BotEngine
         return implode("\n", [
             '1) Cursos Disponíveis',
             '2) Cancelar Inscrição',
-            '\n\n',
+            '',
             'Responda com 1 ou 2.',
         ]);
     }
