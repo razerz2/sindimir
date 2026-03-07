@@ -11,6 +11,7 @@ use App\Models\BotMessageLog;
 use App\Models\EventoCurso;
 use App\Models\ListaEspera;
 use App\Models\Matricula;
+use App\Services\AlunoService;
 use App\Services\ConfiguracaoService;
 use App\Services\EventoCursoService;
 use App\Services\MatriculaService;
@@ -31,6 +32,7 @@ class BotEngine
 
     public function __construct(
         private readonly ConfiguracaoService $configuracaoService,
+        private readonly AlunoService $alunoService,
         private readonly MatriculaService $matriculaService,
         private readonly EventoCursoService $eventoCursoService,
         private readonly NotificationService $notificationService
@@ -99,6 +101,13 @@ class BotEngine
             BotState::CURSO_ALUNO_CONFIRM => $this->handleCourseAlunoConfirmInput($conversation, $text),
             BotState::CURSO_ALUNO_EDIT_FIELD => $this->handleCourseAlunoEditFieldInput($conversation, $text),
             BotState::CURSO_ALUNO_EDIT_REVIEW => $this->handleCourseAlunoEditReviewInput($conversation, $text),
+            BotState::ALUNO_CPF => $this->handleAlunoCpfInput($conversation, $text),
+            BotState::ALUNO_MENU => $this->handleAlunoMenuInput($conversation, $text),
+            BotState::ALUNO_VIEW_DATA => $this->handleAlunoViewDataInput($conversation, $text),
+            BotState::ALUNO_EDIT_FIELD => $this->handleAlunoEditFieldInput($conversation, $text),
+            BotState::ALUNO_EDIT_REVIEW => $this->handleAlunoEditReviewInput($conversation, $text),
+            BotState::ALUNO_INSCRICOES_LIST => $this->handleAlunoInscricoesListInput($conversation, $text),
+            BotState::ALUNO_INSCRICAO_ACTION => $this->handleAlunoInscricaoActionInput($conversation, $text),
             BotState::CANCEL_CPF => $this->handleCancelCpfInput($conversation, $text),
             BotState::CANCEL_LIST => $this->handleCancelSelectionInput($conversation, $text),
             BotState::CANCEL_CONFIRM => $this->handleCancelConfirmInput($conversation, $text),
@@ -120,6 +129,10 @@ class BotEngine
         }
 
         if ($option === 2) {
+            return $this->askAlunoCpf($conversation);
+        }
+
+        if ($option === 3) {
             return $this->askCancelCpf($conversation);
         }
 
@@ -815,6 +828,682 @@ class BotEngine
         return $context;
     }
 
+    private function askAlunoCpf(BotConversation $conversation): string
+    {
+        $this->setConversationState($conversation, BotState::ALUNO_CPF, []);
+
+        return 'Informe seu CPF (somente números).';
+    }
+
+    private function handleAlunoCpfInput(BotConversation $conversation, string $text): string
+    {
+        $cpf = Cpf::normalize($text);
+        if ($cpf === '') {
+            return 'CPF não informado. Envie apenas números.';
+        }
+
+        if (! Cpf::isValid($cpf)) {
+            return 'CPF inválido. Envie apenas números.';
+        }
+
+        $aluno = $this->findAlunoByCpf($cpf);
+        if (! $aluno) {
+            $context = [
+                'aluno_cpf' => $cpf,
+                'aluno_mode' => 'create',
+                'aluno_origin_state' => BotState::ALUNO_MENU,
+            ];
+
+            $context = $this->startAlunoProfileWizard($context);
+            $this->setConversationState($conversation, BotState::ALUNO_EDIT_FIELD, $context);
+
+            return $this->buildAlunoProfileFieldPrompt($context, 'Não encontrei seu cadastro. Vamos criar seu cadastro agora.');
+        }
+
+        $context = [
+            'aluno_id' => (int) $aluno->id,
+            'aluno_cpf' => Cpf::normalize((string) $aluno->cpf),
+            'aluno_snapshot' => $this->buildAlunoSnapshot($aluno),
+        ];
+
+        $this->setConversationState($conversation, BotState::ALUNO_MENU, $context);
+
+        return $this->buildAlunoMenuMessage($context['aluno_snapshot'], 'Cadastro localizado com sucesso.');
+    }
+
+    private function handleAlunoMenuInput(BotConversation $conversation, string $text): string
+    {
+        $context = $this->getConversationContext($conversation);
+        $aluno = $this->getSelectedAlunoFromContext($context);
+
+        if (! $aluno) {
+            return $this->askAlunoCpf($conversation);
+        }
+
+        $context['aluno_snapshot'] = $this->buildAlunoSnapshot($aluno);
+        $option = $this->parseNumericOption($text);
+
+        if ($option === 1) {
+            $this->setConversationState($conversation, BotState::ALUNO_VIEW_DATA, $context);
+
+            return $this->buildAlunoDataViewMessage($context['aluno_snapshot']);
+        }
+
+        if ($option === 2) {
+            $items = $this->buscarItensParaCancelamento((int) $aluno->id);
+            $context['aluno_items'] = $items;
+            unset($context['selected_aluno_item'], $context['selected_aluno_item_can_confirm']);
+            $this->setConversationState($conversation, BotState::ALUNO_INSCRICOES_LIST, $context);
+
+            return $this->buildAlunoInscricoesListMessage($items);
+        }
+
+        if ($option === 3) {
+            return $this->respondWithMenu($conversation, false);
+        }
+
+        return $this->buildAlunoMenuMessage($context['aluno_snapshot'], 'Opção inválida. Escolha 1, 2 ou 3.');
+    }
+
+    private function handleAlunoViewDataInput(BotConversation $conversation, string $text): string
+    {
+        $context = $this->getConversationContext($conversation);
+        $option = $this->parseNumericOption($text);
+
+        if ($option === 1) {
+            $context['aluno_mode'] = 'update';
+            $context['aluno_origin_state'] = BotState::ALUNO_VIEW_DATA;
+            $context = $this->startAlunoProfileWizard($context);
+            $this->setConversationState($conversation, BotState::ALUNO_EDIT_FIELD, $context);
+
+            return $this->buildAlunoProfileFieldPrompt($context);
+        }
+
+        if ($option === 2) {
+            $this->setConversationState($conversation, BotState::ALUNO_MENU, $context);
+
+            return $this->buildAlunoMenuMessage($context['aluno_snapshot'] ?? []);
+        }
+
+        return $this->buildAlunoDataViewMessage($context['aluno_snapshot'] ?? [], 'Opção inválida. Escolha 1 ou 2.');
+    }
+
+    private function handleAlunoEditFieldInput(BotConversation $conversation, string $text): string
+    {
+        $context = $this->getConversationContext($conversation);
+        $fields = $context['edit_fields'] ?? [];
+        $index = (int) ($context['edit_index'] ?? 0);
+        $mode = (string) ($context['aluno_mode'] ?? 'update');
+
+        if (! is_array($fields) || $fields === []) {
+            $context = $this->startAlunoProfileWizard($context);
+            $this->setConversationState($conversation, BotState::ALUNO_EDIT_FIELD, $context);
+
+            return $this->buildAlunoProfileFieldPrompt($context);
+        }
+
+        if (trim($text) === '3') {
+            $context = $this->clearAlunoProfileEditContext($context);
+
+            if ($mode === 'create') {
+                $this->setConversationState($conversation, BotState::ALUNO_CPF, $context);
+
+                return 'Informe seu CPF (somente números).';
+            }
+
+            $this->setConversationState($conversation, BotState::ALUNO_VIEW_DATA, $context);
+
+            return $this->buildAlunoDataViewMessage($context['aluno_snapshot'] ?? []);
+        }
+
+        if ($index < 0 || $index >= count($fields)) {
+            $context = $this->startAlunoProfileWizard($context);
+            $this->setConversationState($conversation, BotState::ALUNO_EDIT_FIELD, $context);
+
+            return $this->buildAlunoProfileFieldPrompt($context);
+        }
+
+        $field = $fields[$index];
+        if (! is_array($field) || ! isset($field['key'])) {
+            $context = $this->startAlunoProfileWizard($context);
+            $this->setConversationState($conversation, BotState::ALUNO_EDIT_FIELD, $context);
+
+            return $this->buildAlunoProfileFieldPrompt($context);
+        }
+
+        $validation = $this->validateAlunoEditValue((string) $field['key'], $text);
+        if (($validation['ok'] ?? false) !== true) {
+            $error = (string) ($validation['message'] ?? 'Valor inválido.');
+
+            return $this->buildAlunoProfileFieldPrompt($context, $error);
+        }
+
+        $editValues = $context['edit_values'] ?? [];
+        if (! is_array($editValues)) {
+            $editValues = [];
+        }
+        $editValues[(string) $field['key']] = $validation['value'] ?? null;
+
+        $context['edit_values'] = $editValues;
+        $context['edit_index'] = $index + 1;
+
+        if ($context['edit_index'] >= count($fields)) {
+            $this->setConversationState($conversation, BotState::ALUNO_EDIT_REVIEW, $context);
+
+            return $this->buildAlunoProfileReviewMessage($context);
+        }
+
+        $this->setConversationState($conversation, BotState::ALUNO_EDIT_FIELD, $context);
+
+        return $this->buildAlunoProfileFieldPrompt($context);
+    }
+
+    private function handleAlunoEditReviewInput(BotConversation $conversation, string $text): string
+    {
+        $context = $this->getConversationContext($conversation);
+        $mode = (string) ($context['aluno_mode'] ?? 'update');
+        $option = $this->parseNumericOption($text);
+
+        if ($option === 1) {
+            $payload = $this->sanitizeAlunoUpdatePayload(is_array($context['edit_values'] ?? null) ? $context['edit_values'] : []);
+
+            if ($mode === 'create') {
+                $cpf = Cpf::normalize((string) ($context['aluno_cpf'] ?? ''));
+                if ($cpf === '' || ! Cpf::isValid($cpf)) {
+                    $this->setConversationState($conversation, BotState::ALUNO_CPF, $this->clearAlunoProfileEditContext($context));
+
+                    return 'CPF inválido. Envie apenas números.';
+                }
+
+                $payload['cpf'] = $cpf;
+
+                try {
+                    $aluno = $this->alunoService->create($payload);
+                } catch (Throwable) {
+                    return $this->buildAlunoProfileReviewMessage(
+                        $context,
+                        'Não foi possível concluir o cadastro. Revise os dados e tente novamente.'
+                    );
+                }
+
+                $context['aluno_id'] = (int) $aluno->id;
+                $context['aluno_snapshot'] = $this->buildAlunoSnapshot($aluno);
+                $context = $this->clearAlunoProfileEditContext($context);
+                $this->setConversationState($conversation, BotState::ALUNO_MENU, $context);
+
+                return $this->buildAlunoMenuMessage($context['aluno_snapshot'], 'Cadastro realizado com sucesso.');
+            }
+
+            $aluno = $this->getSelectedAlunoFromContext($context);
+            if (! $aluno) {
+                return $this->askAlunoCpf($conversation);
+            }
+
+            try {
+                $aluno = $this->alunoService->update($aluno, $payload);
+            } catch (Throwable) {
+                return $this->buildAlunoProfileReviewMessage(
+                    $context,
+                    'Não foi possível atualizar seus dados. Revise as informações.'
+                );
+            }
+
+            $context['aluno_snapshot'] = $this->buildAlunoSnapshot($aluno->refresh());
+            $originState = (string) ($context['aluno_origin_state'] ?? BotState::ALUNO_VIEW_DATA);
+            $context = $this->clearAlunoProfileEditContext($context);
+            $this->setConversationState($conversation, BotState::ALUNO_VIEW_DATA, $context);
+
+            if ($originState === BotState::ALUNO_MENU) {
+                $this->setConversationState($conversation, BotState::ALUNO_MENU, $context);
+
+                return $this->buildAlunoMenuMessage($context['aluno_snapshot'], 'Dados atualizados com sucesso.');
+            }
+
+            return $this->buildAlunoDataViewMessage($context['aluno_snapshot'], 'Dados atualizados com sucesso.');
+        }
+
+        if ($option === 2) {
+            $context = $this->startAlunoProfileWizard($context);
+            $this->setConversationState($conversation, BotState::ALUNO_EDIT_FIELD, $context);
+
+            return $this->buildAlunoProfileFieldPrompt($context);
+        }
+
+        if ($option === 3) {
+            $context = $this->clearAlunoProfileEditContext($context);
+            $mode = (string) ($context['aluno_mode'] ?? 'update');
+
+            if ($mode === 'create') {
+                $this->setConversationState($conversation, BotState::ALUNO_CPF, $context);
+
+                return 'Informe seu CPF (somente números).';
+            }
+
+            $this->setConversationState($conversation, BotState::ALUNO_VIEW_DATA, $context);
+
+            return $this->buildAlunoDataViewMessage($context['aluno_snapshot'] ?? []);
+        }
+
+        return $this->buildAlunoProfileReviewMessage($context, 'Opção inválida. Escolha 1, 2 ou 3.');
+    }
+
+    private function handleAlunoInscricoesListInput(BotConversation $conversation, string $text): string
+    {
+        $context = $this->getConversationContext($conversation);
+        $items = $context['aluno_items'] ?? [];
+
+        if (! is_array($items)) {
+            $items = [];
+        }
+
+        $option = $this->parseNumericOption($text);
+        if ($items === []) {
+            if ($option === 1) {
+                $this->setConversationState($conversation, BotState::ALUNO_MENU, $context);
+
+                return $this->buildAlunoMenuMessage($context['aluno_snapshot'] ?? []);
+            }
+
+            return $this->buildAlunoInscricoesListMessage([], 'Opção inválida. Escolha 1 para voltar.');
+        }
+
+        if ($option === 0) {
+            $this->setConversationState($conversation, BotState::ALUNO_MENU, $context);
+
+            return $this->buildAlunoMenuMessage($context['aluno_snapshot'] ?? []);
+        }
+
+        if ($option === null || $option < 1 || $option > count($items)) {
+            return $this->buildAlunoInscricoesListMessage($items, 'Opção inválida. Escolha um item da lista.');
+        }
+
+        $selectedItem = $items[$option - 1] ?? null;
+        if (! is_array($selectedItem)) {
+            return $this->buildAlunoInscricoesListMessage($items, 'A inscrição selecionada não está mais disponível.');
+        }
+
+        $context['selected_aluno_item'] = $selectedItem;
+        $context['selected_aluno_item_can_confirm'] = $this->isAlunoItemConfirmAvailable($selectedItem);
+        $this->setConversationState($conversation, BotState::ALUNO_INSCRICAO_ACTION, $context);
+
+        return $this->buildAlunoInscricaoActionMessage($selectedItem, (bool) $context['selected_aluno_item_can_confirm']);
+    }
+
+    private function handleAlunoInscricaoActionInput(BotConversation $conversation, string $text): string
+    {
+        $context = $this->getConversationContext($conversation);
+        $selectedItem = $context['selected_aluno_item'] ?? null;
+
+        if (! is_array($selectedItem)) {
+            $this->setConversationState($conversation, BotState::ALUNO_INSCRICOES_LIST, $context);
+
+            return $this->buildAlunoInscricoesListMessage(is_array($context['aluno_items'] ?? null) ? $context['aluno_items'] : []);
+        }
+
+        $canConfirm = (bool) ($context['selected_aluno_item_can_confirm'] ?? false);
+        $option = $this->parseNumericOption($text);
+
+        if ($canConfirm) {
+            if ($option === 1) {
+                $message = $this->confirmarItemSelecionadoNoFluxoAluno($selectedItem);
+                $aluno = $this->getSelectedAlunoFromContext($context);
+                $context['aluno_items'] = $aluno ? $this->buscarItensParaCancelamento((int) $aluno->id) : [];
+                $this->setConversationState($conversation, BotState::ALUNO_INSCRICOES_LIST, $context);
+
+                return $this->buildAlunoInscricoesListMessage($context['aluno_items'], $message);
+            }
+
+            if ($option === 2) {
+                $message = $this->cancelarItemSelecionadoMensagem($selectedItem);
+                $aluno = $this->getSelectedAlunoFromContext($context);
+                $context['aluno_items'] = $aluno ? $this->buscarItensParaCancelamento((int) $aluno->id) : [];
+                $this->setConversationState($conversation, BotState::ALUNO_INSCRICOES_LIST, $context);
+
+                return $this->buildAlunoInscricoesListMessage($context['aluno_items'], $message);
+            }
+
+            if ($option === 3) {
+                $this->setConversationState($conversation, BotState::ALUNO_INSCRICOES_LIST, $context);
+
+                return $this->buildAlunoInscricoesListMessage(is_array($context['aluno_items'] ?? null) ? $context['aluno_items'] : []);
+            }
+
+            return $this->buildAlunoInscricaoActionMessage($selectedItem, true, 'Opção inválida. Escolha 1, 2 ou 3.');
+        }
+
+        if ($option === 1) {
+            $message = $this->cancelarItemSelecionadoMensagem($selectedItem);
+            $aluno = $this->getSelectedAlunoFromContext($context);
+            $context['aluno_items'] = $aluno ? $this->buscarItensParaCancelamento((int) $aluno->id) : [];
+            $this->setConversationState($conversation, BotState::ALUNO_INSCRICOES_LIST, $context);
+
+            return $this->buildAlunoInscricoesListMessage($context['aluno_items'], $message);
+        }
+
+        if ($option === 2) {
+            $this->setConversationState($conversation, BotState::ALUNO_INSCRICOES_LIST, $context);
+
+            return $this->buildAlunoInscricoesListMessage(is_array($context['aluno_items'] ?? null) ? $context['aluno_items'] : []);
+        }
+
+        return $this->buildAlunoInscricaoActionMessage($selectedItem, false, 'Opção inválida. Escolha 1 ou 2.');
+    }
+
+    /**
+     * @param array<string, string> $snapshot
+     */
+    private function buildAlunoMenuMessage(array $snapshot, ?string $prefix = null): string
+    {
+        $header = [];
+        if ($prefix !== null && trim($prefix) !== '') {
+            $header[] = trim($prefix);
+            $header[] = '';
+        }
+
+        $header[] = 'Menu do aluno:';
+        $header[] = 'Aluno: ' . (($snapshot['nome_completo'] ?? '') ?: 'Não informado');
+
+        return $this->buildOptionsMessage(
+            $header,
+            [
+                '1) Ver meus dados',
+                '2) Ver minhas inscrições',
+                '3) Voltar ao menu',
+            ],
+            'Responda com 1, 2 ou 3.'
+        );
+    }
+
+    /**
+     * @param array<string, string> $snapshot
+     */
+    private function buildAlunoDataViewMessage(array $snapshot, ?string $prefix = null): string
+    {
+        $header = [];
+        if ($prefix !== null && trim($prefix) !== '') {
+            $header[] = trim($prefix);
+            $header[] = '';
+        }
+
+        $header[] = 'Seus dados:';
+        $header[] = 'Nome: ' . (($snapshot['nome_completo'] ?? '') ?: 'Não informado');
+        $header[] = 'CPF: ' . (($snapshot['cpf'] ?? '') ?: 'Não informado');
+        $header[] = 'Telefone: ' . (($snapshot['contato'] ?? '') ?: 'Não informado');
+        $header[] = 'E-mail: ' . (($snapshot['email'] ?? '') ?: 'Não informado');
+
+        return $this->buildOptionsMessage(
+            $header,
+            [
+                '1) Editar meus dados',
+                '2) Voltar',
+            ],
+            'Responda com 1 ou 2.'
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    private function buildAlunoProfileFieldPrompt(array $context, ?string $prefix = null): string
+    {
+        $fields = $context['edit_fields'] ?? [];
+        $index = (int) ($context['edit_index'] ?? 0);
+        $prompt = 'Informe o valor do campo:';
+
+        if (is_array($fields) && isset($fields[$index]) && is_array($fields[$index]) && isset($fields[$index]['prompt'])) {
+            $prompt = (string) $fields[$index]['prompt'];
+        }
+
+        $lines = [];
+        if ($prefix !== null && trim($prefix) !== '') {
+            $lines[] = trim($prefix);
+        }
+        $lines[] = $prompt;
+        $lines[] = 'Digite 3 para voltar.';
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    private function buildAlunoProfileReviewMessage(array $context, ?string $prefix = null): string
+    {
+        $mode = (string) ($context['aluno_mode'] ?? 'update');
+        $snapshot = $context['aluno_snapshot'] ?? [];
+        if (! is_array($snapshot)) {
+            $snapshot = [];
+        }
+
+        $editValues = $context['edit_values'] ?? [];
+        if (! is_array($editValues)) {
+            $editValues = [];
+        }
+
+        foreach ($editValues as $key => $value) {
+            if (! is_string($key)) {
+                continue;
+            }
+            if (! is_scalar($value) && $value !== null) {
+                continue;
+            }
+
+            $scalarValue = $value === null ? '' : (string) $value;
+            if (in_array($key, ['celular', 'telefone'], true)) {
+                $snapshot[$key] = Phone::format($scalarValue);
+                $snapshot['contato'] = Phone::format($scalarValue);
+
+                continue;
+            }
+
+            $snapshot[$key] = $scalarValue;
+        }
+
+        if ($mode === 'create' && ! isset($snapshot['cpf'])) {
+            $snapshot['cpf'] = Cpf::format((string) ($context['aluno_cpf'] ?? ''));
+        }
+
+        $headerLines = [];
+        if ($prefix !== null && trim($prefix) !== '') {
+            $headerLines[] = trim($prefix);
+            $headerLines[] = '';
+        }
+
+        $headerLines[] = 'Confira os dados informados:';
+        $headerLines[] = 'Nome: ' . (($snapshot['nome_completo'] ?? '') ?: 'Não informado');
+        $headerLines[] = 'CPF: ' . (($snapshot['cpf'] ?? '') ?: 'Não informado');
+        $headerLines[] = 'Telefone: ' . (($snapshot['contato'] ?? '') ?: 'Não informado');
+        $headerLines[] = 'E-mail: ' . (($snapshot['email'] ?? '') ?: 'Não informado');
+
+        return $this->buildOptionsMessage(
+            $headerLines,
+            [
+                '1) ' . ($mode === 'create' ? 'Confirmar cadastro' : 'Confirmar atualização'),
+                '2) Refazer correção',
+                '3) Voltar',
+            ],
+            'Responda com 1, 2 ou 3.'
+        );
+    }
+
+    /**
+     * @param list<array{type: string, id: int, curso_id: int, curso_nome: string, periodo: string, status: string}> $items
+     */
+    private function buildAlunoInscricoesListMessage(array $items, ?string $prefix = null): string
+    {
+        if ($items === []) {
+            return $this->buildOptionsMessage(
+                array_values(array_filter([
+                    $prefix,
+                    $prefix !== null && trim($prefix) !== '' ? '' : null,
+                    'Você não possui inscrições ativas no momento.',
+                ], static fn ($line) => $line !== null)),
+                ['1) Voltar'],
+                'Responda com 1.'
+            );
+        }
+
+        $lines = [];
+        if ($prefix !== null && trim($prefix) !== '') {
+            $lines[] = trim($prefix);
+            $lines[] = '';
+        }
+        $lines[] = 'Suas inscrições ativas:';
+        $lines = [...$lines, ...$this->buildAlunoInscricaoItemLines($items)];
+        $lines[] = '';
+        $lines[] = 'Digite o número da inscrição para ver as ações.';
+        $lines[] = 'Digite 0 para voltar.';
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * @param array<string, mixed> $item
+     */
+    private function buildAlunoInscricaoActionMessage(array $item, bool $canConfirm, ?string $prefix = null): string
+    {
+        $header = [];
+        if ($prefix !== null && trim($prefix) !== '') {
+            $header[] = trim($prefix);
+            $header[] = '';
+        }
+
+        $typeLabel = ($item['type'] ?? '') === 'matricula' ? 'Matrícula' : 'Inscrição';
+        $header[] = 'Detalhes da inscrição:';
+        $header[] = 'Tipo: ' . $typeLabel;
+        $header[] = 'Curso: ' . ($item['curso_nome'] ?? 'Curso');
+        $header[] = 'Período: ' . ($item['periodo'] ?? 'Data não informada');
+        $header[] = 'Status: ' . ($item['status'] ?? 'Não informado');
+
+        if ($canConfirm) {
+            return $this->buildOptionsMessage(
+                $header,
+                [
+                    '1) Confirmar inscrição',
+                    '2) Cancelar inscrição',
+                    '3) Voltar',
+                ],
+                'Responda com 1, 2 ou 3.'
+            );
+        }
+
+        return $this->buildOptionsMessage(
+            $header,
+            [
+                '1) Cancelar inscrição',
+                '2) Voltar',
+            ],
+            'Responda com 1 ou 2.'
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @return array<string, mixed>
+     */
+    private function startAlunoProfileWizard(array $context): array
+    {
+        $context['edit_fields'] = $this->getAlunoEditFields();
+        $context['edit_index'] = 0;
+        $context['edit_values'] = [];
+
+        return $context;
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @return array<string, mixed>
+     */
+    private function clearAlunoProfileEditContext(array $context): array
+    {
+        unset(
+            $context['edit_fields'],
+            $context['edit_index'],
+            $context['edit_values'],
+            $context['aluno_mode'],
+            $context['aluno_origin_state']
+        );
+
+        return $context;
+    }
+
+    /**
+     * @param list<array{type: string, id: int, curso_id: int, curso_nome: string, periodo: string, status: string}> $items
+     * @return list<string>
+     */
+    private function buildAlunoInscricaoItemLines(array $items): array
+    {
+        $lines = [];
+
+        foreach (array_values($items) as $index => $item) {
+            $typeLabel = ($item['type'] ?? '') === 'matricula' ? 'Matrícula' : 'Inscrição';
+            $lines[] = ($index + 1) . ') '
+                . ($item['curso_nome'] ?? 'Curso')
+                . ' - '
+                . $typeLabel
+                . ' ('
+                . ($item['status'] ?? 'Não informado')
+                . ')'
+                . ' - '
+                . ($item['periodo'] ?? 'Data não informada');
+        }
+
+        return $lines;
+    }
+
+    /**
+     * @param array<string, mixed> $item
+     */
+    private function isAlunoItemConfirmAvailable(array $item): bool
+    {
+        if (($item['type'] ?? '') !== 'matricula') {
+            return false;
+        }
+
+        $id = (int) ($item['id'] ?? 0);
+        if ($id <= 0) {
+            return false;
+        }
+
+        $matricula = Matricula::query()->find($id);
+        if (! $matricula) {
+            return false;
+        }
+
+        return $matricula->status === StatusMatricula::Pendente;
+    }
+
+    /**
+     * @param array<string, mixed> $item
+     */
+    private function confirmarItemSelecionadoNoFluxoAluno(array $item): string
+    {
+        if (($item['type'] ?? '') !== 'matricula') {
+            return 'Confirmação não disponível para este item.';
+        }
+
+        $id = (int) ($item['id'] ?? 0);
+        if ($id <= 0) {
+            return 'A inscrição selecionada não foi encontrada.';
+        }
+
+        $matricula = Matricula::query()
+            ->with('eventoCurso.curso')
+            ->find($id);
+
+        if (! $matricula || ! $matricula->eventoCurso || ! $matricula->eventoCurso->curso) {
+            return 'A matrícula selecionada não foi encontrada.';
+        }
+
+        try {
+            $this->matriculaService->confirmarMatricula($matricula);
+        } catch (Throwable) {
+            return 'Não foi possível confirmar a inscrição no momento.';
+        }
+
+        return 'Inscrição confirmada com sucesso.';
+    }
+
     private function askCancelCpf(BotConversation $conversation): string
     {
         $this->setConversationState($conversation, BotState::CANCEL_CPF, []);
@@ -944,11 +1633,19 @@ class BotEngine
      */
     private function cancelarItemSelecionado(BotConversation $conversation, array $item): string
     {
+        return $this->respondWithMenu($conversation, false, $this->cancelarItemSelecionadoMensagem($item));
+    }
+
+    /**
+     * @param array<string, mixed> $item
+     */
+    private function cancelarItemSelecionadoMensagem(array $item): string
+    {
         $type = (string) ($item['type'] ?? '');
         $id = (int) ($item['id'] ?? 0);
 
         if ($id <= 0 || ! in_array($type, ['matricula', 'inscricao'], true)) {
-            return $this->respondWithMenu($conversation, false, 'A inscrição selecionada não foi encontrada.');
+            return 'A inscrição selecionada não foi encontrada.';
         }
 
         if ($type === 'matricula') {
@@ -957,11 +1654,11 @@ class BotEngine
                 ->find($id);
 
             if (! $matricula || ! $matricula->eventoCurso || ! $matricula->eventoCurso->curso) {
-                return $this->respondWithMenu($conversation, false, 'A matrícula selecionada não foi encontrada.');
+                return 'A matrícula selecionada não foi encontrada.';
             }
 
             if ($matricula->status === StatusMatricula::Cancelada) {
-                return $this->respondWithMenu($conversation, false, 'Esta matrícula já foi cancelada.');
+                return 'Esta matrícula já foi cancelada.';
             }
 
             $this->matriculaService->cancelarMatricula($matricula);
@@ -975,7 +1672,7 @@ class BotEngine
                 );
             }
 
-            return $this->respondWithMenu($conversation, false, 'Matrícula cancelada com sucesso.');
+            return 'Matrícula cancelada com sucesso.';
         }
 
         $inscricao = ListaEspera::query()
@@ -983,12 +1680,12 @@ class BotEngine
             ->find($id);
 
         if (! $inscricao || ! $inscricao->eventoCurso || ! $inscricao->eventoCurso->curso) {
-            return $this->respondWithMenu($conversation, false, 'A inscrição selecionada não foi encontrada.');
+            return 'A inscrição selecionada não foi encontrada.';
         }
 
         $this->matriculaService->removerDaListaEspera($inscricao);
 
-        return $this->respondWithMenu($conversation, false, 'Inscrição cancelada com sucesso.');
+        return 'Inscrição cancelada com sucesso.';
     }
 
     private function respondWithMenu(BotConversation $conversation, bool $includeWelcome, ?string $prefix = null): string
@@ -1021,12 +1718,13 @@ class BotEngine
     private function buildMenuOnlyText(): string
     {
         return $this->buildOptionsMessage(
-            [],
+            ['Escolha uma opção:'],
             [
                 '1) Cursos Disponíveis',
-                '2) Cancelar Inscrição',
+                '2) Consultar Aluno',
+                '3) Cancelar Inscrição',
             ],
-            'Responda com 1 ou 2.'
+            'Responda com 1, 2 ou 3.'
         );
     }
 
@@ -1043,13 +1741,42 @@ class BotEngine
         }
 
         foreach ($options as $option) {
-            $lines[] = $option;
+            $lines[] = $this->formatOptionWithEmoji($option);
         }
 
         $lines[] = '';
         $lines[] = $footerLine;
 
         return implode("\n", $lines);
+    }
+
+    private function formatOptionWithEmoji(string $option): string
+    {
+        if (preg_match('/^\s*(\d+)\)\s*(.+)$/u', $option, $matches) !== 1) {
+            return trim($option);
+        }
+
+        $number = (int) ($matches[1] ?? 0);
+        $label = trim((string) ($matches[2] ?? ''));
+
+        return $this->toEmojiNumber($number) . ' ' . $label;
+    }
+
+    private function toEmojiNumber(int $number): string
+    {
+        return match ($number) {
+            1 => '1️⃣',
+            2 => '2️⃣',
+            3 => '3️⃣',
+            4 => '4️⃣',
+            5 => '5️⃣',
+            6 => '6️⃣',
+            7 => '7️⃣',
+            8 => '8️⃣',
+            9 => '9️⃣',
+            10 => '🔟',
+            default => $number . ')',
+        };
     }
 
     private function listCoursesWithPrefix(BotConversation $conversation, string $prefix): string
@@ -1433,11 +2160,11 @@ class BotEngine
     {
         $message = trim((string) $this->configuracaoService->get(
             'bot.welcome_message',
-            'Bem-vindo ao bot do Sindimir. Escolha uma opção:'
+            "🏛️ Sindicato Rural de Miranda e Bodoquena\nSeja bem-vindo(a) ao atendimento automático do Sindicato."
         ));
 
         if ($message === '') {
-            return 'Bem-vindo ao bot do Sindimir. Escolha uma opção:';
+            return "🏛️ Sindicato Rural de Miranda e Bodoquena\nSeja bem-vindo(a) ao atendimento automático do Sindicato.";
         }
 
         return $message;
