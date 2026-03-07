@@ -253,7 +253,7 @@ class BotEngine
                 'Local: ' . ($evento->local_realizacao ?: 'Não informado'),
             ],
             [
-                '1) Inscrever pelo WhatsApp (CPF)',
+                '1) Inscrever-se',
                 '2) Voltar',
             ],
             'Responda com 1 ou 2.'
@@ -1380,15 +1380,20 @@ class BotEngine
         }
 
         if ($returnState === BotState::CURSO_ALUNO_CONFIRM) {
-            $this->setConversationState($conversation, BotState::CURSO_CPF, $context);
+            $this->setConversationState($conversation, BotState::CURSO_ACTION, $context);
 
-            return 'Para se inscrever pelo WhatsApp, informe seu CPF (somente números).';
+            return $this->buildOptionsMessage(
+                ['O que você deseja fazer?'],
+                [
+                    '1) Inscrever pelo WhatsApp (CPF)',
+                    '2) Voltar',
+                ],
+                'Responda com 1 ou 2.'
+            );
         }
 
         if ($returnState === BotState::ALUNO_MENU) {
-            $this->setConversationState($conversation, BotState::ALUNO_CPF, $context);
-
-            return 'Informe seu CPF (somente números).';
+            return $this->respondWithMenu($conversation, false);
         }
 
         if ($returnState === BotState::CANCEL_LIST) {
