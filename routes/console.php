@@ -37,4 +37,8 @@ app()->booted(function () {
     $schedule->call(function (ReminderService $reminderService) {
         $reminderService->enviarLembretes();
     })->dailyAt(config('app.scheduler.lembrete_horario'))->name('lembretes:enviar');
+
+    $schedule->command('bot:close-inactive')
+        ->everyMinute()
+        ->name('bot:close-inactive');
 });

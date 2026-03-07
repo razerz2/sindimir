@@ -25,6 +25,10 @@ class BotEngine
 {
     private ?bool $hasConversationIsOpenColumn = null;
 
+    private ?bool $hasConversationClosedAtColumn = null;
+
+    private ?bool $hasConversationClosedReasonColumn = null;
+
     public function __construct(
         private readonly ConfiguracaoService $configuracaoService,
         private readonly MatriculaService $matriculaService,
@@ -1181,6 +1185,18 @@ class BotEngine
             $payload['is_open'] = $state !== BotState::ENDED;
         }
 
+        if ($this->hasConversationClosedAtColumn()) {
+            $payload['closed_at'] = $state === BotState::ENDED
+                ? ($conversation->closed_at ?? now())
+                : null;
+        }
+
+        if ($this->hasConversationClosedReasonColumn()) {
+            $payload['closed_reason'] = $state === BotState::ENDED
+                ? ($conversation->closed_reason ?? 'manual')
+                : null;
+        }
+
         $conversation->update($payload);
     }
 
@@ -1480,6 +1496,28 @@ class BotEngine
         $this->hasConversationIsOpenColumn = Schema::hasColumn('bot_conversations', 'is_open');
 
         return $this->hasConversationIsOpenColumn;
+    }
+
+    private function hasConversationClosedAtColumn(): bool
+    {
+        if ($this->hasConversationClosedAtColumn !== null) {
+            return $this->hasConversationClosedAtColumn;
+        }
+
+        $this->hasConversationClosedAtColumn = Schema::hasColumn('bot_conversations', 'closed_at');
+
+        return $this->hasConversationClosedAtColumn;
+    }
+
+    private function hasConversationClosedReasonColumn(): bool
+    {
+        if ($this->hasConversationClosedReasonColumn !== null) {
+            return $this->hasConversationClosedReasonColumn;
+        }
+
+        $this->hasConversationClosedReasonColumn = Schema::hasColumn('bot_conversations', 'closed_reason');
+
+        return $this->hasConversationClosedReasonColumn;
     }
 
     private function normalizeChannel(string $channel): string

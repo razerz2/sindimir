@@ -18,6 +18,8 @@ class BotConversation extends Model
         'state',
         'context',
         'last_activity_at',
+        'closed_at',
+        'closed_reason',
     ];
 
     protected function casts(): array
@@ -25,6 +27,7 @@ class BotConversation extends Model
         return [
             'context' => 'array',
             'last_activity_at' => 'datetime',
+            'closed_at' => 'datetime',
         ];
     }
 
@@ -33,4 +36,3 @@ class BotConversation extends Model
         return $this->hasMany(BotMessageLog::class, 'conversation_id');
     }
 }
-

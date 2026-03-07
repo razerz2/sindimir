@@ -647,6 +647,16 @@
                     />
                 </div>
 
+                <div class="mt-4">
+                    <x-admin.textarea
+                        id="bot_inactive_close_message"
+                        name="bot_inactive_close_message"
+                        label="Mensagem de encerramento por inatividade"
+                        rows="3"
+                        :value="$settings['bot_inactive_close_message'] ?? ''"
+                    />
+                </div>
+
                 <div class="mt-6 rounded-xl border border-slate-200 bg-white p-4">
                     <h4 class="text-sm font-semibold text-slate-700">Opções de cursos</h4>
                     <div class="mt-3 grid gap-4 md:grid-cols-3">

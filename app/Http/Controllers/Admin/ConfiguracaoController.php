@@ -140,6 +140,10 @@ class ConfiguracaoController extends Controller
                 'bot.close_message',
                 'Atendimento encerrado. Quando precisar, digite *menu* para comecar novamente.'
             ),
+            'bot_inactive_close_message' => (string) $this->configuracaoService->get(
+                'bot.inactive_close_message',
+                '⏳ Sessão encerrada por inatividade. Quando precisar, digite *menu* para iniciar novamente.'
+            ),
             'bot_courses_limit' => (int) $this->configuracaoService->get('bot.courses.limit', 10),
             'bot_courses_order' => (string) $this->configuracaoService->get('bot.courses.order', 'asc'),
             'bot_cancel_limit' => (int) $this->configuracaoService->get('bot.cancel.limit', 10),
@@ -317,6 +321,7 @@ class ConfiguracaoController extends Controller
             'bot_exit_keywords' => ['nullable', 'string', 'max:4000'],
             'bot_reset_keyword' => ['nullable', 'string', 'max:40'],
             'bot_close_message' => ['nullable', 'string', 'max:2000'],
+            'bot_inactive_close_message' => ['nullable', 'string', 'max:2000'],
             'bot_courses_limit' => ['nullable', 'integer', 'min:1', 'max:50'],
             'bot_courses_order' => ['nullable', 'string', 'in:asc,desc'],
             'bot_cancel_limit' => ['nullable', 'integer', 'min:1', 'max:50'],
@@ -518,6 +523,15 @@ class ConfiguracaoController extends Controller
             'bot.close_message',
             $closeMessage,
             'Mensagem de encerramento do BOT'
+        );
+        $inactiveCloseMessage = trim((string) ($data['bot_inactive_close_message'] ?? ''));
+        if ($inactiveCloseMessage === '') {
+            $inactiveCloseMessage = '⏳ Sessão encerrada por inatividade. Quando precisar, digite *menu* para iniciar novamente.';
+        }
+        $this->configuracaoService->set(
+            'bot.inactive_close_message',
+            $inactiveCloseMessage,
+            'Mensagem de encerramento por inatividade do BOT'
         );
         $this->configuracaoService->set('bot.courses.limit', (int) ($data['bot_courses_limit'] ?? 10), 'Limite de cursos no BOT');
         $this->configuracaoService->set(
