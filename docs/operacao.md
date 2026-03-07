@@ -24,3 +24,33 @@ O script abaixo sobe servidor, fila, logs e Vite em paralelo:
   via cron (a cada minuto).
 - Para validar o isolamento de autenticação, teste logins em `/admin/login` e
   `/aluno/login` em sequência e confirme que cada um termina no seu dashboard.
+## Scheduler e cron (produção)
+
+O servidor deve executar:
+
+- `php artisan schedule:run` a cada minuto (cron).
+
+Exemplo de cron:
+
+```bash
+* * * * * cd /caminho/do/projeto && php artisan schedule:run >> /dev/null 2>&1
+```
+
+Agendamentos relevantes:
+
+- `bot:close-inactive` (minutely)
+- `eventos:encerrar-expirados` (daily 00:05)
+- `matriculas:expirar` (hourly)
+- `lista-espera:chamar` (hourly)
+- `vagas-disponiveis:enviar` (hourly)
+
+## Comando de encerramento de eventos expirados
+
+Comando manual:
+
+- `php artisan eventos:encerrar-expirados`
+
+Regra aplicada:
+
+- encerra eventos com `ativo=true` e `data_fim < hoje` (timezone da aplicação);
+- `data_fim = hoje` permanece ativo.

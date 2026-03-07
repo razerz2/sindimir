@@ -8,15 +8,24 @@ use RuntimeException;
 
 class MetaBotProvider implements BotProviderInterface
 {
-    public function __construct(private readonly ConfiguracaoService $configuracaoService)
-    {
+    /**
+     * @param array{base_url?: string, access_token?: string, phone_number_id?: string} $credentials
+     */
+    public function __construct(
+        private readonly ConfiguracaoService $configuracaoService,
+        private readonly array $credentials = []
+    ) {
     }
 
     public function sendText(string $to, string $message): void
     {
-        $baseUrl = rtrim((string) config('services.whatsapp.meta.base_url'), '/');
-        $token = (string) ($this->configuracaoService->get('whatsapp.token') ?? config('services.whatsapp.meta.token'));
-        $phoneId = (string) ($this->configuracaoService->get('whatsapp.phone_number_id') ?? config('services.whatsapp.meta.phone_number_id'));
+        $baseUrl = rtrim((string) ($this->credentials['base_url'] ?? config('services.whatsapp.meta.base_url')), '/');
+        $token = (string) ($this->credentials['access_token']
+            ?? $this->configuracaoService->get('whatsapp.token')
+            ?? config('services.whatsapp.meta.token'));
+        $phoneId = (string) ($this->credentials['phone_number_id']
+            ?? $this->configuracaoService->get('whatsapp.phone_number_id')
+            ?? config('services.whatsapp.meta.phone_number_id'));
         $verifySsl = (bool) config('services.whatsapp.meta.verify_ssl', true);
 
         if ($baseUrl === '' || $token === '' || $phoneId === '') {
@@ -45,4 +54,3 @@ class MetaBotProvider implements BotProviderInterface
         }
     }
 }
-

@@ -21,6 +21,7 @@ use App\Models\Matricula;
 use App\Enums\StatusMatricula;
 use App\Services\AlunoService;
 use App\Services\MatriculaService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -93,11 +94,19 @@ class AlunoAreaController extends Controller
     {
         $aluno = $this->getAluno();
         $preferenciasIds = $aluno?->categoriasPreferidas()->pluck('categorias.id')->all() ?? [];
+        $today = CarbonImmutable::now((string) config('app.timezone'))->toDateString();
 
         $eventosQuery = EventoCurso::query()
             ->with(['curso.categoria'])
             ->where('ativo', true)
             ->whereHas('curso', fn ($query) => $query->where('ativo', true))
+            ->where(function ($query) use ($today) {
+                $query->whereDate('data_fim', '>=', $today)
+                    ->orWhere(function ($fallbackQuery) use ($today) {
+                        $fallbackQuery->whereNull('data_fim')
+                            ->whereDate('data_inicio', '>=', $today);
+                    });
+            })
             ->orderBy('data_inicio');
 
         $eventos = $eventosQuery->paginate(12);

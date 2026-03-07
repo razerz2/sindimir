@@ -577,6 +577,16 @@
                         ]"
                         :selected="$settings['bot_provider'] ?? 'meta'"
                     />
+                    <x-admin.select
+                        id="bot_credentials_mode"
+                        name="bot_credentials_mode"
+                        label="Modo de credenciais"
+                        :options="[
+                            ['value' => 'inherit_notifications', 'label' => 'Usar credenciais das notificações'],
+                            ['value' => 'custom', 'label' => 'Usar credenciais próprias do bot'],
+                        ]"
+                        :selected="$settings['bot_credentials_mode'] ?? 'inherit_notifications'"
+                    />
                     <x-admin.input
                         id="bot_session_timeout_minutes"
                         name="bot_session_timeout_minutes"
@@ -591,6 +601,55 @@
                         :value="$settings['bot_reset_keyword'] ?? 'menu'"
                         hint='Ex: "menu"'
                     />
+                </div>
+
+                <div id="bot-credentials-custom" class="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+                    <h4 class="text-sm font-semibold text-slate-700">Credenciais próprias do bot</h4>
+                    <p class="mt-1 text-xs text-slate-500">
+                        Ative o modo "Usar credenciais próprias do bot" para preencher estes campos.
+                    </p>
+
+                    <div id="bot-credentials-meta" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <x-admin.input
+                            id="bot_meta_phone_number_id"
+                            name="bot_meta_phone_number_id"
+                            label="Meta Phone Number ID (bot)"
+                            :value="$settings['bot_meta_phone_number_id'] ?? ''"
+                        />
+                        <x-admin.input
+                            id="bot_meta_access_token"
+                            name="bot_meta_access_token"
+                            label="Meta Access Token (bot)"
+                            :value="$settings['bot_meta_access_token'] ?? ''"
+                        />
+                    </div>
+
+                    <div id="bot-credentials-zapi" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <x-admin.input
+                            id="bot_zapi_instance_id"
+                            name="bot_zapi_instance_id"
+                            label="Z-API Instance ID (bot)"
+                            :value="$settings['bot_zapi_instance_id'] ?? ''"
+                        />
+                        <x-admin.input
+                            id="bot_zapi_token"
+                            name="bot_zapi_token"
+                            label="Z-API Token (bot)"
+                            :value="$settings['bot_zapi_token'] ?? ''"
+                        />
+                        <x-admin.input
+                            id="bot_zapi_client_token"
+                            name="bot_zapi_client_token"
+                            label="Z-API Client Token (bot)"
+                            :value="$settings['bot_zapi_client_token'] ?? ''"
+                        />
+                        <x-admin.input
+                            id="bot_zapi_base_url"
+                            name="bot_zapi_base_url"
+                            label="Z-API Base URL (bot)"
+                            :value="$settings['bot_zapi_base_url'] ?? ''"
+                        />
+                    </div>
                 </div>
 
                 <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1267,6 +1326,11 @@
 
             const whatsappProvider = document.getElementById('whatsapp_provedor');
             const whatsappClientTokenField = document.getElementById('whatsapp_client_token_field');
+            const botProvider = document.getElementById('bot_provider');
+            const botCredentialsMode = document.getElementById('bot_credentials_mode');
+            const botCredentialsCustom = document.getElementById('bot-credentials-custom');
+            const botCredentialsMeta = document.getElementById('bot-credentials-meta');
+            const botCredentialsZapi = document.getElementById('bot-credentials-zapi');
 
             function toggleWhatsappClientToken() {
                 if (!whatsappProvider || !whatsappClientTokenField) {
@@ -1280,6 +1344,42 @@
                 whatsappProvider.addEventListener('change', toggleWhatsappClientToken);
                 toggleWhatsappClientToken();
             }
+
+            function setSectionVisibility(section, visible) {
+                if (!section) {
+                    return;
+                }
+
+                section.hidden = !visible;
+                section.classList.toggle('hidden', !visible);
+                section.querySelectorAll('input, select, textarea').forEach((field) => {
+                    field.disabled = !visible;
+                });
+            }
+
+            function updateVisibility() {
+                if (!botProvider || !botCredentialsMode || !botCredentialsCustom || !botCredentialsMeta || !botCredentialsZapi) {
+                    return;
+                }
+
+                const isCustom = botCredentialsMode.value === 'custom';
+                const isMeta = botProvider.value === 'meta';
+                const isZapi = botProvider.value === 'zapi';
+
+                setSectionVisibility(botCredentialsCustom, isCustom);
+                setSectionVisibility(botCredentialsMeta, isCustom && isMeta);
+                setSectionVisibility(botCredentialsZapi, isCustom && isZapi);
+            }
+
+            if (botProvider) {
+                botProvider.addEventListener('change', updateVisibility);
+            }
+
+            if (botCredentialsMode) {
+                botCredentialsMode.addEventListener('change', updateVisibility);
+            }
+
+            updateVisibility();
 
             buttons.forEach((button) => {
                 button.addEventListener('click', () => activateTab(button.dataset.tab));

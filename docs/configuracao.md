@@ -112,3 +112,53 @@ Se nenhum provedor estiver ativo, o envio de WhatsApp falhara.
 - Integração OAuth 2.0 com Google People API (somente leitura).
 - Configure `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` e `GOOGLE_REDIRECT_URI`.
 - A conexão e importação ficam em Admin > Configurações > Google Contatos.
+## BOT (Configurações no Admin)
+
+Tela: Configurações -> Bot
+
+Principais settings:
+
+- `bot_enabled`
+- `bot_provider` (`meta|zapi`)
+- `bot_session_timeout_minutes`
+- `bot_reset_keyword`
+- `bot_entry_keywords`
+- `bot_exit_keywords`
+- `bot_welcome_message`
+- `bot_fallback_message`
+- `bot_close_message`
+- `bot_inactive_close_message`
+- `bot_audit_log_enabled`
+
+Credenciais do BOT:
+
+- `bot_credentials_mode`
+  - `inherit_notifications`
+  - `custom`
+
+Se `custom` e `bot_provider=meta`:
+
+- `bot_meta_phone_number_id`
+- `bot_meta_access_token`
+
+Se `custom` e `bot_provider=zapi`:
+
+- `bot_zapi_instance_id`
+- `bot_zapi_token`
+- `bot_zapi_client_token`
+- `bot_zapi_base_url`
+
+Observação de UI:
+
+- Em modo `custom`, exibe apenas os campos do provedor selecionado.
+- Em modo `inherit_notifications`, o bloco de credenciais custom fica oculto.
+
+## Webhooks do BOT
+
+- `POST /webhooks/bot/meta`
+- `POST /webhooks/bot/zapi`
+
+Regra de provedor ativo:
+
+- `bot_provider=meta`: webhook Z-API ignora.
+- `bot_provider=zapi`: webhook Meta ignora.

@@ -304,3 +304,82 @@ O código é enviado ao email do usuário ou ao WhatsApp do aluno (quando dispon
 - Chamar lista de espera por evento (hora em hora).
 - Enviar notificações de curso disponível (hora em hora; envio efetivo só no horário configurado).
 - Enviar lembretes de cursos (diário no horário configurado).
+
+## BOT (WhatsApp)
+
+O BOT atende via WhatsApp com os fluxos:
+
+- 1️⃣ Cursos Disponíveis
+- 2️⃣ Consultar Aluno
+- 3️⃣ Cancelar Inscrição
+
+Provedores suportados:
+
+- Meta Cloud API
+- Z-API
+
+Webhooks:
+
+- `POST /webhooks/bot/meta`
+- `POST /webhooks/bot/zapi`
+
+Regra de provedor ativo:
+
+- `bot_provider=meta`: webhook Z-API ignora.
+- `bot_provider=zapi`: webhook Meta ignora.
+
+Configurações do BOT (Configurações -> Bot):
+
+- `bot_enabled`
+- `bot_provider`
+- `bot_session_timeout_minutes`
+- `bot_reset_keyword`
+- `bot_entry_keywords`
+- `bot_exit_keywords`
+- `bot_welcome_message`
+- `bot_fallback_message`
+- `bot_close_message`
+- `bot_audit_log_enabled`
+
+Credenciais do BOT:
+
+- `bot_credentials_mode=inherit_notifications`: usa credenciais de `whatsapp.*` (Notificações)
+- `bot_credentials_mode=custom`: usa credenciais próprias
+
+Campos custom por provedor:
+
+- Meta: `bot_meta_phone_number_id`, `bot_meta_access_token`
+- Z-API: `bot_zapi_instance_id`, `bot_zapi_token`, `bot_zapi_client_token`, `bot_zapi_base_url`
+
+Comportamento de fallback:
+
+- tenta identificar aluno por telefone;
+- permite atender outra pessoa via CPF;
+- CPF inexistente pode seguir para cadastro via wizard e retorno ao fluxo original.
+
+Encerramento:
+
+- por palavras-chave de saída;
+- por inatividade via `bot:close-inactive`.
+
+## Eventos expirados e filtro por data
+
+Regra:
+
+- expira somente quando `data_fim < hoje` (timezone da aplicação);
+- `data_fim = hoje` ainda ativo (expira só no dia seguinte).
+
+Comando:
+
+- `php artisan eventos:encerrar-expirados`
+
+Agendamentos relevantes:
+
+- `bot:close-inactive` (a cada minuto)
+- `eventos:encerrar-expirados` (diário 00:05)
+
+Filtro por data aplicado em catálogos/disponibilidade:
+
+- `BotEngine::listCourses` e consultas auxiliares de seleção/retomada;
+- `PublicController::cursos`;
+- `AlunoAreaController::inscricoes`.

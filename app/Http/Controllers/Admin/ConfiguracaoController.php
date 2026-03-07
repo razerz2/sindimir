@@ -120,6 +120,16 @@ class ConfiguracaoController extends Controller
             'rate_limit_limite_diario' => (int) $this->configuracaoService->get('notificacao.rate_limit.limite_diario', 2),
             'bot_enabled' => (bool) $this->configuracaoService->get('bot.enabled', false),
             'bot_provider' => (string) $this->configuracaoService->get('bot.provider', 'meta'),
+            'bot_credentials_mode' => (string) $this->configuracaoService->get(
+                'bot.credentials_mode',
+                'inherit_notifications'
+            ),
+            'bot_meta_phone_number_id' => (string) $this->configuracaoService->get('bot.meta_phone_number_id', ''),
+            'bot_meta_access_token' => (string) $this->configuracaoService->get('bot.meta_access_token', ''),
+            'bot_zapi_instance_id' => (string) $this->configuracaoService->get('bot.zapi_instance_id', ''),
+            'bot_zapi_token' => (string) $this->configuracaoService->get('bot.zapi_token', ''),
+            'bot_zapi_client_token' => (string) $this->configuracaoService->get('bot.zapi_client_token', ''),
+            'bot_zapi_base_url' => (string) $this->configuracaoService->get('bot.zapi_base_url', ''),
             'bot_session_timeout_minutes' => (int) $this->configuracaoService->get('bot.session_timeout_minutes', 15),
             'bot_welcome_message' => (string) $this->configuracaoService->get(
                 'bot.welcome_message',
@@ -314,6 +324,37 @@ class ConfiguracaoController extends Controller
             'rate_limit_limite_diario' => ['nullable', 'integer', 'min:1', 'max:100'],
             'bot_enabled' => ['nullable', 'boolean'],
             'bot_provider' => ['nullable', 'string', 'in:meta,zapi'],
+            'bot_credentials_mode' => ['nullable', 'string', 'in:inherit_notifications,custom'],
+            'bot_meta_phone_number_id' => [
+                'nullable',
+                'string',
+                'max:120',
+                Rule::requiredIf(fn () => $request->input('bot_credentials_mode') === 'custom'
+                    && $request->input('bot_provider', 'meta') === 'meta'),
+            ],
+            'bot_meta_access_token' => [
+                'nullable',
+                'string',
+                'max:200',
+                Rule::requiredIf(fn () => $request->input('bot_credentials_mode') === 'custom'
+                    && $request->input('bot_provider', 'meta') === 'meta'),
+            ],
+            'bot_zapi_instance_id' => [
+                'nullable',
+                'string',
+                'max:120',
+                Rule::requiredIf(fn () => $request->input('bot_credentials_mode') === 'custom'
+                    && $request->input('bot_provider') === 'zapi'),
+            ],
+            'bot_zapi_token' => [
+                'nullable',
+                'string',
+                'max:200',
+                Rule::requiredIf(fn () => $request->input('bot_credentials_mode') === 'custom'
+                    && $request->input('bot_provider') === 'zapi'),
+            ],
+            'bot_zapi_client_token' => ['nullable', 'string', 'max:200'],
+            'bot_zapi_base_url' => ['nullable', 'url', 'max:200'],
             'bot_session_timeout_minutes' => ['nullable', 'integer', 'min:1', 'max:1440'],
             'bot_welcome_message' => ['nullable', 'string', 'max:2000'],
             'bot_fallback_message' => ['nullable', 'string', 'max:2000'],
@@ -485,6 +526,41 @@ class ConfiguracaoController extends Controller
         );
         $this->configuracaoService->set('bot.enabled', (bool) $request->boolean('bot_enabled'), 'BOT ativo');
         $this->configuracaoService->set('bot.provider', (string) ($data['bot_provider'] ?? 'meta'), 'Provedor ativo do BOT');
+        $this->configuracaoService->set(
+            'bot.credentials_mode',
+            (string) ($data['bot_credentials_mode'] ?? 'inherit_notifications'),
+            'Modo de credenciais do BOT'
+        );
+        $this->configuracaoService->set(
+            'bot.meta_phone_number_id',
+            trim((string) ($data['bot_meta_phone_number_id'] ?? '')),
+            'BOT Meta Phone Number ID'
+        );
+        $this->configuracaoService->set(
+            'bot.meta_access_token',
+            trim((string) ($data['bot_meta_access_token'] ?? '')),
+            'BOT Meta Access Token'
+        );
+        $this->configuracaoService->set(
+            'bot.zapi_instance_id',
+            trim((string) ($data['bot_zapi_instance_id'] ?? '')),
+            'BOT Z-API Instance ID'
+        );
+        $this->configuracaoService->set(
+            'bot.zapi_token',
+            trim((string) ($data['bot_zapi_token'] ?? '')),
+            'BOT Z-API Token'
+        );
+        $this->configuracaoService->set(
+            'bot.zapi_client_token',
+            trim((string) ($data['bot_zapi_client_token'] ?? '')),
+            'BOT Z-API Client Token'
+        );
+        $this->configuracaoService->set(
+            'bot.zapi_base_url',
+            trim((string) ($data['bot_zapi_base_url'] ?? '')),
+            'BOT Z-API Base URL'
+        );
         $this->configuracaoService->set(
             'bot.session_timeout_minutes',
             (int) ($data['bot_session_timeout_minutes'] ?? 15),

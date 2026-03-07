@@ -41,4 +41,8 @@ app()->booted(function () {
     $schedule->command('bot:close-inactive')
         ->everyMinute()
         ->name('bot:close-inactive');
+
+    $schedule->command('eventos:encerrar-expirados')
+        ->dailyAt('00:05')
+        ->name('eventos:encerrar-expirados');
 });

@@ -8,17 +8,33 @@ use RuntimeException;
 
 class ZapiBotProvider implements BotProviderInterface
 {
-    public function __construct(private readonly ConfiguracaoService $configuracaoService)
-    {
+    /**
+     * @param array{
+     *     base_url?: string,
+     *     token?: string,
+     *     client_token?: string,
+     *     instance?: string
+     * } $credentials
+     */
+    public function __construct(
+        private readonly ConfiguracaoService $configuracaoService,
+        private readonly array $credentials = []
+    ) {
     }
 
     public function sendText(string $to, string $message): void
     {
-        $baseUrl = rtrim((string) ($this->configuracaoService->get('whatsapp.base_url')
+        $baseUrl = rtrim((string) (($this->credentials['base_url'] ?? null)
+            ?? $this->configuracaoService->get('whatsapp.base_url')
             ?? config('services.whatsapp.zapi.base_url')), '/');
-        $token = (string) ($this->configuracaoService->get('whatsapp.token') ?? config('services.whatsapp.zapi.token'));
-        $clientToken = (string) ($this->configuracaoService->get('whatsapp.client_token') ?? config('services.whatsapp.zapi.client_token'));
-        $instance = (string) ($this->configuracaoService->get('whatsapp.instance')
+        $token = (string) (($this->credentials['token'] ?? null)
+            ?? $this->configuracaoService->get('whatsapp.token')
+            ?? config('services.whatsapp.zapi.token'));
+        $clientToken = (string) (($this->credentials['client_token'] ?? null)
+            ?? $this->configuracaoService->get('whatsapp.client_token')
+            ?? config('services.whatsapp.zapi.client_token'));
+        $instance = (string) (($this->credentials['instance'] ?? null)
+            ?? $this->configuracaoService->get('whatsapp.instance')
             ?? config('services.whatsapp.zapi.instance'));
         $verifySsl = (bool) config('services.whatsapp.zapi.verify_ssl', true);
 
@@ -66,4 +82,3 @@ class ZapiBotProvider implements BotProviderInterface
         return $match[0];
     }
 }
-

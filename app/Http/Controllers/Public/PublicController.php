@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\EventoCurso;
 use App\Models\SiteSection;
 use App\Services\ConfiguracaoService;
+use Carbon\CarbonImmutable;
 use Illuminate\View\View;
 
 class PublicController extends Controller
@@ -47,10 +48,19 @@ class PublicController extends Controller
 
     public function cursos(): View
     {
+        $today = CarbonImmutable::now((string) config('app.timezone'))->toDateString();
+
         $eventos = EventoCurso::query()
             ->with('curso')
             ->where('ativo', true)
             ->whereHas('curso', fn ($query) => $query->where('ativo', true))
+            ->where(function ($query) use ($today) {
+                $query->whereDate('data_fim', '>=', $today)
+                    ->orWhere(function ($fallbackQuery) use ($today) {
+                        $fallbackQuery->whereNull('data_fim')
+                            ->whereDate('data_inicio', '>=', $today);
+                    });
+            })
             ->orderBy('data_inicio')
             ->paginate(12);
 

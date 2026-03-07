@@ -19,7 +19,9 @@ use App\Services\MatriculaService;
 use App\Services\NotificationService;
 use App\Support\Cpf;
 use App\Support\Phone;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
 
@@ -148,11 +150,15 @@ class BotEngine
         $order = $this->getCoursesOrder();
         $limit = $this->getCoursesLimit();
 
-        $eventos = EventoCurso::query()
+        $eventosQuery = EventoCurso::query()
             ->with('curso')
             ->where('ativo', true)
             ->whereHas('curso', fn ($query) => $query->where('ativo', true))
-            ->orderBy('data_inicio', $order)
+            ->orderBy('data_inicio', $order);
+
+        $this->applyActiveCourseDateFilter($eventosQuery);
+
+        $eventos = $eventosQuery
             ->orderBy('id', $order)
             ->limit($limit)
             ->get();
@@ -223,12 +229,15 @@ class BotEngine
         }
 
         $selectedEventId = (int) $eventIds[$option - 1];
-        $evento = EventoCurso::query()
+        $eventoQuery = EventoCurso::query()
             ->with('curso')
             ->where('id', $selectedEventId)
             ->where('ativo', true)
-            ->whereHas('curso', fn ($query) => $query->where('ativo', true))
-            ->first();
+            ->whereHas('curso', fn ($query) => $query->where('ativo', true));
+
+        $this->applyActiveCourseDateFilter($eventoQuery);
+
+        $evento = $eventoQuery->first();
 
         if (! $evento || ! $evento->curso) {
             return $this->listCoursesWithPrefix(
@@ -2714,12 +2723,33 @@ class BotEngine
             return null;
         }
 
-        return EventoCurso::query()
+        $eventoQuery = EventoCurso::query()
             ->with('curso')
             ->where('id', $eventoId)
             ->where('ativo', true)
-            ->whereHas('curso', fn ($query) => $query->where('ativo', true))
-            ->first();
+            ->whereHas('curso', fn ($query) => $query->where('ativo', true));
+
+        $this->applyActiveCourseDateFilter($eventoQuery);
+
+        return $eventoQuery->first();
+    }
+
+    private function applyActiveCourseDateFilter(Builder $query): void
+    {
+        $today = $this->getTodayDateInAppTimezone();
+
+        $query->where(function (Builder $builder) use ($today) {
+            $builder->whereDate('data_fim', '>=', $today)
+                ->orWhere(function (Builder $fallbackBuilder) use ($today) {
+                    $fallbackBuilder->whereNull('data_fim')
+                        ->whereDate('data_inicio', '>=', $today);
+                });
+        });
+    }
+
+    private function getTodayDateInAppTimezone(): string
+    {
+        return CarbonImmutable::now((string) config('app.timezone'))->toDateString();
     }
 
     private function buildInscricaoLink(int $eventoId): string
