@@ -3,6 +3,7 @@
 namespace App\Services\Bot;
 
 use App\Enums\LegacyNotificationType;
+use App\Enums\Sexo;
 use App\Enums\StatusListaEspera;
 use App\Enums\StatusMatricula;
 use App\Models\Aluno;
@@ -165,12 +166,21 @@ class BotEngine
         foreach ($eventos as $index => $evento) {
             $nomeCurso = $evento->curso?->nome ?? 'Curso';
             $periodo = $this->formatPeriodo($evento);
-            $turno = $evento->turno?->value ? ucfirst(str_replace('_', ' ', $evento->turno->value)) : 'Não informado';
+            $horario = (! $evento->horario_inicio && ! $evento->horario_fim)
+                ? 'Horário não informado'
+                : 'Horário: ' . $this->formatHorario($evento);
             $resumo = $this->eventoCursoService->resumoVagas($evento);
             $vagas = $resumo['total_vagas'] > 0
                 ? ' - Vagas: ' . $resumo['vagas_disponiveis'] . '/' . $resumo['total_vagas']
                 : '';
-            $lines[] = ($index + 1) . ') ' . $nomeCurso . ' - ' . $periodo . ' - ' . $turno . $vagas;
+            $lines[] = $this->toEmojiNumber($index + 1)
+                . ' '
+                . $nomeCurso
+                . ' - '
+                . $periodo
+                . ' - '
+                . $horario
+                . $vagas;
         }
 
         $this->setConversationState(
@@ -583,6 +593,8 @@ class BotEngine
         $celular = trim((string) ($aluno->celular ?? ''));
         $telefone = trim((string) ($aluno->telefone ?? ''));
         $contatoPrincipal = $celular !== '' ? $celular : $telefone;
+        $sexo = $aluno->sexo instanceof Sexo ? $aluno->sexo->value : (string) ($aluno->sexo ?? '');
+        $dataNascimento = $aluno->data_nascimento?->format('d/m/Y') ?? '';
 
         return [
             'nome_completo' => trim((string) ($aluno->nome_completo ?? '')),
@@ -591,6 +603,9 @@ class BotEngine
             'telefone' => Phone::format($telefone),
             'contato' => Phone::format($contatoPrincipal),
             'email' => trim((string) ($aluno->email ?? '')),
+            'data_nascimento' => $dataNascimento,
+            'sexo' => $sexo,
+            'sexo_label' => $this->getSexoLabel($sexo),
         ];
     }
 
@@ -628,9 +643,19 @@ class BotEngine
             $fields[] = ['key' => 'email', 'prompt' => 'Informe seu e-mail:'];
         }
 
+        if (Schema::hasColumn('alunos', 'data_nascimento')) {
+            $fields[] = ['key' => 'data_nascimento', 'prompt' => 'Informe sua data de nascimento (dd/mm/AAAA):'];
+        }
+
+        if (Schema::hasColumn('alunos', 'sexo')) {
+            $fields[] = ['key' => 'sexo', 'prompt' => $this->buildSexoPrompt()];
+        }
+
         if ($fields === []) {
             $fields[] = ['key' => 'nome_completo', 'prompt' => 'Informe seu nome completo:'];
             $fields[] = ['key' => 'celular', 'prompt' => 'Informe seu telefone/celular:'];
+            $fields[] = ['key' => 'data_nascimento', 'prompt' => 'Informe sua data de nascimento (dd/mm/AAAA):'];
+            $fields[] = ['key' => 'sexo', 'prompt' => $this->buildSexoPrompt()];
         }
 
         return $fields;
@@ -653,6 +678,8 @@ class BotEngine
         $headerLines[] = 'CPF: ' . (($snapshot['cpf'] ?? '') ?: 'Não informado');
         $headerLines[] = 'Telefone: ' . (($snapshot['contato'] ?? '') ?: 'Não informado');
         $headerLines[] = 'E-mail: ' . (($snapshot['email'] ?? '') ?: 'Não informado');
+        $headerLines[] = 'Data de nascimento: ' . (($snapshot['data_nascimento'] ?? '') ?: 'Não informado');
+        $headerLines[] = 'Sexo: ' . (($snapshot['sexo_label'] ?? '') ?: 'Não informado');
 
         return $this->buildOptionsMessage(
             $headerLines,
@@ -719,6 +746,19 @@ class BotEngine
                 continue;
             }
 
+            if ($key === 'data_nascimento') {
+                $snapshot[$key] = $this->formatDataNascimentoForDisplay($scalarValue);
+
+                continue;
+            }
+
+            if ($key === 'sexo') {
+                $snapshot[$key] = $scalarValue;
+                $snapshot['sexo_label'] = $this->getSexoLabel($scalarValue);
+
+                continue;
+            }
+
             $snapshot[$key] = $scalarValue;
         }
 
@@ -733,6 +773,8 @@ class BotEngine
         $headerLines[] = 'CPF: ' . (($snapshot['cpf'] ?? '') ?: 'Não informado');
         $headerLines[] = 'Telefone: ' . (($snapshot['contato'] ?? '') ?: 'Não informado');
         $headerLines[] = 'E-mail: ' . (($snapshot['email'] ?? '') ?: 'Não informado');
+        $headerLines[] = 'Data de nascimento: ' . (($snapshot['data_nascimento'] ?? '') ?: 'Não informado');
+        $headerLines[] = 'Sexo: ' . (($snapshot['sexo_label'] ?? '') ?: 'Não informado');
 
         return $this->buildOptionsMessage(
             $headerLines,
@@ -779,6 +821,32 @@ class BotEngine
             return ['ok' => true, 'value' => $email];
         }
 
+        if ($fieldKey === 'data_nascimento') {
+            if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $value) !== 1) {
+                return ['ok' => false, 'message' => 'Data inválida. Use o formato dd/mm/AAAA.'];
+            }
+
+            $parts = explode('/', $value);
+            $day = isset($parts[0]) ? (int) $parts[0] : 0;
+            $month = isset($parts[1]) ? (int) $parts[1] : 0;
+            $year = isset($parts[2]) ? (int) $parts[2] : 0;
+
+            if (! checkdate($month, $day, $year)) {
+                return ['ok' => false, 'message' => 'Data inválida. Informe uma data real.'];
+            }
+
+            return ['ok' => true, 'value' => sprintf('%04d-%02d-%02d', $year, $month, $day)];
+        }
+
+        if ($fieldKey === 'sexo') {
+            $sexo = $this->normalizeSexoInput($value);
+            if ($sexo === null) {
+                return ['ok' => false, 'message' => 'Sexo inválido. Selecione uma opção da lista.'];
+            }
+
+            return ['ok' => true, 'value' => $sexo];
+        }
+
         if ($value === '') {
             return ['ok' => false, 'message' => 'Valor inválido. Tente novamente.'];
         }
@@ -811,6 +879,105 @@ class BotEngine
         }
 
         return $payload;
+    }
+
+    private function buildSexoPrompt(): string
+    {
+        $lines = ['Selecione seu sexo:'];
+
+        foreach ($this->getSexoOptions() as $index => $option) {
+            $lines[] = $this->toEmojiNumber($index + 1) . ' ' . $option['label'];
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * @return list<array{value: string, label: string}>
+     */
+    private function getSexoOptions(): array
+    {
+        $options = [];
+        foreach (Sexo::cases() as $case) {
+            $options[] = [
+                'value' => $case->value,
+                'label' => $this->getSexoLabel($case->value),
+            ];
+        }
+
+        if ($options === []) {
+            return [
+                ['value' => 'masculino', 'label' => 'Masculino'],
+                ['value' => 'feminino', 'label' => 'Feminino'],
+                ['value' => 'nao_declarado', 'label' => 'Prefiro não informar'],
+            ];
+        }
+
+        return $options;
+    }
+
+    private function getSexoLabel(string $value): string
+    {
+        return match ($value) {
+            Sexo::Masculino->value => 'Masculino',
+            Sexo::Feminino->value => 'Feminino',
+            Sexo::NaoDeclarado->value => 'Prefiro não informar',
+            default => 'Não informado',
+        };
+    }
+
+    private function normalizeSexoInput(string $value): ?string
+    {
+        $normalized = mb_strtolower(trim($value));
+        if ($normalized === '') {
+            return null;
+        }
+
+        $numeric = $this->parseNumericOption($normalized);
+        if ($numeric !== null) {
+            $options = $this->getSexoOptions();
+            if (isset($options[$numeric - 1])) {
+                return $options[$numeric - 1]['value'];
+            }
+        }
+
+        $normalized = preg_replace('/\s+/u', '_', $normalized) ?? $normalized;
+        $normalized = str_replace(['-', '.'], '_', $normalized);
+
+        $direct = array_map(static fn (Sexo $case) => $case->value, Sexo::cases());
+        if (in_array($normalized, $direct, true)) {
+            return $normalized;
+        }
+
+        return match ($normalized) {
+            'm', 'masc', 'masculino' => Sexo::Masculino->value,
+            'f', 'fem', 'feminino' => Sexo::Feminino->value,
+            'nao_declarado', 'nao_declarada', 'prefiro_nao_informar', 'nao_informar' => Sexo::NaoDeclarado->value,
+            default => null,
+        };
+    }
+
+    private function formatDataNascimentoForDisplay(string $value): string
+    {
+        $normalized = trim($value);
+        if ($normalized === '') {
+            return '';
+        }
+
+        if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $normalized) === 1) {
+            return $normalized;
+        }
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $normalized) !== 1) {
+            return $normalized;
+        }
+
+        $parts = explode('-', $normalized);
+        if (count($parts) !== 3) {
+            return $normalized;
+        }
+
+        return sprintf('%02d/%02d/%04d', (int) $parts[2], (int) $parts[1], (int) $parts[0]);
     }
 
     /**
@@ -1230,6 +1397,8 @@ class BotEngine
         $header[] = 'CPF: ' . (($snapshot['cpf'] ?? '') ?: 'Não informado');
         $header[] = 'Telefone: ' . (($snapshot['contato'] ?? '') ?: 'Não informado');
         $header[] = 'E-mail: ' . (($snapshot['email'] ?? '') ?: 'Não informado');
+        $header[] = 'Data de nascimento: ' . (($snapshot['data_nascimento'] ?? '') ?: 'Não informado');
+        $header[] = 'Sexo: ' . (($snapshot['sexo_label'] ?? '') ?: 'Não informado');
 
         return $this->buildOptionsMessage(
             $header,
@@ -1296,6 +1465,19 @@ class BotEngine
                 continue;
             }
 
+            if ($key === 'data_nascimento') {
+                $snapshot[$key] = $this->formatDataNascimentoForDisplay($scalarValue);
+
+                continue;
+            }
+
+            if ($key === 'sexo') {
+                $snapshot[$key] = $scalarValue;
+                $snapshot['sexo_label'] = $this->getSexoLabel($scalarValue);
+
+                continue;
+            }
+
             $snapshot[$key] = $scalarValue;
         }
 
@@ -1314,6 +1496,8 @@ class BotEngine
         $headerLines[] = 'CPF: ' . (($snapshot['cpf'] ?? '') ?: 'Não informado');
         $headerLines[] = 'Telefone: ' . (($snapshot['contato'] ?? '') ?: 'Não informado');
         $headerLines[] = 'E-mail: ' . (($snapshot['email'] ?? '') ?: 'Não informado');
+        $headerLines[] = 'Data de nascimento: ' . (($snapshot['data_nascimento'] ?? '') ?: 'Não informado');
+        $headerLines[] = 'Sexo: ' . (($snapshot['sexo_label'] ?? '') ?: 'Não informado');
 
         return $this->buildOptionsMessage(
             $headerLines,
@@ -2357,3 +2541,4 @@ class BotEngine
         ]);
     }
 }
+
