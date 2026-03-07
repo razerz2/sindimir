@@ -192,8 +192,9 @@ class BotEngine
         return implode("\n", [
             'Cursos disponíveis:',
             ...$lines,
+            '0️⃣ Voltar',
             '',
-            'Digite o número do curso para receber resumo e link de inscrição.',
+            'Digite o número do curso para ver o resumo e prosseguir com a inscrição.',
         ]);
     }
 
@@ -207,6 +208,10 @@ class BotEngine
         }
 
         $option = $this->parseNumericOption($text);
+        if ($option === 0) {
+            return $this->respondWithMenu($conversation, false);
+        }
+
         if ($option === null || $option < 1 || $option > count($eventIds)) {
             return $this->listCoursesWithPrefix(
                 $conversation,
@@ -229,7 +234,6 @@ class BotEngine
             );
         }
 
-        $turno = $evento->turno?->value ? ucfirst(str_replace('_', ' ', $evento->turno->value)) : 'Não informado';
         $context['selected_evento_id'] = $evento->id;
         $context['selected_event_id'] = $evento->id;
         $context['selected_index'] = $option;
@@ -242,15 +246,12 @@ class BotEngine
                 'Evento: ' . ($evento->numero_evento ?: '#' . $evento->id),
                 'Período: ' . $this->formatPeriodo($evento),
                 'Horário: ' . $this->formatHorario($evento),
-                'Turno: ' . $turno,
                 'Município: ' . ($evento->municipio ?: 'Não informado'),
                 'Local: ' . ($evento->local_realizacao ?: 'Não informado'),
-                '',
-                'O que você deseja fazer?',
             ],
             [
                 '1) Inscrever pelo WhatsApp (CPF)',
-                '2) Receber link do site',
+                '2) Voltar',
             ],
             'Responda com 1 ou 2.'
         );
@@ -266,29 +267,21 @@ class BotEngine
         }
 
         $option = $this->parseNumericOption($text);
-
         if ($option === 1) {
             $this->setConversationState($conversation, BotState::CURSO_CPF, $context);
 
-            return 'Informe seu CPF (somente números).';
+            return 'Para se inscrever pelo WhatsApp, informe seu CPF (somente números).';
         }
 
         if ($option === 2) {
-            $this->setConversationState($conversation, BotState::MENU, []);
-
-            return implode("\n", [
-                'Acesse o link para se inscrever:',
-                $this->buildInscricaoLink($evento->id),
-                '',
-                'Digite menu para voltar ao início.',
-            ]);
+            return $this->listCourses($conversation);
         }
 
         return $this->buildOptionsMessage(
             ['Opção inválida.'],
             [
                 '1) Inscrever pelo WhatsApp (CPF)',
-                '2) Receber link do site',
+                '2) Voltar',
             ],
             'Responda com 1 ou 2.'
         );
@@ -317,14 +310,15 @@ class BotEngine
         }
 
         $aluno = $this->findAlunoByCpf($cpf);
-        $link = $this->buildInscricaoLink($evento->id);
 
         if (! $aluno) {
-            return $this->respondWithMenu(
-                $conversation,
-                false,
-                "Não encontrei seu cadastro. Para se inscrever, conclua no site:\n{$link}"
-            );
+            $context['aluno_cpf'] = $cpf;
+            $context['aluno_mode'] = 'create';
+            $context['aluno_origin_state'] = BotState::CURSO_ALUNO_CONFIRM;
+            $context = $this->startAlunoProfileWizard($context);
+            $this->setConversationState($conversation, BotState::ALUNO_EDIT_FIELD, $context);
+
+            return $this->buildAlunoProfileFieldPrompt($context, 'Não encontrei seu cadastro. Vamos fazer seu cadastro rapidinho.');
         }
 
         $context['selected_evento_id'] = $evento->id;
@@ -368,16 +362,8 @@ class BotEngine
 
         if ($option === 3) {
             $context = $this->clearAlunoEditContext($context);
-            $this->setConversationState($conversation, BotState::CURSO_ACTION, $context);
 
-            return $this->buildOptionsMessage(
-                ['O que você deseja fazer?'],
-                [
-                    '1) Inscrever pelo WhatsApp (CPF)',
-                    '2) Receber link do site',
-                ],
-                'Responda com 1 ou 2.'
-            );
+            return $this->listCoursesWithPrefix($conversation, 'Selecione outro curso para continuar.');
         }
 
         return $this->buildAlunoConfirmMessage(
@@ -516,8 +502,6 @@ class BotEngine
 
     private function executeCourseEnrollment(BotConversation $conversation, EventoCurso $evento, Aluno $aluno): string
     {
-        $link = $this->buildInscricaoLink($evento->id);
-
         $matriculaAtiva = Matricula::query()
             ->where('aluno_id', $aluno->id)
             ->where('evento_curso_id', $evento->id)
@@ -528,7 +512,7 @@ class BotEngine
             return $this->respondWithMenu(
                 $conversation,
                 false,
-                "Você já possui inscrição neste curso. Se precisar, acesse:\n{$link}"
+                'Você já possui inscrição neste curso.'
             );
         }
 
@@ -538,7 +522,7 @@ class BotEngine
             return $this->respondWithMenu(
                 $conversation,
                 false,
-                "Não foi possível concluir sua inscrição agora. Tente pelo site:\n{$link}"
+                'Não foi possível concluir sua inscrição agora. Tente novamente em instantes.'
             );
         }
 
@@ -561,7 +545,7 @@ class BotEngine
             return $this->respondWithMenu(
                 $conversation,
                 false,
-                "Não foi possível concluir sua inscrição agora. Use o link:\n{$link}"
+                'Não foi possível concluir sua inscrição agora.'
             );
         }
 
@@ -569,7 +553,7 @@ class BotEngine
             return $this->respondWithMenu(
                 $conversation,
                 false,
-                "Não foi possível concluir sua inscrição com este CPF. Use o link:\n{$link}"
+                'Não foi possível concluir sua inscrição com este CPF.'
             );
         }
 
@@ -1113,6 +1097,12 @@ class BotEngine
             $context = $this->clearAlunoProfileEditContext($context);
 
             if ($mode === 'create') {
+                if (isset($context['selected_evento_id']) || isset($context['selected_event_id'])) {
+                    $this->setConversationState($conversation, BotState::CURSO_CPF, $context);
+
+                    return 'Para se inscrever pelo WhatsApp, informe seu CPF (somente números).';
+                }
+
                 $this->setConversationState($conversation, BotState::ALUNO_CPF, $context);
 
                 return 'Informe seu CPF (somente números).';
@@ -1177,7 +1167,10 @@ class BotEngine
             if ($mode === 'create') {
                 $cpf = Cpf::normalize((string) ($context['aluno_cpf'] ?? ''));
                 if ($cpf === '' || ! Cpf::isValid($cpf)) {
-                    $this->setConversationState($conversation, BotState::ALUNO_CPF, $this->clearAlunoProfileEditContext($context));
+                    $nextState = (isset($context['selected_evento_id']) || isset($context['selected_event_id']))
+                        ? BotState::CURSO_CPF
+                        : BotState::ALUNO_CPF;
+                    $this->setConversationState($conversation, $nextState, $this->clearAlunoProfileEditContext($context));
 
                     return 'CPF inválido. Envie apenas números.';
                 }
@@ -1196,6 +1189,15 @@ class BotEngine
                 $context['aluno_id'] = (int) $aluno->id;
                 $context['aluno_snapshot'] = $this->buildAlunoSnapshot($aluno);
                 $context = $this->clearAlunoProfileEditContext($context);
+                if (isset($context['selected_evento_id']) || isset($context['selected_event_id'])) {
+                    $this->setConversationState($conversation, BotState::CURSO_ALUNO_CONFIRM, $context);
+
+                    return $this->buildAlunoConfirmMessage(
+                        $context['aluno_snapshot'],
+                        'Cadastro realizado com sucesso. Agora confirme para concluir sua inscrição.'
+                    );
+                }
+
                 $this->setConversationState($conversation, BotState::ALUNO_MENU, $context);
 
                 return $this->buildAlunoMenuMessage($context['aluno_snapshot'], 'Cadastro realizado com sucesso.');
@@ -1241,6 +1243,12 @@ class BotEngine
             $mode = (string) ($context['aluno_mode'] ?? 'update');
 
             if ($mode === 'create') {
+                if (isset($context['selected_evento_id']) || isset($context['selected_event_id'])) {
+                    $this->setConversationState($conversation, BotState::CURSO_CPF, $context);
+
+                    return 'Para se inscrever pelo WhatsApp, informe seu CPF (somente números).';
+                }
+
                 $this->setConversationState($conversation, BotState::ALUNO_CPF, $context);
 
                 return 'Informe seu CPF (somente números).';
@@ -1534,9 +1542,10 @@ class BotEngine
         }
         $lines[] = 'Suas inscrições ativas:';
         $lines = [...$lines, ...$this->buildAlunoInscricaoItemLines($items)];
+        $lines[] = '0️⃣ Voltar';
         $lines[] = '';
         $lines[] = 'Digite o número da inscrição para ver as ações.';
-        $lines[] = 'Digite 0 para voltar.';
+        $lines[] = 'Responda com o número da inscrição ou 0.';
 
         return implode("\n", $lines);
     }
@@ -1736,6 +1745,7 @@ class BotEngine
         return implode("\n", [
             'Inscrições encontradas:',
             ...$lines,
+            '0️⃣ Voltar',
             '',
             'Digite o número da inscrição que deseja cancelar.',
         ]);
@@ -1751,6 +1761,10 @@ class BotEngine
         }
 
         $option = $this->parseNumericOption($text);
+        if ($option === 0) {
+            return $this->respondWithMenu($conversation, false);
+        }
+
         if ($option === null || $option < 1 || $option > count($items)) {
             return $this->renderCancelListWithPrefix(
                 $conversation,
@@ -1784,8 +1798,8 @@ class BotEngine
                 'Período: ' . ($selectedItem['periodo'] ?? 'Data não informada'),
             ],
             [
-                '1) Sim',
-                '2) Não',
+                '1) Confirmar cancelamento',
+                '2) Voltar',
             ],
             'Responda com 1 ou 2.'
         );
@@ -1805,11 +1819,15 @@ class BotEngine
             return $this->cancelarItemSelecionado($conversation, $selectedItem);
         }
 
-        if (in_array($normalized, ['2', 'nao', 'não', 'n'], true)) {
-            return $this->respondWithMenu($conversation, false, 'Cancelamento não confirmado.');
+        if (in_array($normalized, ['2', 'voltar', 'v'], true)) {
+            $context = $this->getConversationContext($conversation);
+            unset($context['selected_item']);
+            $this->setConversationState($conversation, BotState::CANCEL_LIST, $context);
+
+            return $this->renderCancelListWithPrefix($conversation, 'Cancelamento não confirmado.');
         }
 
-        return 'Resposta inválida. Digite 1 para confirmar ou 2 para manter a inscrição.';
+        return 'Resposta inválida. Digite 1 para confirmar ou 2 para voltar.';
     }
 
     /**
@@ -1985,6 +2003,7 @@ class BotEngine
             '',
             'Inscrições encontradas:',
             ...$lines,
+            '0️⃣ Voltar',
             '',
             'Digite o número da inscrição que deseja cancelar.',
         ]);
