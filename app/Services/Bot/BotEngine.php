@@ -391,7 +391,28 @@ class BotEngine
         $evento = $this->getSelectedEventoFromContext($context);
         $aluno = $this->getSelectedAlunoFromContext($context);
 
-        if (! $evento || ! $evento->curso || ! $aluno) {
+        if (! $evento || ! $evento->curso) {
+            return $this->respondWithMenu(
+                $conversation,
+                false,
+                'Este curso não está mais disponível para inscrição.'
+            );
+        }
+
+        if (! $aluno) {
+            logger()->error('BOT inscrição falhou', [
+                'channel' => (string) ($conversation->channel ?? ''),
+                'selected_event_id' => (int) ($context['selected_event_id'] ?? $context['selected_evento_id'] ?? 0),
+                'target_aluno_id' => (int) ($context['target_aluno_id'] ?? 0),
+                'cpf_masked' => $this->maskCpfForLog((string) ($context['target_cpf'] ?? $context['aluno_cpf'] ?? '')),
+                'motivo' => 'aluno_nao_localizado_no_contexto',
+                'bot_provider' => (string) $this->configuracaoService->get('bot.provider', 'meta'),
+                'bot_credentials_mode' => (string) $this->configuracaoService->get(
+                    'bot.credentials_mode',
+                    'inherit_notifications'
+                ),
+            ]);
+
             return $this->respondWithMenu(
                 $conversation,
                 false,
@@ -401,7 +422,24 @@ class BotEngine
 
         $option = $this->parseNumericOption($text);
         if ($option === 1) {
-            return $this->executeCourseEnrollment($conversation, $evento, $aluno);
+            try {
+                return $this->executeCourseEnrollment($conversation, $evento, $aluno, $context);
+            } catch (Throwable $exception) {
+                logger()->error('BOT inscrição falhou', $this->buildEnrollmentLogContext(
+                    $conversation,
+                    $evento,
+                    $aluno,
+                    $context,
+                    null,
+                    $exception
+                ));
+
+                return $this->respondWithMenu(
+                    $conversation,
+                    false,
+                    'Não foi possível concluir sua inscrição agora. Tente novamente em instantes.'
+                );
+            }
         }
 
         if ($option === 2) {
@@ -553,7 +591,15 @@ class BotEngine
         return $this->buildAlunoEditReviewMessage($context, 'Opção inválida. Escolha 1, 2 ou 3.');
     }
 
-    private function executeCourseEnrollment(BotConversation $conversation, EventoCurso $evento, Aluno $aluno): string
+    /**
+     * @param array<string, mixed> $context
+     */
+    private function executeCourseEnrollment(
+        BotConversation $conversation,
+        EventoCurso $evento,
+        Aluno $aluno,
+        array $context = []
+    ): string
     {
         $matriculaAtiva = Matricula::query()
             ->where('aluno_id', $aluno->id)
@@ -561,7 +607,13 @@ class BotEngine
             ->whereIn('status', [StatusMatricula::Pendente->value, StatusMatricula::Confirmada->value])
             ->exists();
 
-        if ($matriculaAtiva) {
+        $inscricaoAtiva = ListaEspera::query()
+            ->where('aluno_id', $aluno->id)
+            ->where('evento_curso_id', $evento->id)
+            ->whereIn('status', [StatusListaEspera::Aguardando->value, StatusListaEspera::Chamado->value])
+            ->exists();
+
+        if ($matriculaAtiva || $inscricaoAtiva) {
             return $this->respondWithMenu(
                 $conversation,
                 false,
@@ -571,7 +623,70 @@ class BotEngine
 
         try {
             $resultado = $this->matriculaService->solicitarInscricao($aluno->id, $evento->id);
-        } catch (Throwable) {
+            $this->logEnrollmentDebug($conversation, $evento, $aluno, $context, $resultado, null);
+        } catch (Throwable $exception) {
+            logger()->error('BOT inscrição falhou', $this->buildEnrollmentLogContext(
+                $conversation,
+                $evento,
+                $aluno,
+                $context,
+                null,
+                $exception
+            ));
+
+            $exceptionMessage = mb_strtolower(trim($exception->getMessage()));
+            if (str_contains($exceptionMessage, 'evento não encontrado')
+                || str_contains($exceptionMessage, 'evento nao encontrado')
+                || str_contains($exceptionMessage, 'não encontrado')
+                || str_contains($exceptionMessage, 'nao encontrado')
+                || str_contains($exceptionMessage, 'inscri')
+                || str_contains($exceptionMessage, 'indispon')
+            ) {
+                return $this->respondWithMenu(
+                    $conversation,
+                    false,
+                    'Este curso não está mais disponível para inscrição.'
+                );
+            }
+
+            if (str_contains($exceptionMessage, 'limite de vagas atingido')
+                || str_contains($exceptionMessage, 'vaga')
+            ) {
+                return $this->respondWithMenu(
+                    $conversation,
+                    false,
+                    'No momento não há vagas disponíveis.'
+                );
+            }
+
+            if (str_contains($exceptionMessage, 'já possui')
+                || str_contains($exceptionMessage, 'ja possui')
+                || str_contains($exceptionMessage, 'duplicate')
+                || str_contains($exceptionMessage, 'duplic')
+            ) {
+                return $this->respondWithMenu(
+                    $conversation,
+                    false,
+                    'Você já possui inscrição neste curso.'
+                );
+            }
+            return $this->respondWithMenu(
+                $conversation,
+                false,
+                'Não foi possível concluir sua inscrição agora. Tente novamente em instantes.'
+            );
+        }
+
+        if (! is_array($resultado) || ! isset($resultado['tipo'])) {
+            logger()->error('BOT inscrição falhou', $this->buildEnrollmentLogContext(
+                $conversation,
+                $evento,
+                $aluno,
+                $context,
+                is_array($resultado) ? $resultado : null,
+                null
+            ));
+
             return $this->respondWithMenu(
                 $conversation,
                 false,
@@ -595,6 +710,15 @@ class BotEngine
 
         $registro = $resultado['registro'] ?? null;
         if (! $registro instanceof Matricula) {
+            logger()->error('BOT inscrição falhou', $this->buildEnrollmentLogContext(
+                $conversation,
+                $evento,
+                $aluno,
+                $context,
+                $resultado,
+                null
+            ));
+
             return $this->respondWithMenu(
                 $conversation,
                 false,
@@ -603,6 +727,24 @@ class BotEngine
         }
 
         if (! in_array($registro->status, [StatusMatricula::Pendente, StatusMatricula::Confirmada], true)) {
+            $status = mb_strtolower((string) ($registro->status->value ?? $registro->status));
+            if (in_array($status, ['cancelada', 'cancelado', 'expirada', 'expirado'], true)) {
+                return $this->respondWithMenu(
+                    $conversation,
+                    false,
+                    'Você já possui inscrição neste curso.'
+                );
+            }
+
+            logger()->error('BOT inscrição falhou', $this->buildEnrollmentLogContext(
+                $conversation,
+                $evento,
+                $aluno,
+                $context,
+                $resultado,
+                null
+            ));
+
             return $this->respondWithMenu(
                 $conversation,
                 false,
@@ -651,6 +793,14 @@ class BotEngine
      */
     private function getSelectedAlunoFromContext(array $context): ?Aluno
     {
+        $targetAlunoId = (int) ($context['target_aluno_id'] ?? 0);
+        if ($targetAlunoId > 0) {
+            $targetAluno = Aluno::query()->find($targetAlunoId);
+            if ($targetAluno) {
+                return $targetAluno;
+            }
+        }
+
         $alunoId = (int) ($context['aluno_id'] ?? 0);
         if ($alunoId <= 0) {
             return null;
@@ -1422,6 +1572,102 @@ class BotEngine
         }
 
         return '***.***.***-' . substr($normalized, -2);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @param array<string, mixed>|null $resultado
+     * @return array<string, mixed>
+     */
+    private function buildEnrollmentLogContext(
+        BotConversation $conversation,
+        EventoCurso $evento,
+        Aluno $aluno,
+        array $context,
+        ?array $resultado = null,
+        ?Throwable $exception = null
+    ): array {
+        $selectedEventId = (int) ($context['selected_event_id'] ?? 0);
+        if ($selectedEventId <= 0) {
+            $selectedEventId = (int) ($context['selected_evento_id'] ?? 0);
+        }
+        if ($selectedEventId <= 0) {
+            $selectedEventId = (int) $evento->id;
+        }
+
+        $targetAlunoId = (int) ($context['target_aluno_id'] ?? 0);
+        if ($targetAlunoId <= 0) {
+            $targetAlunoId = (int) $aluno->id;
+        }
+
+        $resultadoLog = null;
+        if (is_array($resultado)) {
+            $registro = $resultado['registro'] ?? null;
+            $resultadoLog = [
+                'tipo' => $resultado['tipo'] ?? null,
+                'registro_class' => is_object($registro) ? $registro::class : gettype($registro),
+                'registro_status' => is_object($registro) && isset($registro->status)
+                    ? (string) (($registro->status->value ?? $registro->status))
+                    : null,
+            ];
+        }
+
+        $payload = [
+            'channel' => (string) ($conversation->channel ?? ''),
+            'selected_event_id' => $selectedEventId,
+            'target_aluno_id' => $targetAlunoId,
+            'cpf_masked' => $this->maskCpfForLog((string) ($aluno->cpf ?? ($context['target_cpf'] ?? ''))),
+            'bot_provider' => (string) $this->configuracaoService->get('bot.provider', 'meta'),
+            'bot_credentials_mode' => (string) $this->configuracaoService->get(
+                'bot.credentials_mode',
+                'inherit_notifications'
+            ),
+            'resultado' => $resultadoLog,
+        ];
+
+        if ($exception !== null) {
+            $payload['exception_message'] = $exception->getMessage();
+            $payload['exception_class'] = $exception::class;
+            $payload['exception'] = $exception;
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @param array<string, mixed>|null $resultado
+     */
+    private function logEnrollmentDebug(
+        BotConversation $conversation,
+        EventoCurso $evento,
+        Aluno $aluno,
+        array $context,
+        ?array $resultado,
+        ?Throwable $exception
+    ): void {
+        if (! (bool) $this->configuracaoService->get('bot.debug', false)) {
+            return;
+        }
+
+        logger()->info('BOT inscrição diagnóstico', $this->buildEnrollmentLogContext(
+            $conversation,
+            $evento,
+            $aluno,
+            $context,
+            $resultado,
+            $exception
+        ));
+    }
+
+    private function maskCpfForLog(string $cpf): string
+    {
+        $normalized = Cpf::normalize($cpf);
+        if ($normalized === '') {
+            return '***';
+        }
+
+        return '***' . substr($normalized, -3);
     }
 
     private function askAlunoCpf(BotConversation $conversation): string

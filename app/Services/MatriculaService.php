@@ -46,6 +46,8 @@ class MatriculaService
             $matriculaExistente = Matricula::query()
                 ->where('aluno_id', $alunoId)
                 ->where('evento_curso_id', $eventoCursoId)
+                ->whereIn('status', [StatusMatricula::Pendente->value, StatusMatricula::Confirmada->value])
+                ->latest('id')
                 ->lockForUpdate()
                 ->first();
 
@@ -59,6 +61,8 @@ class MatriculaService
             $listaExistente = ListaEspera::query()
                 ->where('aluno_id', $alunoId)
                 ->where('evento_curso_id', $eventoCursoId)
+                ->whereIn('status', [StatusListaEspera::Aguardando->value, StatusListaEspera::Chamado->value])
+                ->latest('id')
                 ->lockForUpdate()
                 ->first();
 
@@ -617,10 +621,10 @@ class MatriculaService
             return 0;
         }
 
-        $diasAntes = (int) $this->configuracaoService->get(
+        $diasAntes = max(0, (int) $this->configuracaoService->get(
             'notificacao.auto.curso_disponivel.dias_antes',
             0
-        );
+        ));
         $limiteMaximo = (int) $this->configuracaoService->get(
             'notificacao.auto.curso_disponivel.limite_maximo',
             3
@@ -639,6 +643,7 @@ class MatriculaService
             ->chunkById(50, function ($eventos) use (
                 &$total,
                 $agora,
+                $diasAntes,
                 $emailAtivo,
                 $whatsappAtivo,
                 $limiteMaximo
