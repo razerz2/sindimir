@@ -109,6 +109,9 @@ class BotEngine
             BotState::ALUNO_EDIT_REVIEW => $this->handleAlunoEditReviewInput($conversation, $text),
             BotState::ALUNO_INSCRICOES_LIST => $this->handleAlunoInscricoesListInput($conversation, $text),
             BotState::ALUNO_INSCRICAO_ACTION => $this->handleAlunoInscricaoActionInput($conversation, $text),
+            BotState::TARGET_PICK => $this->handleTargetPickInput($conversation, $text),
+            BotState::TARGET_OTHER_CPF => $this->handleTargetOtherCpfInput($conversation, $text),
+            BotState::TARGET_OTHER_NOT_FOUND => $this->handleTargetOtherNotFoundInput($conversation, $text),
             BotState::CANCEL_CPF => $this->handleCancelCpfInput($conversation, $text),
             BotState::CANCEL_LIST => $this->handleCancelSelectionInput($conversation, $text),
             BotState::CANCEL_CONFIRM => $this->handleCancelConfirmInput($conversation, $text),
@@ -268,6 +271,35 @@ class BotEngine
 
         $option = $this->parseNumericOption($text);
         if ($option === 1) {
+            $target = $this->getTargetAlunoFromContext($context);
+            if ($target) {
+                $context = $this->setTargetAlunoInContext($context, $target, (string) ($context['target_source'] ?? 'cpf'));
+
+                return $this->resumeAfterTargetSelection(
+                    $conversation,
+                    $context,
+                    BotState::CURSO_ALUNO_CONFIRM,
+                    [
+                        'selected_evento_id' => $context['selected_evento_id'] ?? null,
+                        'selected_event_id' => $context['selected_event_id'] ?? null,
+                    ]
+                );
+            }
+
+            $alunoPhone = $this->findAlunoByPhone((string) ($conversation->from ?? ''));
+            if ($alunoPhone) {
+                return $this->startTargetPick(
+                    $conversation,
+                    $context,
+                    $alunoPhone,
+                    BotState::CURSO_ALUNO_CONFIRM,
+                    [
+                        'selected_evento_id' => $context['selected_evento_id'] ?? null,
+                        'selected_event_id' => $context['selected_event_id'] ?? null,
+                    ]
+                );
+            }
+
             $this->setConversationState($conversation, BotState::CURSO_CPF, $context);
 
             return 'Para se inscrever pelo WhatsApp, informe seu CPF (somente números).';
@@ -315,6 +347,13 @@ class BotEngine
             $context['aluno_cpf'] = $cpf;
             $context['aluno_mode'] = 'create';
             $context['aluno_origin_state'] = BotState::CURSO_ALUNO_CONFIRM;
+            $context['wizard_return_state'] = BotState::CURSO_ALUNO_CONFIRM;
+            $context['wizard_return_payload'] = [
+                'selected_evento_id' => $context['selected_evento_id'] ?? null,
+                'selected_event_id' => $context['selected_event_id'] ?? null,
+            ];
+            $context['wizard_set_target'] = true;
+            $context['wizard_back_state'] = BotState::CURSO_CPF;
             $context = $this->startAlunoProfileWizard($context);
             $this->setConversationState($conversation, BotState::ALUNO_EDIT_FIELD, $context);
 
@@ -323,13 +362,18 @@ class BotEngine
 
         $context['selected_evento_id'] = $evento->id;
         $context['selected_event_id'] = $evento->id;
-        $context['aluno_id'] = (int) $aluno->id;
-        $context['aluno_snapshot'] = $this->buildAlunoSnapshot($aluno);
+        $context = $this->setTargetAlunoInContext($context, $aluno, 'cpf');
         $context = $this->clearAlunoEditContext($context);
 
-        $this->setConversationState($conversation, BotState::CURSO_ALUNO_CONFIRM, $context);
-
-        return $this->buildAlunoConfirmMessage($context['aluno_snapshot']);
+        return $this->resumeAfterTargetSelection(
+            $conversation,
+            $context,
+            BotState::CURSO_ALUNO_CONFIRM,
+            [
+                'selected_evento_id' => $evento->id,
+                'selected_event_id' => $evento->id,
+            ]
+        );
     }
 
     private function handleCourseAlunoConfirmInput(BotConversation $conversation, string $text): string
@@ -979,9 +1023,410 @@ class BotEngine
         return $context;
     }
 
+    /**
+     * @param array<string, mixed> $context
+     */
+    private function getTargetAlunoFromContext(array $context): ?Aluno
+    {
+        $id = (int) ($context['target_aluno_id'] ?? 0);
+        if ($id <= 0) {
+            return null;
+        }
+
+        return Aluno::query()->find($id);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @return array<string, mixed>
+     */
+    private function setTargetAlunoInContext(array $context, Aluno $aluno, string $source): array
+    {
+        $context['target_aluno_id'] = (int) $aluno->id;
+        $context['target_cpf'] = Cpf::normalize((string) ($aluno->cpf ?? ''));
+        $context['target_source'] = $source;
+        $context['aluno_id'] = (int) $aluno->id;
+        $context['aluno_snapshot'] = $this->buildAlunoSnapshot($aluno);
+
+        return $context;
+    }
+
+    private function findAlunoByPhone(string $phone): ?Aluno
+    {
+        $normalized = Phone::normalize($phone);
+        if ($normalized === '') {
+            return null;
+        }
+
+        $candidates = $this->buildPhoneCandidates($normalized);
+        if ($candidates === []) {
+            return null;
+        }
+
+        /** @var Collection<int, Aluno> $matches */
+        $matches = Aluno::query()
+            ->where(function ($query) use ($candidates) {
+                $query->whereIn('celular', $candidates)
+                    ->orWhereIn('telefone', $candidates);
+            })
+            ->limit(2)
+            ->get();
+
+        if ($matches->count() !== 1) {
+            return null;
+        }
+
+        return $matches->first();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function buildPhoneCandidates(string $normalized): array
+    {
+        $candidates = [$normalized];
+
+        if (strlen($normalized) > 11) {
+            $candidates[] = substr($normalized, -11);
+        }
+
+        if (strlen($normalized) > 10) {
+            $candidates[] = substr($normalized, -10);
+        }
+
+        return array_values(array_unique(array_filter($candidates)));
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @param array<string, mixed> $returnPayload
+     */
+    private function startTargetPick(
+        BotConversation $conversation,
+        array $context,
+        Aluno $aluno,
+        string $returnState,
+        array $returnPayload = []
+    ): string {
+        $context['target_pick_aluno_id'] = (int) $aluno->id;
+        $context['target_pick_snapshot'] = $this->buildAlunoSnapshot($aluno);
+        $context['return_state'] = $returnState;
+        $context['return_payload'] = $returnPayload;
+        $this->setConversationState($conversation, BotState::TARGET_PICK, $context);
+
+        return $this->buildTargetPickMessage($context['target_pick_snapshot']);
+    }
+
+    /**
+     * @param array<string, string> $snapshot
+     */
+    private function buildTargetPickMessage(array $snapshot): string
+    {
+        return $this->buildOptionsMessage(
+            [
+                '📌 Encontrei um cadastro vinculado a este número:',
+                '',
+                'Nome: ' . (($snapshot['nome_completo'] ?? '') ?: 'Não informado'),
+                'CPF: ' . $this->maskCpf((string) ($snapshot['cpf'] ?? '')),
+                '',
+                'O atendimento é para esta pessoa?',
+            ],
+            [
+                '1) Atender esta pessoa',
+                '2) Atender outra pessoa (informar CPF)',
+                '3) Voltar',
+            ],
+            'Responda com 1, 2 ou 3.'
+        );
+    }
+
+    private function handleTargetPickInput(BotConversation $conversation, string $text): string
+    {
+        $context = $this->getConversationContext($conversation);
+        $option = $this->parseNumericOption($text);
+        $returnState = (string) ($context['return_state'] ?? '');
+        $returnPayload = $context['return_payload'] ?? [];
+        if (! is_array($returnPayload)) {
+            $returnPayload = [];
+        }
+
+        if ($option === 1) {
+            $alunoId = (int) ($context['target_pick_aluno_id'] ?? 0);
+            $aluno = $alunoId > 0 ? Aluno::query()->find($alunoId) : null;
+            if (! $aluno) {
+                $this->setConversationState($conversation, BotState::TARGET_OTHER_CPF, $context);
+
+                return 'Informe o CPF da pessoa atendida (somente números).';
+            }
+
+            $context = $this->setTargetAlunoInContext($context, $aluno, 'phone');
+            unset($context['target_pick_aluno_id'], $context['target_pick_snapshot']);
+
+            return $this->resumeAfterTargetSelection($conversation, $context, $returnState, $returnPayload);
+        }
+
+        if ($option === 2) {
+            $this->setConversationState($conversation, BotState::TARGET_OTHER_CPF, $context);
+
+            return 'Informe o CPF da pessoa atendida (somente números).';
+        }
+
+        if ($option === 3) {
+            if ($returnState !== '') {
+                return $this->resumeWithoutTarget($conversation, $context, $returnState, $returnPayload);
+            }
+
+            return $this->respondWithMenu($conversation, false);
+        }
+
+        return $this->buildTargetPickMessage(is_array($context['target_pick_snapshot'] ?? null) ? $context['target_pick_snapshot'] : []);
+    }
+
+    private function handleTargetOtherCpfInput(BotConversation $conversation, string $text): string
+    {
+        $context = $this->getConversationContext($conversation);
+        $returnState = (string) ($context['return_state'] ?? '');
+        $returnPayload = $context['return_payload'] ?? [];
+        if (! is_array($returnPayload)) {
+            $returnPayload = [];
+        }
+
+        $option = $this->parseNumericOption($text);
+        if ($option === 0) {
+            $this->setConversationState($conversation, BotState::TARGET_PICK, $context);
+
+            return $this->buildTargetPickMessage(is_array($context['target_pick_snapshot'] ?? null) ? $context['target_pick_snapshot'] : []);
+        }
+
+        $cpf = Cpf::normalize($text);
+        if ($cpf === '') {
+            return 'CPF não informado. Envie apenas números.';
+        }
+
+        if (! Cpf::isValid($cpf)) {
+            return 'CPF inválido. Envie apenas números.';
+        }
+
+        $aluno = $this->findAlunoByCpf($cpf);
+        if (! $aluno) {
+            $context['target_other_cpf'] = $cpf;
+            $this->setConversationState($conversation, BotState::TARGET_OTHER_NOT_FOUND, $context);
+
+            return $this->buildOptionsMessage(
+                ['Não encontrei cadastro para o CPF informado. O que deseja fazer?'],
+                [
+                    '1) Cadastrar esta pessoa agora',
+                    '2) Informar outro CPF',
+                    '3) Voltar',
+                ],
+                'Responda com 1, 2 ou 3.'
+            );
+        }
+
+        $context = $this->setTargetAlunoInContext($context, $aluno, 'cpf');
+        unset($context['target_other_cpf'], $context['target_pick_aluno_id'], $context['target_pick_snapshot']);
+
+        return $this->resumeAfterTargetSelection($conversation, $context, $returnState, $returnPayload);
+    }
+
+    private function handleTargetOtherNotFoundInput(BotConversation $conversation, string $text): string
+    {
+        $context = $this->getConversationContext($conversation);
+        $option = $this->parseNumericOption($text);
+        $cpf = Cpf::normalize((string) ($context['target_other_cpf'] ?? ''));
+
+        if ($option === 1) {
+            if ($cpf === '' || ! Cpf::isValid($cpf)) {
+                $this->setConversationState($conversation, BotState::TARGET_OTHER_CPF, $context);
+
+                return 'Informe o CPF da pessoa atendida (somente números).';
+            }
+
+            $context['aluno_cpf'] = $cpf;
+            $context['aluno_mode'] = 'create';
+            $context['aluno_origin_state'] = BotState::TARGET_OTHER_NOT_FOUND;
+            $context['wizard_return_state'] = (string) ($context['return_state'] ?? '');
+            $context['wizard_return_payload'] = is_array($context['return_payload'] ?? null) ? $context['return_payload'] : [];
+            $context['wizard_set_target'] = true;
+            $context['wizard_back_state'] = BotState::TARGET_OTHER_NOT_FOUND;
+            $context = $this->startAlunoProfileWizard($context);
+            $this->setConversationState($conversation, BotState::ALUNO_EDIT_FIELD, $context);
+
+            return $this->buildAlunoProfileFieldPrompt($context, 'Vamos cadastrar esta pessoa agora.');
+        }
+
+        if ($option === 2) {
+            $this->setConversationState($conversation, BotState::TARGET_OTHER_CPF, $context);
+
+            return 'Informe o CPF da pessoa atendida (somente números).';
+        }
+
+        if ($option === 3) {
+            $this->setConversationState($conversation, BotState::TARGET_OTHER_CPF, $context);
+
+            return 'Informe o CPF da pessoa atendida (somente números).';
+        }
+
+        return $this->buildOptionsMessage(
+            ['Não encontrei cadastro para o CPF informado. O que deseja fazer?'],
+            [
+                '1) Cadastrar esta pessoa agora',
+                '2) Informar outro CPF',
+                '3) Voltar',
+            ],
+            'Responda com 1, 2 ou 3.'
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @param array<string, mixed> $returnPayload
+     */
+    private function resumeAfterTargetSelection(
+        BotConversation $conversation,
+        array $context,
+        string $returnState,
+        array $returnPayload,
+        ?string $prefix = null
+    ): string {
+        unset($context['target_pick_aluno_id'], $context['target_pick_snapshot'], $context['target_other_cpf']);
+        foreach ($returnPayload as $key => $value) {
+            if (is_string($key)) {
+                $context[$key] = $value;
+            }
+        }
+
+        if ($returnState === BotState::CURSO_ALUNO_CONFIRM) {
+            $aluno = $this->getTargetAlunoFromContext($context);
+            $evento = $this->getSelectedEventoFromContext($context);
+            if (! $aluno || ! $evento || ! $evento->curso) {
+                return $this->respondWithMenu($conversation, false, 'Não foi possível retomar a inscrição.');
+            }
+
+            $context['aluno_id'] = (int) $aluno->id;
+            $context['aluno_snapshot'] = $this->buildAlunoSnapshot($aluno);
+            $context = $this->clearAlunoEditContext($context);
+            $this->setConversationState($conversation, BotState::CURSO_ALUNO_CONFIRM, $context);
+
+            return $this->buildAlunoConfirmMessage($context['aluno_snapshot'], $prefix);
+        }
+
+        if ($returnState === BotState::ALUNO_MENU) {
+            $aluno = $this->getTargetAlunoFromContext($context);
+            if (! $aluno) {
+                return $this->askAlunoCpf($conversation);
+            }
+
+            $context['aluno_id'] = (int) $aluno->id;
+            $context['aluno_snapshot'] = $this->buildAlunoSnapshot($aluno);
+            $this->setConversationState($conversation, BotState::ALUNO_MENU, $context);
+
+            return $this->buildAlunoMenuMessage($context['aluno_snapshot'], $prefix ?: 'Atendimento iniciado.');
+        }
+
+        if ($returnState === BotState::CANCEL_LIST) {
+            $aluno = $this->getTargetAlunoFromContext($context);
+            if (! $aluno) {
+                return $this->askCancelCpf($conversation);
+            }
+
+            $context['cancel_cpf'] = Cpf::normalize((string) ($aluno->cpf ?? ''));
+            $items = $this->buscarItensParaCancelamento((int) $aluno->id);
+            if ($items === []) {
+                return $this->respondWithMenu(
+                    $conversation,
+                    false,
+                    'Nenhuma inscrição elegível para cancelamento foi encontrada.'
+                );
+            }
+
+            $context['cancel_items'] = $items;
+            $this->setConversationState($conversation, BotState::CANCEL_LIST, $context);
+            $lines = $this->buildCancelListLines($items);
+
+            $parts = [];
+            if ($prefix !== null && trim($prefix) !== '') {
+                $parts[] = trim($prefix);
+                $parts[] = '';
+            }
+
+            $parts[] = 'Inscrições encontradas:';
+            $parts = [...$parts, ...$lines];
+            $parts[] = '0️⃣ Voltar';
+            $parts[] = '';
+            $parts[] = 'Digite o número da inscrição que deseja cancelar.';
+
+            return implode("\n", $parts);
+        }
+
+        return $this->respondWithMenu($conversation, false);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @param array<string, mixed> $returnPayload
+     */
+    private function resumeWithoutTarget(
+        BotConversation $conversation,
+        array $context,
+        string $returnState,
+        array $returnPayload
+    ): string {
+        unset($context['target_pick_aluno_id'], $context['target_pick_snapshot'], $context['target_other_cpf']);
+        foreach ($returnPayload as $key => $value) {
+            if (is_string($key)) {
+                $context[$key] = $value;
+            }
+        }
+
+        if ($returnState === BotState::CURSO_ALUNO_CONFIRM) {
+            $this->setConversationState($conversation, BotState::CURSO_CPF, $context);
+
+            return 'Para se inscrever pelo WhatsApp, informe seu CPF (somente números).';
+        }
+
+        if ($returnState === BotState::ALUNO_MENU) {
+            $this->setConversationState($conversation, BotState::ALUNO_CPF, $context);
+
+            return 'Informe seu CPF (somente números).';
+        }
+
+        if ($returnState === BotState::CANCEL_LIST) {
+            $this->setConversationState($conversation, BotState::CANCEL_CPF, $context);
+
+            return 'Informe o CPF com 11 números para localizar suas inscrições.';
+        }
+
+        return $this->respondWithMenu($conversation, false);
+    }
+
+    private function maskCpf(string $cpf): string
+    {
+        $normalized = Cpf::normalize($cpf);
+        if ($normalized === '' || strlen($normalized) < 2) {
+            return '***';
+        }
+
+        return '***.***.***-' . substr($normalized, -2);
+    }
+
     private function askAlunoCpf(BotConversation $conversation): string
     {
-        $this->setConversationState($conversation, BotState::ALUNO_CPF, []);
+        $context = $this->getConversationContext($conversation);
+        $target = $this->getTargetAlunoFromContext($context);
+        if ($target) {
+            $context = $this->setTargetAlunoInContext($context, $target, (string) ($context['target_source'] ?? 'cpf'));
+            $this->setConversationState($conversation, BotState::ALUNO_MENU, $context);
+
+            return $this->buildAlunoMenuMessage($context['aluno_snapshot'], 'Atendimento iniciado para a pessoa selecionada.');
+        }
+
+        $alunoPhone = $this->findAlunoByPhone((string) ($conversation->from ?? ''));
+        if ($alunoPhone) {
+            return $this->startTargetPick($conversation, $context, $alunoPhone, BotState::ALUNO_MENU);
+        }
+
+        $this->setConversationState($conversation, BotState::ALUNO_CPF, $context);
 
         return 'Informe seu CPF (somente números).';
     }
@@ -1003,6 +1448,10 @@ class BotEngine
                 'aluno_cpf' => $cpf,
                 'aluno_mode' => 'create',
                 'aluno_origin_state' => BotState::ALUNO_MENU,
+                'wizard_return_state' => BotState::ALUNO_MENU,
+                'wizard_return_payload' => [],
+                'wizard_set_target' => true,
+                'wizard_back_state' => BotState::ALUNO_CPF,
             ];
 
             $context = $this->startAlunoProfileWizard($context);
@@ -1011,11 +1460,8 @@ class BotEngine
             return $this->buildAlunoProfileFieldPrompt($context, 'Não encontrei seu cadastro. Vamos criar seu cadastro agora.');
         }
 
-        $context = [
-            'aluno_id' => (int) $aluno->id,
-            'aluno_cpf' => Cpf::normalize((string) $aluno->cpf),
-            'aluno_snapshot' => $this->buildAlunoSnapshot($aluno),
-        ];
+        $context = $this->setTargetAlunoInContext($this->getConversationContext($conversation), $aluno, 'cpf');
+        $context['aluno_cpf'] = Cpf::normalize((string) $aluno->cpf);
 
         $this->setConversationState($conversation, BotState::ALUNO_MENU, $context);
 
@@ -1097,10 +1543,24 @@ class BotEngine
             $context = $this->clearAlunoProfileEditContext($context);
 
             if ($mode === 'create') {
-                if (isset($context['selected_evento_id']) || isset($context['selected_event_id'])) {
+                $backState = (string) ($context['wizard_back_state'] ?? BotState::ALUNO_CPF);
+                if ($backState === BotState::CURSO_CPF) {
                     $this->setConversationState($conversation, BotState::CURSO_CPF, $context);
 
                     return 'Para se inscrever pelo WhatsApp, informe seu CPF (somente números).';
+                }
+                if ($backState === BotState::TARGET_OTHER_NOT_FOUND) {
+                    $this->setConversationState($conversation, BotState::TARGET_OTHER_NOT_FOUND, $context);
+
+                    return $this->buildOptionsMessage(
+                        ['Não encontrei cadastro para o CPF informado. O que deseja fazer?'],
+                        [
+                            '1) Cadastrar esta pessoa agora',
+                            '2) Informar outro CPF',
+                            '3) Voltar',
+                        ],
+                        'Responda com 1, 2 ou 3.'
+                    );
                 }
 
                 $this->setConversationState($conversation, BotState::ALUNO_CPF, $context);
@@ -1167,9 +1627,10 @@ class BotEngine
             if ($mode === 'create') {
                 $cpf = Cpf::normalize((string) ($context['aluno_cpf'] ?? ''));
                 if ($cpf === '' || ! Cpf::isValid($cpf)) {
-                    $nextState = (isset($context['selected_evento_id']) || isset($context['selected_event_id']))
-                        ? BotState::CURSO_CPF
-                        : BotState::ALUNO_CPF;
+                    $nextState = (string) ($context['wizard_back_state'] ?? BotState::ALUNO_CPF);
+                    if (! in_array($nextState, [BotState::ALUNO_CPF, BotState::CURSO_CPF, BotState::TARGET_OTHER_NOT_FOUND], true)) {
+                        $nextState = BotState::ALUNO_CPF;
+                    }
                     $this->setConversationState($conversation, $nextState, $this->clearAlunoProfileEditContext($context));
 
                     return 'CPF inválido. Envie apenas números.';
@@ -1188,7 +1649,28 @@ class BotEngine
 
                 $context['aluno_id'] = (int) $aluno->id;
                 $context['aluno_snapshot'] = $this->buildAlunoSnapshot($aluno);
+                $wizardReturnState = (string) ($context['wizard_return_state'] ?? '');
+                $wizardReturnPayload = $context['wizard_return_payload'] ?? [];
+                if (! is_array($wizardReturnPayload)) {
+                    $wizardReturnPayload = [];
+                }
+                $wizardSetTarget = (bool) ($context['wizard_set_target'] ?? false);
                 $context = $this->clearAlunoProfileEditContext($context);
+                if ($wizardSetTarget) {
+                    $context = $this->setTargetAlunoInContext($context, $aluno, 'cpf');
+                }
+                unset($context['wizard_return_state'], $context['wizard_return_payload'], $context['wizard_set_target'], $context['wizard_back_state']);
+
+                if ($wizardReturnState !== '') {
+                    return $this->resumeAfterTargetSelection(
+                        $conversation,
+                        $context,
+                        $wizardReturnState,
+                        $wizardReturnPayload,
+                        'Cadastro realizado com sucesso.'
+                    );
+                }
+
                 if (isset($context['selected_evento_id']) || isset($context['selected_event_id'])) {
                     $this->setConversationState($conversation, BotState::CURSO_ALUNO_CONFIRM, $context);
 
@@ -1243,10 +1725,24 @@ class BotEngine
             $mode = (string) ($context['aluno_mode'] ?? 'update');
 
             if ($mode === 'create') {
-                if (isset($context['selected_evento_id']) || isset($context['selected_event_id'])) {
+                $backState = (string) ($context['wizard_back_state'] ?? BotState::ALUNO_CPF);
+                if ($backState === BotState::CURSO_CPF) {
                     $this->setConversationState($conversation, BotState::CURSO_CPF, $context);
 
                     return 'Para se inscrever pelo WhatsApp, informe seu CPF (somente números).';
+                }
+                if ($backState === BotState::TARGET_OTHER_NOT_FOUND) {
+                    $this->setConversationState($conversation, BotState::TARGET_OTHER_NOT_FOUND, $context);
+
+                    return $this->buildOptionsMessage(
+                        ['Não encontrei cadastro para o CPF informado. O que deseja fazer?'],
+                        [
+                            '1) Cadastrar esta pessoa agora',
+                            '2) Informar outro CPF',
+                            '3) Voltar',
+                        ],
+                        'Responda com 1, 2 ou 3.'
+                    );
                 }
 
                 $this->setConversationState($conversation, BotState::ALUNO_CPF, $context);
@@ -1699,7 +2195,20 @@ class BotEngine
 
     private function askCancelCpf(BotConversation $conversation): string
     {
-        $this->setConversationState($conversation, BotState::CANCEL_CPF, []);
+        $context = $this->getConversationContext($conversation);
+        $target = $this->getTargetAlunoFromContext($context);
+        if ($target) {
+            $context = $this->setTargetAlunoInContext($context, $target, (string) ($context['target_source'] ?? 'cpf'));
+
+            return $this->resumeAfterTargetSelection($conversation, $context, BotState::CANCEL_LIST, []);
+        }
+
+        $alunoPhone = $this->findAlunoByPhone((string) ($conversation->from ?? ''));
+        if ($alunoPhone) {
+            return $this->startTargetPick($conversation, $context, $alunoPhone, BotState::CANCEL_LIST);
+        }
+
+        $this->setConversationState($conversation, BotState::CANCEL_CPF, $context);
 
         return 'Informe o CPF com 11 números para localizar suas inscrições.';
     }
@@ -1722,6 +2231,8 @@ class BotEngine
             return $this->respondWithMenu($conversation, false, 'Nenhuma inscrição encontrada para o CPF informado.');
         }
 
+        $context = $this->setTargetAlunoInContext($this->getConversationContext($conversation), $aluno, 'cpf');
+
         $items = $this->buscarItensParaCancelamento($aluno->id);
         if ($items === []) {
             return $this->respondWithMenu(
@@ -1739,6 +2250,9 @@ class BotEngine
             [
                 'cancel_cpf' => $cpf,
                 'cancel_items' => $items,
+                'target_aluno_id' => $context['target_aluno_id'] ?? null,
+                'target_cpf' => $context['target_cpf'] ?? null,
+                'target_source' => $context['target_source'] ?? 'cpf',
             ]
         );
 

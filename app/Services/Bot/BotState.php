@@ -18,6 +18,9 @@ final class BotState
     public const ALUNO_EDIT_REVIEW = 'ALUNO_EDIT_REVIEW';
     public const ALUNO_INSCRICOES_LIST = 'ALUNO_INSCRICOES_LIST';
     public const ALUNO_INSCRICAO_ACTION = 'ALUNO_INSCRICAO_ACTION';
+    public const TARGET_PICK = 'TARGET_PICK';
+    public const TARGET_OTHER_CPF = 'TARGET_OTHER_CPF';
+    public const TARGET_OTHER_NOT_FOUND = 'TARGET_OTHER_NOT_FOUND';
     public const CANCEL_CPF = 'CANCEL_CPF';
     public const CANCEL_LIST = 'CANCEL_LIST';
     public const CANCEL_CONFIRM = 'CANCEL_CONFIRM';
@@ -43,6 +46,9 @@ final class BotState
             self::ALUNO_EDIT_REVIEW,
             self::ALUNO_INSCRICOES_LIST,
             self::ALUNO_INSCRICAO_ACTION,
+            self::TARGET_PICK,
+            self::TARGET_OTHER_CPF,
+            self::TARGET_OTHER_NOT_FOUND,
             self::CANCEL_CPF,
             self::CANCEL_LIST,
             self::CANCEL_CONFIRM,
