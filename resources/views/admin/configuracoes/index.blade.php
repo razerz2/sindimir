@@ -610,17 +610,41 @@
                     />
                 </div>
 
+                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                        <x-admin.textarea
+                            id="bot_entry_keywords"
+                            name="bot_entry_keywords"
+                            label="Palavras-chave de entrada"
+                            rows="4"
+                            :value="$settings['bot_entry_keywords'] ?? ''"
+                        />
+                        <p class="mt-2 text-xs text-slate-500">
+                            Informe uma palavra por linha (ou JSON array), por exemplo: oi, olá, iniciar.
+                        </p>
+                    </div>
+                    <div>
+                        <x-admin.textarea
+                            id="bot_exit_keywords"
+                            name="bot_exit_keywords"
+                            label="Palavras-chave de saída"
+                            rows="4"
+                            :value="$settings['bot_exit_keywords'] ?? ''"
+                        />
+                        <p class="mt-2 text-xs text-slate-500">
+                            Informe uma palavra por linha (ou JSON array), ex.: sair, tchau, encerrar.
+                        </p>
+                    </div>
+                </div>
+
                 <div class="mt-4">
                     <x-admin.textarea
-                        id="bot_entry_keywords"
-                        name="bot_entry_keywords"
-                        label="Palavras-chave de entrada"
-                        rows="4"
-                        :value="$settings['bot_entry_keywords'] ?? ''"
+                        id="bot_close_message"
+                        name="bot_close_message"
+                        label="Mensagem de encerramento"
+                        rows="3"
+                        :value="$settings['bot_close_message'] ?? ''"
                     />
-                    <p class="mt-2 text-xs text-slate-500">
-                        Informe uma palavra por linha (ou JSON array), por exemplo: oi, olá, iniciar.
-                    </p>
                 </div>
 
                 <div class="mt-6 rounded-xl border border-slate-200 bg-white p-4">

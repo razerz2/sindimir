@@ -23,6 +23,8 @@ use Throwable;
 
 class BotEngine
 {
+    private ?bool $hasConversationIsOpenColumn = null;
+
     public function __construct(
         private readonly ConfiguracaoService $configuracaoService,
         private readonly MatriculaService $matriculaService,
@@ -63,14 +65,21 @@ class BotEngine
             'text' => $text,
         ]);
 
-        if ($conversation->wasRecentlyCreated || $this->isSessionExpired($conversation)) {
+        if ($this->isResetKeyword($text) || $this->isEntryKeyword($text)) {
             $response = $this->respondWithMenu($conversation, true);
             $this->logMessage($conversation, 'out', ['text' => $response]);
 
             return $response;
         }
 
-        if ($this->isResetKeyword($text) || $this->isEntryKeyword($text)) {
+        if ($this->isExitKeyword($text)) {
+            $response = $this->closeConversation($conversation);
+            $this->logMessage($conversation, 'out', ['text' => $response]);
+
+            return $response;
+        }
+
+        if ($conversation->wasRecentlyCreated || $this->isSessionExpired($conversation)) {
             $response = $this->respondWithMenu($conversation, true);
             $this->logMessage($conversation, 'out', ['text' => $response]);
 
@@ -86,6 +95,7 @@ class BotEngine
             BotState::CANCEL_CPF => $this->handleCancelCpfInput($conversation, $text),
             BotState::CANCEL_LIST => $this->handleCancelSelectionInput($conversation, $text),
             BotState::CANCEL_CONFIRM => $this->handleCancelConfirmInput($conversation, $text),
+            BotState::ENDED => $this->getCloseMessage(),
             default => $this->respondWithMenu($conversation, true),
         };
 
@@ -127,7 +137,7 @@ class BotEngine
             return $this->respondWithMenu(
                 $conversation,
                 false,
-                'Nenhum curso disponivel para inscricao no momento.'
+                'Nenhum curso disponível para inscrição no momento.'
             );
         }
 
@@ -135,7 +145,7 @@ class BotEngine
         foreach ($eventos as $index => $evento) {
             $nomeCurso = $evento->curso?->nome ?? 'Curso';
             $periodo = $this->formatPeriodo($evento);
-            $turno = $evento->turno?->value ? ucfirst(str_replace('_', ' ', $evento->turno->value)) : 'Nao informado';
+            $turno = $evento->turno?->value ? ucfirst(str_replace('_', ' ', $evento->turno->value)) : 'Não informado';
             $resumo = $this->eventoCursoService->resumoVagas($evento);
             $vagas = $resumo['total_vagas'] > 0
                 ? ' - Vagas: ' . $resumo['vagas_disponiveis'] . '/' . $resumo['total_vagas']
@@ -150,10 +160,10 @@ class BotEngine
         );
 
         return implode("\n", [
-            'Cursos disponiveis:',
+            'Cursos disponíveis:',
             ...$lines,
             '',
-            'Digite o numero do curso para receber resumo e link de inscricao.',
+            'Digite o número do curso para receber resumo e link de inscrição.',
         ]);
     }
 
@@ -170,7 +180,7 @@ class BotEngine
         if ($option === null || $option < 1 || $option > count($eventIds)) {
             return $this->listCoursesWithPrefix(
                 $conversation,
-                'Opcao invalida. Escolha um item da lista de cursos.'
+                'Opção inválida. Escolha um item da lista de cursos.'
             );
         }
 
@@ -185,11 +195,11 @@ class BotEngine
         if (! $evento || ! $evento->curso) {
             return $this->listCoursesWithPrefix(
                 $conversation,
-                'O curso selecionado nao esta mais disponivel.'
+                'O curso selecionado não está mais disponível.'
             );
         }
 
-        $turno = $evento->turno?->value ? ucfirst(str_replace('_', ' ', $evento->turno->value)) : 'Nao informado';
+        $turno = $evento->turno?->value ? ucfirst(str_replace('_', ' ', $evento->turno->value)) : 'Não informado';
         $context['selected_evento_id'] = $evento->id;
         $context['selected_index'] = $option;
         $this->setConversationState($conversation, BotState::CURSO_ACTION, $context);
@@ -198,13 +208,13 @@ class BotEngine
             'Resumo do curso:',
             'Curso: ' . $evento->curso->nome,
             'Evento: ' . ($evento->numero_evento ?: '#' . $evento->id),
-            'Periodo: ' . $this->formatPeriodo($evento),
-            'Horario: ' . $this->formatHorario($evento),
+            'Período: ' . $this->formatPeriodo($evento),
+            'Horário: ' . $this->formatHorario($evento),
             'Turno: ' . $turno,
-            'Municipio: ' . ($evento->municipio ?: 'Nao informado'),
-            'Local: ' . ($evento->local_realizacao ?: 'Nao informado'),
+            'Município: ' . ($evento->municipio ?: 'Não informado'),
+            'Local: ' . ($evento->local_realizacao ?: 'Não informado'),
             '',
-            'O que voce deseja fazer?',
+            'O que você deseja fazer?',
             '1) Inscrever pelo WhatsApp (CPF)',
             '2) Receber link do site',
             'Responda com 1 ou 2.',
@@ -217,7 +227,7 @@ class BotEngine
         $evento = $this->getSelectedEventoFromContext($context);
 
         if (! $evento || ! $evento->curso) {
-            return $this->respondWithMenu($conversation, false, 'Curso selecionado nao encontrado.');
+            return $this->respondWithMenu($conversation, false, 'Curso selecionado não encontrado.');
         }
 
         $option = $this->parseNumericOption($text);
@@ -225,7 +235,7 @@ class BotEngine
         if ($option === 1) {
             $this->setConversationState($conversation, BotState::CURSO_CPF, $context);
 
-            return 'Informe seu CPF (somente numeros).';
+            return 'Informe seu CPF (somente números).';
         }
 
         if ($option === 2) {
@@ -235,12 +245,12 @@ class BotEngine
                 'Acesse o link para se inscrever:',
                 $this->buildInscricaoLink($evento->id),
                 '',
-                'Digite menu para voltar ao inicio.',
+                'Digite menu para voltar ao início.',
             ]);
         }
 
         return implode("\n", [
-            'Opcao invalida.',
+            'Opção inválida.',
             '1) Inscrever pelo WhatsApp (CPF)',
             '2) Receber link do site',
             'Responda com 1 ou 2.',
@@ -256,17 +266,17 @@ class BotEngine
             return $this->respondWithMenu(
                 $conversation,
                 false,
-                'Nao foi possivel localizar o curso selecionado. Tente novamente.'
+                'Não foi possível localizar o curso selecionado. Tente novamente.'
             );
         }
 
         $cpf = Cpf::normalize($text);
         if ($cpf === '') {
-            return 'CPF nao informado. Envie somente numeros.';
+            return 'CPF não informado. Envie apenas números.';
         }
 
         if (! Cpf::isValid($cpf)) {
-            return 'CPF invalido. Envie um CPF valido com 11 numeros.';
+            return 'CPF inválido. Envie apenas números.';
         }
 
         $aluno = $this->findAlunoByCpf($cpf);
@@ -276,7 +286,7 @@ class BotEngine
             return $this->respondWithMenu(
                 $conversation,
                 false,
-                "Nao encontrei seu cadastro. Para se inscrever, conclua no site:\n{$link}"
+                "Não encontrei seu cadastro. Para se inscrever, conclua no site:\n{$link}"
             );
         }
 
@@ -290,7 +300,7 @@ class BotEngine
             return $this->respondWithMenu(
                 $conversation,
                 false,
-                "Voce ja possui inscricao neste curso. Se precisar, acesse:\n{$link}"
+                "Você já possui inscrição neste curso. Se precisar, acesse:\n{$link}"
             );
         }
 
@@ -300,7 +310,7 @@ class BotEngine
             return $this->respondWithMenu(
                 $conversation,
                 false,
-                "Nao foi possivel concluir sua inscricao agora. Tente pelo site:\n{$link}"
+                "Não foi possível concluir sua inscrição agora. Tente pelo site:\n{$link}"
             );
         }
 
@@ -309,11 +319,11 @@ class BotEngine
                 $conversation,
                 false,
                 implode("\n", [
-                    'No momento nao ha vagas imediatas.',
-                    'Voce foi incluido na lista de espera com sucesso.',
+                    'No momento não há vagas imediatas.',
+                    'Você foi incluído na lista de espera com sucesso.',
                     'Curso: ' . $evento->curso->nome,
-                    'Periodo: ' . $this->formatPeriodo($evento),
-                    'Local: ' . ($evento->local_realizacao ?: 'Nao informado'),
+                    'Período: ' . $this->formatPeriodo($evento),
+                    'Local: ' . ($evento->local_realizacao ?: 'Não informado'),
                 ])
             );
         }
@@ -323,7 +333,7 @@ class BotEngine
             return $this->respondWithMenu(
                 $conversation,
                 false,
-                "Nao foi possivel concluir sua inscricao agora. Use o link:\n{$link}"
+                "Não foi possível concluir sua inscrição agora. Use o link:\n{$link}"
             );
         }
 
@@ -331,7 +341,7 @@ class BotEngine
             return $this->respondWithMenu(
                 $conversation,
                 false,
-                "Nao foi possivel concluir sua inscricao com este CPF. Use o link:\n{$link}"
+                "Não foi possível concluir sua inscrição com este CPF. Use o link:\n{$link}"
             );
         }
 
@@ -339,10 +349,10 @@ class BotEngine
             $conversation,
             false,
             implode("\n", [
-                'Inscricao realizada com sucesso.',
+                'Inscrição realizada com sucesso.',
                 'Curso: ' . $evento->curso->nome,
-                'Periodo: ' . $this->formatPeriodo($evento),
-                'Local: ' . ($evento->local_realizacao ?: 'Nao informado'),
+                'Período: ' . $this->formatPeriodo($evento),
+                'Local: ' . ($evento->local_realizacao ?: 'Não informado'),
             ])
         );
     }
@@ -351,7 +361,7 @@ class BotEngine
     {
         $this->setConversationState($conversation, BotState::CANCEL_CPF, []);
 
-        return 'Informe o CPF com 11 numeros para localizar suas inscricoes.';
+        return 'Informe o CPF com 11 números para localizar suas inscrições.';
     }
 
     private function handleCancelCpfInput(BotConversation $conversation, string $text): string
@@ -360,16 +370,16 @@ class BotEngine
         $requireValidCpf = $this->getBoolSetting('bot.cancel.require_valid_cpf', true);
 
         if ($cpf === '') {
-            return 'CPF nao informado. Envie somente os numeros do CPF.';
+            return 'CPF não informado. Envie apenas números.';
         }
 
         if ($requireValidCpf && ! Cpf::isValid($cpf)) {
-            return 'CPF invalido. Envie um CPF valido com 11 numeros.';
+            return 'CPF inválido. Envie apenas números.';
         }
 
         $aluno = Aluno::query()->whereCpf($cpf)->first();
         if (! $aluno) {
-            return $this->respondWithMenu($conversation, false, 'Nenhuma inscricao encontrada para o CPF informado.');
+            return $this->respondWithMenu($conversation, false, 'Nenhuma inscrição encontrada para o CPF informado.');
         }
 
         $items = $this->buscarItensParaCancelamento($aluno->id);
@@ -377,7 +387,7 @@ class BotEngine
             return $this->respondWithMenu(
                 $conversation,
                 false,
-                'Nenhuma inscricao elegivel para cancelamento foi encontrada.'
+                'Nenhuma inscrição elegível para cancelamento foi encontrada.'
             );
         }
 
@@ -393,10 +403,10 @@ class BotEngine
         );
 
         return implode("\n", [
-            'Inscricoes encontradas:',
+            'Inscrições encontradas:',
             ...$lines,
             '',
-            'Digite o numero da inscricao que deseja cancelar.',
+            'Digite o número da inscrição que deseja cancelar.',
         ]);
     }
 
@@ -413,7 +423,7 @@ class BotEngine
         if ($option === null || $option < 1 || $option > count($items)) {
             return $this->renderCancelListWithPrefix(
                 $conversation,
-                'Opcao invalida. Escolha um item da lista de inscricoes.'
+                'Opção inválida. Escolha um item da lista de inscrições.'
             );
         }
 
@@ -422,7 +432,7 @@ class BotEngine
         if (! is_array($selectedItem)) {
             return $this->renderCancelListWithPrefix(
                 $conversation,
-                'A inscricao selecionada nao esta mais disponivel para cancelamento.'
+                'A inscrição selecionada não está mais disponível para cancelamento.'
             );
         }
 
@@ -433,15 +443,16 @@ class BotEngine
         $context['selected_item'] = $selectedItem;
         $this->setConversationState($conversation, BotState::CANCEL_CONFIRM, $context);
 
-        $typeLabel = ($selectedItem['type'] ?? '') === 'matricula' ? 'Matricula' : 'Inscricao';
+        $typeLabel = ($selectedItem['type'] ?? '') === 'matricula' ? 'Matrícula' : 'Inscrição';
 
         return implode("\n", [
             'Confirmar cancelamento?',
             'Tipo: ' . $typeLabel,
             'Curso: ' . ($selectedItem['curso_nome'] ?? 'Curso'),
-            'Periodo: ' . ($selectedItem['periodo'] ?? 'Data nao informada'),
+            'Período: ' . ($selectedItem['periodo'] ?? 'Data não informada'),
             '1) Sim',
-            '2) Nao',
+            '2) Não',
+            'Responda com 1 ou 2.',
         ]);
     }
 
@@ -460,10 +471,10 @@ class BotEngine
         }
 
         if (in_array($normalized, ['2', 'nao', 'não', 'n'], true)) {
-            return $this->respondWithMenu($conversation, false, 'Cancelamento nao confirmado.');
+            return $this->respondWithMenu($conversation, false, 'Cancelamento não confirmado.');
         }
 
-        return 'Resposta invalida. Digite 1 para confirmar ou 2 para manter a inscricao.';
+        return 'Resposta inválida. Digite 1 para confirmar ou 2 para manter a inscrição.';
     }
 
     /**
@@ -475,7 +486,7 @@ class BotEngine
         $id = (int) ($item['id'] ?? 0);
 
         if ($id <= 0 || ! in_array($type, ['matricula', 'inscricao'], true)) {
-            return $this->respondWithMenu($conversation, false, 'A inscricao selecionada nao foi encontrada.');
+            return $this->respondWithMenu($conversation, false, 'A inscrição selecionada não foi encontrada.');
         }
 
         if ($type === 'matricula') {
@@ -484,11 +495,11 @@ class BotEngine
                 ->find($id);
 
             if (! $matricula || ! $matricula->eventoCurso || ! $matricula->eventoCurso->curso) {
-                return $this->respondWithMenu($conversation, false, 'A matricula selecionada nao foi encontrada.');
+                return $this->respondWithMenu($conversation, false, 'A matrícula selecionada não foi encontrada.');
             }
 
             if ($matricula->status === StatusMatricula::Cancelada) {
-                return $this->respondWithMenu($conversation, false, 'Esta matricula ja foi cancelada.');
+                return $this->respondWithMenu($conversation, false, 'Esta matrícula já foi cancelada.');
             }
 
             $this->matriculaService->cancelarMatricula($matricula);
@@ -502,7 +513,7 @@ class BotEngine
                 );
             }
 
-            return $this->respondWithMenu($conversation, false, 'Matricula cancelada com sucesso.');
+            return $this->respondWithMenu($conversation, false, 'Matrícula cancelada com sucesso.');
         }
 
         $inscricao = ListaEspera::query()
@@ -510,12 +521,12 @@ class BotEngine
             ->find($id);
 
         if (! $inscricao || ! $inscricao->eventoCurso || ! $inscricao->eventoCurso->curso) {
-            return $this->respondWithMenu($conversation, false, 'A inscricao selecionada nao foi encontrada.');
+            return $this->respondWithMenu($conversation, false, 'A inscrição selecionada não foi encontrada.');
         }
 
         $this->matriculaService->removerDaListaEspera($inscricao);
 
-        return $this->respondWithMenu($conversation, false, 'Inscricao cancelada com sucesso.');
+        return $this->respondWithMenu($conversation, false, 'Inscrição cancelada com sucesso.');
     }
 
     private function respondWithMenu(BotConversation $conversation, bool $includeWelcome, ?string $prefix = null): string
@@ -574,10 +585,10 @@ class BotEngine
         return implode("\n", [
             $prefix,
             '',
-            'Inscricoes encontradas:',
+            'Inscrições encontradas:',
             ...$lines,
             '',
-            'Digite o numero da inscricao que deseja cancelar.',
+            'Digite o número da inscrição que deseja cancelar.',
         ]);
     }
 
@@ -699,10 +710,10 @@ class BotEngine
                 . ' — '
                 . $typeLabel
                 . ' ('
-                . ($item['status'] ?? 'Nao informado')
+                . ($item['status'] ?? 'Não informado')
                 . ')'
                 . ' - '
-                . ($item['periodo'] ?? 'Data nao informada');
+                . ($item['periodo'] ?? 'Data não informada');
         }
 
         return $lines;
@@ -719,11 +730,17 @@ class BotEngine
 
     private function setConversationState(BotConversation $conversation, string $state, array $context): void
     {
-        $conversation->update([
+        $payload = [
             'state' => $state,
             'context' => $context,
             'last_activity_at' => now(),
-        ]);
+        ];
+
+        if ($this->hasConversationIsOpenColumn()) {
+            $payload['is_open'] = $state !== BotState::ENDED;
+        }
+
+        $conversation->update($payload);
     }
 
     /**
@@ -788,6 +805,20 @@ class BotEngine
         return in_array($normalized, $this->getEntryKeywords(), true);
     }
 
+    private function isExitKeyword(string $text): bool
+    {
+        if (trim($text) === '') {
+            return false;
+        }
+
+        $normalized = $this->normalizeKeywordForMatch($text);
+        if ($normalized === '') {
+            return false;
+        }
+
+        return in_array($normalized, $this->getExitKeywords(), true);
+    }
+
     private function isResetKeyword(string $text): bool
     {
         if (trim($text) === '') {
@@ -836,11 +867,64 @@ class BotEngine
         return array_values(array_unique($normalized));
     }
 
+    /**
+     * @return list<string>
+     */
+    private function getExitKeywords(): array
+    {
+        $raw = $this->configuracaoService->get('bot.exit_keywords', ['sair', 'tchau', 'encerrar']);
+        $keywords = [];
+
+        if (is_array($raw)) {
+            $keywords = $raw;
+        } elseif (is_string($raw)) {
+            $trimmed = trim($raw);
+            if ($trimmed !== '' && str_starts_with($trimmed, '[')) {
+                $decoded = json_decode($trimmed, true);
+                if (is_array($decoded)) {
+                    $keywords = $decoded;
+                }
+            }
+
+            if ($keywords === []) {
+                $keywords = preg_split('/[\r\n,;]+/', $raw) ?: [];
+            }
+        }
+
+        $normalized = [];
+        foreach ($keywords as $keyword) {
+            $value = $this->normalizeKeywordForMatch((string) $keyword);
+            if ($value !== '') {
+                $normalized[] = $value;
+            }
+        }
+
+        if ($normalized === []) {
+            return ['sair', 'tchau', 'encerrar'];
+        }
+
+        return array_values(array_unique($normalized));
+    }
+
     private function getResetKeyword(): string
     {
         $value = trim((string) $this->configuracaoService->get('bot.reset_keyword', 'menu'));
 
         return $value !== '' ? $value : 'menu';
+    }
+
+    private function getCloseMessage(): string
+    {
+        $message = trim((string) $this->configuracaoService->get(
+            'bot.close_message',
+            'Atendimento encerrado. Quando precisar, digite *menu* para comecar novamente.'
+        ));
+
+        if ($message === '') {
+            return 'Atendimento encerrado. Quando precisar, digite *menu* para comecar novamente.';
+        }
+
+        return $message;
     }
 
     private function getWelcomeMessage(): string
@@ -861,11 +945,11 @@ class BotEngine
     {
         $message = trim((string) $this->configuracaoService->get(
             'bot.fallback_message',
-            'Nao entendi sua mensagem. Escolha uma opcao valida.'
+            'Não entendi sua mensagem. Escolha uma opção válida.'
         ));
 
         if ($message === '') {
-            return 'Nao entendi sua mensagem. Escolha uma opcao valida.';
+            return 'Não entendi sua mensagem. Escolha uma opção válida.';
         }
 
         return $message;
@@ -923,6 +1007,37 @@ class BotEngine
         return (bool) $this->configuracaoService->get($key, $default);
     }
 
+    private function closeConversation(BotConversation $conversation): string
+    {
+        $this->setConversationState($conversation, BotState::ENDED, []);
+
+        return $this->getCloseMessage();
+    }
+
+    private function normalizeKeywordForMatch(string $value): string
+    {
+        $value = mb_strtolower(trim($value));
+        if ($value === '') {
+            return '';
+        }
+
+        $value = preg_replace('/[^\pL\pN]+/u', ' ', $value) ?? $value;
+        $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
+
+        return trim($value);
+    }
+
+    private function hasConversationIsOpenColumn(): bool
+    {
+        if ($this->hasConversationIsOpenColumn !== null) {
+            return $this->hasConversationIsOpenColumn;
+        }
+
+        $this->hasConversationIsOpenColumn = Schema::hasColumn('bot_conversations', 'is_open');
+
+        return $this->hasConversationIsOpenColumn;
+    }
+
     private function normalizeChannel(string $channel): string
     {
         $channel = mb_strtolower(trim($channel));
@@ -944,7 +1059,7 @@ class BotEngine
     private function formatPeriodo(EventoCurso $evento): string
     {
         if (! $evento->data_inicio) {
-            return 'Data nao informada';
+            return 'Data não informada';
         }
 
         if (! $evento->data_fim || $evento->data_fim->isSameDay($evento->data_inicio)) {
@@ -957,13 +1072,13 @@ class BotEngine
     private function formatHorario(EventoCurso $evento): string
     {
         if (! $evento->horario_inicio && ! $evento->horario_fim) {
-            return 'Nao informado';
+            return 'Não informado';
         }
 
         $inicio = $evento->horario_inicio ? substr($evento->horario_inicio, 0, 5) : '--:--';
         $fim = $evento->horario_fim ? substr($evento->horario_fim, 0, 5) : '--:--';
 
-        return $inicio . ' as ' . $fim;
+        return $inicio . ' às ' . $fim;
     }
 
     /**

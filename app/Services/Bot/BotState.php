@@ -11,6 +11,7 @@ final class BotState
     public const CANCEL_CPF = 'CANCEL_CPF';
     public const CANCEL_LIST = 'CANCEL_LIST';
     public const CANCEL_CONFIRM = 'CANCEL_CONFIRM';
+    public const ENDED = 'ENDED';
 
     /**
      * @return list<string>
@@ -25,6 +26,7 @@ final class BotState
             self::CANCEL_CPF,
             self::CANCEL_LIST,
             self::CANCEL_CONFIRM,
+            self::ENDED,
         ];
     }
 }

@@ -132,7 +132,14 @@ class ConfiguracaoController extends Controller
             'bot_entry_keywords' => $this->formatBotEntryKeywordsForTextarea(
                 $this->configuracaoService->get('bot.entry_keywords', ['oi', 'ola'])
             ),
+            'bot_exit_keywords' => $this->formatBotExitKeywordsForTextarea(
+                $this->configuracaoService->get('bot.exit_keywords', ['sair', 'tchau', 'encerrar'])
+            ),
             'bot_reset_keyword' => (string) $this->configuracaoService->get('bot.reset_keyword', 'menu'),
+            'bot_close_message' => (string) $this->configuracaoService->get(
+                'bot.close_message',
+                'Atendimento encerrado. Quando precisar, digite *menu* para comecar novamente.'
+            ),
             'bot_courses_limit' => (int) $this->configuracaoService->get('bot.courses.limit', 10),
             'bot_courses_order' => (string) $this->configuracaoService->get('bot.courses.order', 'asc'),
             'bot_cancel_limit' => (int) $this->configuracaoService->get('bot.cancel.limit', 10),
@@ -307,7 +314,9 @@ class ConfiguracaoController extends Controller
             'bot_welcome_message' => ['nullable', 'string', 'max:2000'],
             'bot_fallback_message' => ['nullable', 'string', 'max:2000'],
             'bot_entry_keywords' => ['nullable', 'string', 'max:4000'],
+            'bot_exit_keywords' => ['nullable', 'string', 'max:4000'],
             'bot_reset_keyword' => ['nullable', 'string', 'max:40'],
+            'bot_close_message' => ['nullable', 'string', 'max:2000'],
             'bot_courses_limit' => ['nullable', 'integer', 'min:1', 'max:50'],
             'bot_courses_order' => ['nullable', 'string', 'in:asc,desc'],
             'bot_cancel_limit' => ['nullable', 'integer', 'min:1', 'max:50'],
@@ -492,9 +501,23 @@ class ConfiguracaoController extends Controller
             'Palavras-chave de entrada do BOT'
         );
         $this->configuracaoService->set(
+            'bot.exit_keywords',
+            $this->parseBotExitKeywords((string) ($data['bot_exit_keywords'] ?? '')),
+            'Palavras-chave de saida do BOT'
+        );
+        $this->configuracaoService->set(
             'bot.reset_keyword',
             (string) ($data['bot_reset_keyword'] ?? 'menu'),
             'Palavra-chave de reset do BOT'
+        );
+        $closeMessage = trim((string) ($data['bot_close_message'] ?? ''));
+        if ($closeMessage === '') {
+            $closeMessage = 'Atendimento encerrado. Quando precisar, digite *menu* para comecar novamente.';
+        }
+        $this->configuracaoService->set(
+            'bot.close_message',
+            $closeMessage,
+            'Mensagem de encerramento do BOT'
         );
         $this->configuracaoService->set('bot.courses.limit', (int) ($data['bot_courses_limit'] ?? 10), 'Limite de cursos no BOT');
         $this->configuracaoService->set(
@@ -700,9 +723,36 @@ class ConfiguracaoController extends Controller
      */
     private function parseBotEntryKeywords(string $raw): array
     {
+        return $this->parseBotKeywords($raw, ['oi', 'ola']);
+    }
+
+    private function formatBotEntryKeywordsForTextarea(mixed $value): string
+    {
+        return $this->formatBotKeywordsForTextarea($value, ['oi', 'ola']);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function parseBotExitKeywords(string $raw): array
+    {
+        return $this->parseBotKeywords($raw, ['sair', 'tchau', 'encerrar']);
+    }
+
+    private function formatBotExitKeywordsForTextarea(mixed $value): string
+    {
+        return $this->formatBotKeywordsForTextarea($value, ['sair', 'tchau', 'encerrar']);
+    }
+
+    /**
+     * @param list<string> $default
+     * @return list<string>
+     */
+    private function parseBotKeywords(string $raw, array $default): array
+    {
         $raw = trim($raw);
         if ($raw === '') {
-            return ['oi', 'ola'];
+            return $default;
         }
 
         if (str_starts_with($raw, '[')) {
@@ -732,13 +782,16 @@ class ConfiguracaoController extends Controller
         }
 
         if ($keywords === []) {
-            return ['oi', 'ola'];
+            return $default;
         }
 
         return array_values(array_unique($keywords));
     }
 
-    private function formatBotEntryKeywordsForTextarea(mixed $value): string
+    /**
+     * @param list<string> $default
+     */
+    private function formatBotKeywordsForTextarea(mixed $value, array $default): string
     {
         $keywords = [];
 
@@ -767,7 +820,7 @@ class ConfiguracaoController extends Controller
         }
 
         if ($normalized === []) {
-            $normalized = ['oi', 'ola'];
+            $normalized = $default;
         }
 
         return implode("\n", array_values(array_unique($normalized)));
