@@ -734,13 +734,7 @@ class BotEngine
 
         if (! in_array($registro->status, [StatusMatricula::Pendente, StatusMatricula::Confirmada], true)) {
             $status = mb_strtolower((string) ($registro->status->value ?? $registro->status));
-            if (in_array($status, ['cancelada', 'cancelado', 'expirada', 'expirado'], true)) {
-                return $this->respondWithMenu(
-                    $conversation,
-                    false,
-                    'Você já possui inscrição neste curso.'
-                );
-            }
+            // Status inativos não devem ser tratados como "já inscrito".
 
             logger()->error('BOT inscrição falhou', $this->buildEnrollmentLogContext(
                 $conversation,

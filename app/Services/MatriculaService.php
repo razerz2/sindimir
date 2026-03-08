@@ -32,7 +32,7 @@ class MatriculaService
      *     debug: array{
      *         aluno_id: int,
      *         evento_curso_id: int,
-     *         matricula_encontrada: array{id: int, status: string}|null,
+     *         matricula_encontrada: array{id: int, status: string|null, deleted_at: string|null}|null,
      *         lista_espera_encontrada: array{id: int, status: string}|null
      *     }
      * }
@@ -54,12 +54,19 @@ class MatriculaService
             }
 
             $matriculaExistente = Matricula::query()
+                ->withTrashed()
                 ->where('aluno_id', $alunoId)
                 ->where('evento_curso_id', $eventoCursoId)
-                ->whereIn('status', [StatusMatricula::Pendente->value, StatusMatricula::Confirmada->value])
                 ->latest('id')
                 ->lockForUpdate()
                 ->first();
+
+            $matriculaStatus = $matriculaExistente
+                ? (string) ($matriculaExistente->status->value ?? $matriculaExistente->status)
+                : null;
+            $matriculaAtiva = $matriculaExistente
+                && ! $matriculaExistente->trashed()
+                && in_array($matriculaStatus, [StatusMatricula::Pendente->value, StatusMatricula::Confirmada->value], true);
 
             $listaExistente = ListaEspera::query()
                 ->where('aluno_id', $alunoId)
@@ -75,7 +82,8 @@ class MatriculaService
                 'matricula_encontrada' => $matriculaExistente
                     ? [
                         'id' => (int) $matriculaExistente->id,
-                        'status' => (string) ($matriculaExistente->status->value ?? $matriculaExistente->status),
+                        'status' => $matriculaStatus,
+                        'deleted_at' => $matriculaExistente->deleted_at?->toDateTimeString(),
                     ]
                     : null,
                 'lista_espera_encontrada' => $listaExistente
@@ -86,7 +94,7 @@ class MatriculaService
                     : null,
             ];
 
-            if ($matriculaExistente) {
+            if ($matriculaAtiva) {
                 return [
                     'status' => 'already_enrolled',
                     'tipo' => 'matricula',
@@ -123,14 +131,30 @@ class MatriculaService
                 );
                 $enviarConfirmacaoAgora = $this->deveEnviarConfirmacaoAgora($evento, $diasAntesConfirmacao);
 
-                $matricula = Matricula::create([
-                    'aluno_id' => $alunoId,
-                    'evento_curso_id' => $eventoCursoId,
-                    'status' => StatusMatricula::Pendente,
-                    'data_expiracao' => $enviarConfirmacaoAgora
-                        ? CarbonImmutable::now()->addHours(max(1, $tempoLimiteHoras))
-                        : null,
-                ]);
+                $novaExpiracao = $enviarConfirmacaoAgora
+                    ? CarbonImmutable::now()->addHours(max(1, $tempoLimiteHoras))
+                    : null;
+
+                if ($matriculaExistente) {
+                    if ($matriculaExistente->trashed()) {
+                        $matriculaExistente->restore();
+                    }
+
+                    $matriculaExistente->update([
+                        'status' => StatusMatricula::Pendente,
+                        'data_confirmacao' => null,
+                        'data_expiracao' => $novaExpiracao,
+                    ]);
+
+                    $matricula = $matriculaExistente->fresh();
+                } else {
+                    $matricula = Matricula::create([
+                        'aluno_id' => $alunoId,
+                        'evento_curso_id' => $eventoCursoId,
+                        'status' => StatusMatricula::Pendente,
+                        'data_expiracao' => $novaExpiracao,
+                    ]);
+                }
 
                 if ($enviarConfirmacaoAgora && $enviarConfirmacaoNotificacao) {
                     $this->notificarConfirmacaoInscricao($matricula, $evento, $tempoLimiteHoras);
