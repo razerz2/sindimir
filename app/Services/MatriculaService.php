@@ -25,7 +25,17 @@ class MatriculaService
     }
 
     /**
-     * @return array{tipo: string, registro: Matricula|ListaEspera}
+     * @return array{
+     *     status: 'already_enrolled'|'waitlist'|'created'|'no_vacancies',
+     *     tipo: 'matricula'|'lista_espera',
+     *     registro: Matricula|ListaEspera,
+     *     debug: array{
+     *         aluno_id: int,
+     *         evento_curso_id: int,
+     *         matricula_encontrada: array{id: int, status: string}|null,
+     *         lista_espera_encontrada: array{id: int, status: string}|null
+     *     }
+     * }
      */
     public function solicitarInscricao(
         int $alunoId,
@@ -51,13 +61,6 @@ class MatriculaService
                 ->lockForUpdate()
                 ->first();
 
-            if ($matriculaExistente) {
-                return [
-                    'tipo' => 'matricula',
-                    'registro' => $matriculaExistente,
-                ];
-            }
-
             $listaExistente = ListaEspera::query()
                 ->where('aluno_id', $alunoId)
                 ->where('evento_curso_id', $eventoCursoId)
@@ -66,36 +69,38 @@ class MatriculaService
                 ->lockForUpdate()
                 ->first();
 
-            if ($listaExistente) {
-                $limiteVagas = (int) $evento->curso?->limite_vagas;
-                $ocupadas = Matricula::query()
-                    ->where('evento_curso_id', $eventoCursoId)
-                    ->whereIn('status', [StatusMatricula::Confirmada, StatusMatricula::Pendente])
-                    ->lockForUpdate()
-                    ->count();
+            $debug = [
+                'aluno_id' => $alunoId,
+                'evento_curso_id' => $eventoCursoId,
+                'matricula_encontrada' => $matriculaExistente
+                    ? [
+                        'id' => (int) $matriculaExistente->id,
+                        'status' => (string) ($matriculaExistente->status->value ?? $matriculaExistente->status),
+                    ]
+                    : null,
+                'lista_espera_encontrada' => $listaExistente
+                    ? [
+                        'id' => (int) $listaExistente->id,
+                        'status' => (string) ($listaExistente->status->value ?? $listaExistente->status),
+                    ]
+                    : null,
+            ];
 
-                $temVaga = $limiteVagas <= 0 || $ocupadas < $limiteVagas;
-
-                if ($temVaga) {
-                    $matricula = Matricula::create([
-                        'aluno_id' => $alunoId,
-                        'evento_curso_id' => $eventoCursoId,
-                        'status' => StatusMatricula::Confirmada,
-                        'data_confirmacao' => CarbonImmutable::now(),
-                    ]);
-
-                    $listaExistente->delete();
-                    $this->reordenarListaEspera($eventoCursoId);
-
-                    return [
-                        'tipo' => 'matricula',
-                        'registro' => $matricula,
-                    ];
-                }
-
+            if ($matriculaExistente) {
                 return [
+                    'status' => 'already_enrolled',
+                    'tipo' => 'matricula',
+                    'registro' => $matriculaExistente,
+                    'debug' => $debug,
+                ];
+            }
+
+            if ($listaExistente) {
+                return [
+                    'status' => 'waitlist',
                     'tipo' => 'lista_espera',
                     'registro' => $listaExistente,
+                    'debug' => $debug,
                 ];
             }
 
@@ -132,8 +137,10 @@ class MatriculaService
                 }
 
                 return [
+                    'status' => 'created',
                     'tipo' => 'matricula',
                     'registro' => $matricula,
+                    'debug' => $debug,
                 ];
             }
 
@@ -150,8 +157,10 @@ class MatriculaService
             ]);
 
             return [
+                'status' => 'no_vacancies',
                 'tipo' => 'lista_espera',
                 'registro' => $listaEspera,
+                'debug' => $debug,
             ];
         });
     }

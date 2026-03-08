@@ -601,26 +601,6 @@ class BotEngine
         array $context = []
     ): string
     {
-        $matriculaAtiva = Matricula::query()
-            ->where('aluno_id', $aluno->id)
-            ->where('evento_curso_id', $evento->id)
-            ->whereIn('status', [StatusMatricula::Pendente->value, StatusMatricula::Confirmada->value])
-            ->exists();
-
-        $inscricaoAtiva = ListaEspera::query()
-            ->where('aluno_id', $aluno->id)
-            ->where('evento_curso_id', $evento->id)
-            ->whereIn('status', [StatusListaEspera::Aguardando->value, StatusListaEspera::Chamado->value])
-            ->exists();
-
-        if ($matriculaAtiva || $inscricaoAtiva) {
-            return $this->respondWithMenu(
-                $conversation,
-                false,
-                'Você já possui inscrição neste curso.'
-            );
-        }
-
         try {
             $resultado = $this->matriculaService->solicitarInscricao($aluno->id, $evento->id);
             $this->logEnrollmentDebug($conversation, $evento, $aluno, $context, $resultado, null);
@@ -694,7 +674,33 @@ class BotEngine
             );
         }
 
-        if (($resultado['tipo'] ?? null) === 'lista_espera') {
+        $serviceStatus = (string) ($resultado['status'] ?? '');
+
+        if ($serviceStatus === 'already_enrolled') {
+            return $this->respondWithMenu(
+                $conversation,
+                false,
+                'Você já possui inscrição neste curso.'
+            );
+        }
+
+        if ($serviceStatus === 'waitlist') {
+            return $this->respondWithMenu(
+                $conversation,
+                false,
+                'Você já está na lista de espera deste curso.'
+            );
+        }
+
+        if ($serviceStatus === 'unavailable') {
+            return $this->respondWithMenu(
+                $conversation,
+                false,
+                'Este curso não está mais disponível para inscrição.'
+            );
+        }
+
+        if ($serviceStatus === 'no_vacancies' || ($resultado['tipo'] ?? null) === 'lista_espera') {
             return $this->respondWithMenu(
                 $conversation,
                 false,
@@ -1604,11 +1610,16 @@ class BotEngine
         if (is_array($resultado)) {
             $registro = $resultado['registro'] ?? null;
             $resultadoLog = [
+                'status' => $resultado['status'] ?? null,
                 'tipo' => $resultado['tipo'] ?? null,
                 'registro_class' => is_object($registro) ? $registro::class : gettype($registro),
                 'registro_status' => is_object($registro) && isset($registro->status)
                     ? (string) (($registro->status->value ?? $registro->status))
                     : null,
+                'aluno_id' => $resultado['debug']['aluno_id'] ?? null,
+                'evento_curso_id' => $resultado['debug']['evento_curso_id'] ?? null,
+                'matricula_encontrada' => $resultado['debug']['matricula_encontrada'] ?? null,
+                'lista_espera_encontrada' => $resultado['debug']['lista_espera_encontrada'] ?? null,
             ];
         }
 
