@@ -305,6 +305,15 @@ class MatriculaService
         });
     }
 
+    public function removerInscricao(Matricula $matricula, string $acao = 'mover_espera'): Matricula
+    {
+        if ($acao === 'confirmar') {
+            return $this->cancelarMatricula($matricula);
+        }
+
+        return $this->cancelarMatriculaEEnviarParaListaEspera($matricula);
+    }
+
     public function moverListaEspera(ListaEspera $item, string $direcao): bool
     {
         return DB::transaction(function () use ($item, $direcao) {

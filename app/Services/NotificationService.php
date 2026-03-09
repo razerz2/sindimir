@@ -113,8 +113,20 @@ class NotificationService
     ): void
     {
         $notificationType = $this->normalizeType($notificationType);
-        $destinoEvento = $destino instanceof EventoCurso ? $destino->loadMissing('curso') : null;
+        $destinoEvento = $destino instanceof EventoCurso
+            ? $destino->loadMissing(['curso' => fn ($query) => $query->withTrashed()])
+            : null;
         $curso = $destinoEvento ? $destinoEvento->curso : $destino;
+
+        if (! $curso instanceof Curso) {
+            Log::warning('Disparo de notificações cancelado: curso não encontrado para o destino informado.', [
+                'notification_type' => $notificationType,
+                'evento_id' => $destinoEvento?->id,
+                'curso_id' => $destinoEvento?->curso_id,
+            ]);
+
+            return;
+        }
 
         $destinatarios = $this->resolveDestinatarios($alunos);
 

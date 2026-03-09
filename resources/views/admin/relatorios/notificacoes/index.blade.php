@@ -1,6 +1,18 @@
 @extends('admin.layouts.app')
 
-@section('title', 'Relatório de Notificações')
+@section('title', 'Relatório de notificações')
+
+@section('subtitle')
+    Auditoria dos envios de notificações por canal e status.
+@endsection
+
+@section('breadcrumb')
+    <x-admin.breadcrumb :items="[
+        ['label' => 'Dashboard', 'href' => route('admin.dashboard'), 'icon' => 'home'],
+        ['label' => 'Relatórios', 'href' => route('admin.relatorios.index'), 'icon' => 'settings'],
+        ['label' => 'Notificações', 'icon' => 'settings', 'current' => true],
+    ]" />
+@endsection
 
 @section('content')
     <div class="space-y-6">
@@ -59,15 +71,15 @@
                 <x-admin.select
                     id="per_page"
                     name="per_page"
-                    label="Itens por pagina"
+                    label="Itens por página"
                     :options="$filtrosSelect['perPageOptions']"
                     :selected="$filtros['per_page'] ?? 15"
                 />
             </div>
 
             <div class="flex flex-wrap items-center justify-end gap-2">
-                <a class="btn btn-ghost" href="{{ route('admin.relatorios.notificacoes.index') }}">Limpar</a>
-                <button class="btn btn-primary" type="submit">Filtrar</button>
+                <x-admin.action as="a" variant="ghost" icon="x" href="{{ route('admin.relatorios.notificacoes.index') }}">Limpar</x-admin.action>
+                <x-admin.action variant="primary" icon="filter" type="submit">Filtrar</x-admin.action>
             </div>
         </form>
 
@@ -75,12 +87,14 @@
             <div class="text-sm font-semibold">
                 Total de registros encontrados: {{ $notificacoes->total() }}
             </div>
-            <a
-                class="btn btn-primary"
+            <x-admin.action
+                as="a"
+                variant="primary"
+                icon="download"
                 href="{{ route('admin.relatorios.notificacoes.export', request()->query()) }}"
             >
                 Exportar Excel
-            </a>
+            </x-admin.action>
         </div>
 
         @if ($notificacoes->count() === 0)
@@ -92,12 +106,12 @@
                 <table class="table">
                     <thead>
                         <tr>
-                            <th>Data/Hora do envio</th>
+                            <th>Data/hora do envio</th>
                             <th>Destinatário</th>
-                            <th>Tipo</th>
+                            <th>Tipo de destinatário</th>
                             <th>Curso</th>
                             <th>Evento</th>
-                            <th>Tipo</th>
+                            <th>Tipo de notificação</th>
                             <th>Canal</th>
                             <th>Status</th>
                             <th>Mensagem de erro</th>

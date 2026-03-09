@@ -122,8 +122,14 @@ Route::middleware(['auth:admin', 'role:admin,usuario', 'module-access'])
             ->name('catalogo.estados.municipios');
         Route::get('/eventos/{evento}/inscritos', [\App\Http\Controllers\Admin\EventoCursoController::class, 'inscritos'])
             ->name('eventos.inscritos');
+        Route::get('/eventos/{evento}/alunos/buscar', [\App\Http\Controllers\Admin\EventoCursoController::class, 'buscarAlunosParaInscricao'])
+            ->name('eventos.alunos.buscar');
+        Route::post('/eventos/{evento}/inscricoes', [\App\Http\Controllers\Admin\EventoCursoController::class, 'inscreverAluno'])
+            ->name('eventos.inscricoes.store');
         Route::resource('/eventos', \App\Http\Controllers\Admin\EventoCursoController::class)
             ->parameters(['eventos' => 'evento']);
+        Route::post('/matriculas/{matricula}/confirmar', [\App\Http\Controllers\Admin\MatriculaController::class, 'confirmar'])
+            ->name('matriculas.confirmar');
         Route::post('/matriculas/{matricula}/cancelar', [\App\Http\Controllers\Admin\MatriculaController::class, 'cancelar'])
             ->name('matriculas.cancelar');
         Route::post('/lista-espera/{lista}/subir', [\App\Http\Controllers\Admin\ListaEsperaController::class, 'subir'])

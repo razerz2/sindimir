@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\NotificationType;
 use App\Enums\StatusMatricula;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\NotificationDispatchRequest;
@@ -11,7 +12,6 @@ use App\Models\Curso;
 use App\Models\EventoCurso;
 use App\Services\ConfiguracaoService;
 use App\Services\NotificationService;
-use App\Enums\NotificationType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;

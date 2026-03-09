@@ -2,21 +2,43 @@
 
 @section('title', 'Detalhes do evento')
 
+@section('subtitle')
+    Visão geral, inscritos e lista de espera do evento.
+@endsection
+
+@section('breadcrumb')
+    <x-admin.breadcrumb :items="[
+        ['label' => 'Dashboard', 'href' => route('admin.dashboard'), 'icon' => 'home'],
+        ['label' => 'Eventos', 'href' => route('admin.eventos.index'), 'icon' => 'calendar'],
+        ['label' => 'Detalhes do evento', 'icon' => 'eye', 'current' => true],
+    ]" />
+@endsection
+
 @section('content')
     @if (session('status'))
         <div class="alert">{{ session('status') }}</div>
     @endif
-    <p><strong>Curso:</strong> {{ $evento->curso?->nome ?? '-' }}</p>
-    <p><strong>Número do evento:</strong> {{ $evento->numero_evento }}</p>
-    <p><strong>Período:</strong> {{ $evento->data_inicio->format('d/m/Y') }} a {{ $evento->data_fim->format('d/m/Y') }}</p>
-    @if ($evento->horario_inicio)
-        <p><strong>Horario de inicio:</strong> {{ substr($evento->horario_inicio, 0, 5) }}</p>
-    @endif
-    <p><strong>Carga horária:</strong> {{ $evento->carga_horaria }}</p>
-    <p><strong>Município:</strong> {{ $evento->municipio }}</p>
-    <p><strong>Local de realização:</strong> {{ $evento->local_realizacao }}</p>
-    <p><strong>Turno:</strong> {{ $evento->turno?->value ? ucfirst(str_replace('_', ' ', $evento->turno->value)) : '-' }}</p>
-    <p><strong>Status:</strong> {{ $evento->ativo ? 'Ativo' : 'Inativo' }}</p>
+
+    <div class="content-card">
+        <p>
+            <strong>Curso:</strong>
+            @if ($evento->curso)
+                {{ $evento->curso->nome }}@if ($evento->curso->trashed()) (removido) @endif
+            @else
+                -
+            @endif
+        </p>
+        <p><strong>Número do evento:</strong> {{ $evento->numero_evento }}</p>
+        <p><strong>Período:</strong> {{ $evento->data_inicio->format('d/m/Y') }} a {{ $evento->data_fim->format('d/m/Y') }}</p>
+        @if ($evento->horario_inicio)
+            <p><strong>Horário de início:</strong> {{ substr($evento->horario_inicio, 0, 5) }}</p>
+        @endif
+        <p><strong>Carga horária:</strong> {{ $evento->carga_horaria }}</p>
+        <p><strong>Município:</strong> {{ $evento->municipio }}</p>
+        <p><strong>Local de realização:</strong> {{ $evento->local_realizacao }}</p>
+        <p><strong>Turno:</strong> {{ $evento->turno?->value ? ucfirst(str_replace('_', ' ', $evento->turno->value)) : '-' }}</p>
+        <p><strong>Status:</strong> {{ $evento->ativo ? 'Ativo' : 'Inativo' }}</p>
+    </div>
 
     <div class="content-card mt-6">
         <div class="page-actions">
@@ -55,7 +77,12 @@
                 <h3 class="section-title">Inscritos</h3>
                 <p class="page-subtitle">Alunos inscritos neste evento.</p>
             </div>
-            <a class="btn btn-ghost" href="{{ route('admin.eventos.inscritos', $evento) }}">Ver lista completa</a>
+            <div class="flex flex-wrap gap-2">
+                <x-admin.action variant="primary" icon="user-plus" type="button" data-enroll-open="inscrever-aluno-modal-{{ $evento->id }}">
+                    Inscrever aluno
+                </x-admin.action>
+                <x-admin.action as="a" variant="ghost" icon="eye" href="{{ route('admin.eventos.inscritos', $evento) }}">Ver lista completa</x-admin.action>
+            </div>
         </div>
         <div class="table-wrapper">
             <table class="table datatable">
@@ -71,6 +98,7 @@
                 </thead>
                 <tbody>
                     @forelse ($inscritos as $matricula)
+                        @php($isPendente = $matricula->status?->value === 'pendente')
                         <tr>
                             <td>{{ $matricula->aluno?->nome_completo ?? '-' }}</td>
                             <td>{{ \App\Support\Cpf::format($matricula->aluno?->cpf) ?: '-' }}</td>
@@ -83,20 +111,35 @@
                             <td>{{ $matricula->created_at?->format('d/m/Y H:i') ?? '-' }}</td>
                             <td>
                                 <div class="table-actions">
-                                <form action="{{ route('admin.matriculas.cancelar', $matricula) }}" method="POST" style="display:inline"
-                                    data-confirm="Ao remover a inscrição, o aluno perderá a vaga e será movido para o final da lista de espera. Deseja continuar?">
+                                    @if ($isPendente)
+                                        <form
+                                            action="{{ route('admin.matriculas.confirmar', $matricula) }}"
+                                            method="POST"
+                                            style="display:inline"
+                                            data-confirm="Deseja confirmar a inscrição deste aluno neste evento?"
+                                            data-confirm-title="Confirmar inscrição"
+                                            data-confirm-button="Confirmar inscrição"
+                                        >
+                                            @csrf
+                                            <x-admin.action variant="primary" icon="check" type="submit">Confirmar inscrição</x-admin.action>
+                                        </form>
+                                    @endif
+                                    <form
+                                        action="{{ route('admin.matriculas.cancelar', $matricula) }}"
+                                        method="POST"
+                                        style="display:inline"
+                                        data-confirm="Escolha como remover a inscrição deste aluno."
+                                        data-confirm-choice="remove-inscricao"
+                                        data-confirm-title="Remover inscrição"
+                                        data-confirm-secondary-button="Mover para espera"
+                                        data-confirm-button="Confirmar"
+                                        data-confirm-choice-input="acao"
+                                        data-confirm-secondary-value="mover_espera"
+                                        data-confirm-primary-value="confirmar"
+                                    >
                                         @csrf
-                                        <button class="btn btn-danger" type="submit">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor" stroke-width="1.6">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16" />
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6" />
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M14 11v6" />
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 7l1 12.5A2.5 2.5 0 0 0 8.5 22h7a2.5 2.5 0 0 0 2.5-2.5L19 7" />
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 7V4.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V7" />
-                                            </svg>
-                                            <span>Remover inscrição</span>
-                                        </button>
+                                        <input type="hidden" name="acao" value="mover_espera">
+                                        <x-admin.action variant="danger" icon="trash" type="submit">Remover inscrição</x-admin.action>
                                     </form>
                                 </div>
                             </td>
@@ -188,7 +231,9 @@
     </div>
 
     <div class="mt-6 flex flex-wrap gap-2">
-        <a class="btn btn-primary" href="{{ route('admin.eventos.edit', $evento) }}">Editar</a>
-        <a class="btn btn-ghost" href="{{ route('admin.eventos.index') }}">Voltar</a>
+        <x-admin.action as="a" variant="primary" icon="edit" href="{{ route('admin.eventos.edit', $evento) }}">Editar</x-admin.action>
+        <x-admin.action as="a" variant="ghost" icon="arrow-left" href="{{ route('admin.eventos.index') }}">Voltar</x-admin.action>
     </div>
+
+    @include('admin.eventos.partials.inscrever-aluno-modal', ['evento' => $evento])
 @endsection

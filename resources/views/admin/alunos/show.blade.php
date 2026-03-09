@@ -2,6 +2,18 @@
 
 @section('title', 'Detalhes do aluno')
 
+@section('subtitle')
+    Visualização completa do cadastro do aluno.
+@endsection
+
+@section('breadcrumb')
+    <x-admin.breadcrumb :items="[
+        ['label' => 'Dashboard', 'href' => route('admin.dashboard'), 'icon' => 'home'],
+        ['label' => 'Alunos', 'href' => route('admin.alunos.index'), 'icon' => 'user'],
+        ['label' => 'Detalhes do aluno', 'icon' => 'eye', 'current' => true],
+    ]" />
+@endsection
+
 @section('content')
     <p><strong>Nome:</strong> {{ $aluno->nome_completo }}</p>
     <p><strong>CPF:</strong> {{ \App\Support\Cpf::format($aluno->cpf) ?: '-' }}</p>
@@ -43,7 +55,7 @@
     </p>
 
     <div class="mt-6 flex flex-wrap gap-2">
-        <a class="btn btn-primary" href="{{ route('admin.alunos.edit', $aluno) }}">Editar</a>
-        <a class="btn btn-ghost" href="{{ route('admin.alunos.index') }}">Voltar</a>
+        <x-admin.action as="a" variant="primary" icon="edit" href="{{ route('admin.alunos.edit', $aluno) }}">Editar</x-admin.action>
+        <x-admin.action as="a" variant="ghost" icon="arrow-left" href="{{ route('admin.alunos.index') }}">Voltar</x-admin.action>
     </div>
 @endsection

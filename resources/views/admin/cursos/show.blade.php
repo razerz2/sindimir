@@ -2,6 +2,18 @@
 
 @section('title', 'Detalhes do curso')
 
+@section('subtitle')
+    Visualização das informações principais do curso.
+@endsection
+
+@section('breadcrumb')
+    <x-admin.breadcrumb :items="[
+        ['label' => 'Dashboard', 'href' => route('admin.dashboard'), 'icon' => 'home'],
+        ['label' => 'Cursos', 'href' => route('admin.cursos.index'), 'icon' => 'book'],
+        ['label' => 'Detalhes do curso', 'icon' => 'eye', 'current' => true],
+    ]" />
+@endsection
+
 @section('content')
     <p><strong>Nome:</strong> {{ $curso->nome }}</p>
     <p><strong>Categoria:</strong> {{ $curso->categoria?->nome ?? '-' }}</p>
@@ -11,7 +23,7 @@
     <p><strong>Descrição:</strong> {{ $curso->descricao ?? '-' }}</p>
 
     <div class="mt-6 flex flex-wrap gap-2">
-        <a class="btn btn-primary" href="{{ route('admin.cursos.edit', $curso) }}">Editar</a>
-        <a class="btn btn-ghost" href="{{ route('admin.cursos.index') }}">Voltar</a>
+        <x-admin.action as="a" variant="primary" icon="edit" href="{{ route('admin.cursos.edit', $curso) }}">Editar</x-admin.action>
+        <x-admin.action as="a" variant="ghost" icon="arrow-left" href="{{ route('admin.cursos.index') }}">Voltar</x-admin.action>
     </div>
 @endsection

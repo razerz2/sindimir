@@ -25,14 +25,14 @@
         <x-admin.input
             id="numero_evento"
             name="numero_evento"
-            label="Numero do evento"
+            label="Número do evento"
             :value="$evento->numero_evento ?? ''"
             required
         />
         <x-admin.input
             id="data_inicio"
             name="data_inicio"
-            label="Data de inicio"
+            label="Data de início"
             type="date"
             :value="isset($evento) ? $evento->data_inicio->format('Y-m-d') : ''"
             required
@@ -48,21 +48,21 @@
         <x-admin.input
             id="horario_inicio"
             name="horario_inicio"
-            label="Horario de inicio"
+            label="Horário de início"
             type="time"
             :value="$evento->horario_inicio ?? ''"
         />
         <x-admin.input
             id="horario_fim"
             name="horario_fim"
-            label="Horario de fim"
+            label="Horário de fim"
             type="time"
             :value="$evento->horario_fim ?? ''"
         />
         <x-admin.input
             id="carga_horaria"
             name="carga_horaria"
-            label="Carga horaria"
+            label="Carga horária"
             type="number"
             :value="$evento->carga_horaria ?? 0"
             required
@@ -70,14 +70,14 @@
         <x-admin.input
             id="municipio"
             name="municipio"
-            label="Municipio"
+            label="Município"
             :value="$evento->municipio ?? ''"
             required
         />
         <x-admin.input
             id="local_realizacao"
             name="local_realizacao"
-            label="Local de realizacao"
+            label="Local de realização"
             :value="$evento->local_realizacao ?? ''"
             required
             wrapper-class="lg:col-span-2"
@@ -88,7 +88,7 @@
             label="Turno"
             :options="$turnoOptions"
             :selected="$evento->turno?->value ?? null"
-            placeholder="Nao informado"
+            placeholder="Não informado"
         />
     </div>
 

@@ -1,6 +1,18 @@
 @extends('admin.layouts.app')
 
-@section('title', $section->exists ? 'Editar section' : 'Nova section')
+@section('title', $section->exists ? 'Editar seção' : 'Nova seção')
+
+@section('subtitle')
+    {{ $section->exists ? 'Atualize as informações da seção institucional.' : 'Cadastre uma nova seção para a página institucional.' }}
+@endsection
+
+@section('breadcrumb')
+    <x-admin.breadcrumb :items="[
+        ['label' => 'Dashboard', 'href' => route('admin.dashboard'), 'icon' => 'home'],
+        ['label' => 'Conteúdo institucional', 'href' => route('admin.site.index'), 'icon' => 'book'],
+        ['label' => $section->exists ? 'Editar seção' : 'Nova seção', 'icon' => $section->exists ? 'edit' : 'plus', 'current' => true],
+    ]" />
+@endsection
 
 @section('content')
     @if (session('status'))
@@ -66,14 +78,14 @@
                                     <x-admin.select name="conteudo[botoes][{{ $index }}][style]" label="Estilo">
                                         @foreach (['primary', 'outline'] as $style)
                                             <option value="{{ $style }}" @selected(data_get($button, 'style') === $style)>
-                                                {{ ucfirst($style) }}
+                                                {{ $style === 'primary' ? 'Primário' : 'Contorno' }}
                                             </option>
                                         @endforeach
                                     </x-admin.select>
                                 </div>
                             @endforeach
                         </div>
-                        <button class="btn btn-ghost mt-3" type="button" id="add-hero-button">Adicionar botão</button>
+                        <x-admin.action class="mt-3" variant="ghost" type="button" id="add-hero-button">Adicionar botão</x-admin.action>
                         <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
                             <x-admin.input name="conteudo[resultados_titulo]" label="Título dos resultados"
                                 :value="data_get($section->conteudo, 'resultados_titulo')" />
@@ -93,7 +105,7 @@
                                 </div>
                             @endforeach
                         </div>
-                        <button class="btn btn-ghost mt-3" type="button" id="add-result">Adicionar resultado</button>
+                        <x-admin.action class="mt-3" variant="ghost" type="button" id="add-result">Adicionar resultado</x-admin.action>
                     </div>
 
                     <div data-section-type="cards_grid" class="section-content hidden">
@@ -108,12 +120,12 @@
                                         :value="data_get($card, 'titulo')" />
                                     <x-admin.input name="conteudo[cards][{{ $index }}][texto]" label="Texto"
                                         :value="data_get($card, 'texto')" />
-                                    <x-admin.input name="conteudo[cards][{{ $index }}][icone]" label="Ícone (string)"
+                                    <x-admin.input name="conteudo[cards][{{ $index }}][icone]" label="Ícone (texto)"
                                         :value="data_get($card, 'icone')" />
                                 </div>
                             @endforeach
                         </div>
-                        <button class="btn btn-ghost mt-3" type="button" id="add-card">Adicionar card</button>
+                        <x-admin.action class="mt-3" variant="ghost" type="button" id="add-card">Adicionar card</x-admin.action>
                     </div>
 
                     <div data-section-type="cta_card" class="section-content hidden">
@@ -131,14 +143,14 @@
                                     <x-admin.select name="conteudo[botoes][{{ $index }}][style]" label="Estilo">
                                         @foreach (['primary', 'outline'] as $style)
                                             <option value="{{ $style }}" @selected(data_get($button, 'style') === $style)>
-                                                {{ ucfirst($style) }}
+                                                {{ $style === 'primary' ? 'Primário' : 'Contorno' }}
                                             </option>
                                         @endforeach
                                     </x-admin.select>
                                 </div>
                             @endforeach
                         </div>
-                        <button class="btn btn-ghost mt-3" type="button" id="add-cta-button">Adicionar botão</button>
+                        <x-admin.action class="mt-3" variant="ghost" type="button" id="add-cta-button">Adicionar botão</x-admin.action>
                     </div>
                 </div>
             </div>
@@ -146,10 +158,10 @@
             <div>
                 <h3 class="text-base font-semibold">Estilo visual</h3>
                 <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    <x-admin.select name="estilo[background_type]" label="Tipo de background">
+                    <x-admin.select name="estilo[background_type]" label="Tipo de fundo">
                         @foreach (['color', 'image', 'gradient'] as $type)
                             <option value="{{ $type }}" @selected(data_get($section->estilo, 'background_type') === $type)>
-                                {{ ucfirst($type) }}
+                                {{ $type === 'color' ? 'Cor' : ($type === 'image' ? 'Imagem' : 'Gradiente') }}
                             </option>
                         @endforeach
                     </x-admin.select>
@@ -163,20 +175,20 @@
                             </option>
                         @endforeach
                     </x-admin.select>
-                    <x-admin.input name="estilo[overlay_opacity]" label="Opacidade do overlay" type="number" step="0.1"
+                    <x-admin.input name="estilo[overlay_opacity]" label="Opacidade da sobreposição" type="number" step="0.1"
                         :value="data_get($section->estilo, 'overlay_opacity')" />
                     <x-admin.input name="estilo[text_color]" label="Cor do texto" type="color"
                         :value="data_get($section->estilo, 'text_color')" />
-                    <x-admin.select name="estilo[container_width]" label="Largura do container">
+                    <x-admin.select name="estilo[container_width]" label="Largura do contêiner">
                         @foreach (['default', 'wide', 'full'] as $width)
                             <option value="{{ $width }}" @selected(data_get($section->estilo, 'container_width') === $width)>
-                                {{ ucfirst($width) }}
+                                {{ $width === 'default' ? 'Padrão' : ($width === 'wide' ? 'Amplo' : 'Completo') }}
                             </option>
                         @endforeach
                     </x-admin.select>
-                    <x-admin.input name="estilo[padding_top]" label="Padding topo"
+                    <x-admin.input name="estilo[padding_top]" label="Padding superior"
                         :value="data_get($section->estilo, 'padding_top')" />
-                    <x-admin.input name="estilo[padding_bottom]" label="Padding base"
+                    <x-admin.input name="estilo[padding_bottom]" label="Padding inferior"
                         :value="data_get($section->estilo, 'padding_bottom')" />
                 </div>
             </div>
@@ -187,15 +199,15 @@
                     <x-admin.input id="media-file" name="media_file" type="file" label="Upload de imagem" />
                     <x-admin.input id="media-alt" name="media_alt" label="Texto alternativo" />
                 </div>
-                <button class="btn btn-ghost mt-3" type="button" id="upload-media">Enviar imagem</button>
+                <x-admin.action class="mt-3" variant="ghost" type="button" id="upload-media">Enviar imagem</x-admin.action>
                 <p class="mt-2 text-sm opacity-70" id="media-feedback"></p>
             </div>
 
             <div class="flex items-center gap-3">
-                <button class="btn btn-primary" type="submit">
-                    {{ $section->exists ? 'Salvar alterações' : 'Criar section' }}
-                </button>
-                <a class="btn btn-ghost" href="{{ route('admin.site.sections.index') }}">Voltar</a>
+                <x-admin.action variant="primary" icon="check" type="submit">
+                    {{ $section->exists ? 'Salvar alterações' : 'Criar seção' }}
+                </x-admin.action>
+                <x-admin.action as="a" variant="ghost" icon="arrow-left" href="{{ route('admin.site.sections.index') }}">Voltar</x-admin.action>
             </div>
         </form>
     </div>
@@ -211,7 +223,7 @@
                 <input data-field="texto" class="w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm">
             </div>
             <div class="flex flex-col gap-2">
-                <label class="text-sm font-semibold text-[var(--content-text)]">Ícone (string)</label>
+                <label class="text-sm font-semibold text-[var(--content-text)]">Ícone (texto)</label>
                 <input data-field="icone" class="w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm">
             </div>
         </div>
@@ -230,8 +242,8 @@
             <div class="flex flex-col gap-2">
                 <label class="text-sm font-semibold text-[var(--content-text)]">Estilo</label>
                 <select data-field="style" class="w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm">
-                    <option value="primary">Primary</option>
-                    <option value="outline">Outline</option>
+                    <option value="primary">Primário</option>
+                    <option value="outline">Contorno</option>
                 </select>
             </div>
         </div>

@@ -1,11 +1,23 @@
 @extends('admin.layouts.app')
 
-@section('title', 'Relatório de Cursos')
+@section('title', 'Relatório de cursos')
+
+@section('subtitle')
+    Visão consolidada de status, vagas e ocupação dos cursos.
+@endsection
+
+@section('breadcrumb')
+    <x-admin.breadcrumb :items="[
+        ['label' => 'Dashboard', 'href' => route('admin.dashboard'), 'icon' => 'home'],
+        ['label' => 'Relatórios', 'href' => route('admin.relatorios.index'), 'icon' => 'settings'],
+        ['label' => 'Cursos', 'icon' => 'book', 'current' => true],
+    ]" />
+@endsection
 
 @section('content')
     <div class="space-y-6">
         <p class="text-sm text-[var(--content-text)] opacity-70">
-            Este relatório apresenta uma visão consolidada de todos os cursos e sua ocupação.
+            Este relatório apresenta uma visão consolidada dos cursos e sua ocupação.
         </p>
 
         <form method="GET" action="{{ route('admin.relatorios.cursos.index') }}" class="space-y-4">
@@ -66,8 +78,8 @@
             </div>
 
             <div class="flex flex-wrap items-center justify-end gap-2">
-                <a class="btn btn-ghost" href="{{ route('admin.relatorios.cursos.index') }}">Limpar</a>
-                <button class="btn btn-primary" type="submit">Filtrar</button>
+                <x-admin.action as="a" variant="ghost" icon="x" href="{{ route('admin.relatorios.cursos.index') }}">Limpar</x-admin.action>
+                <x-admin.action variant="primary" icon="filter" type="submit">Filtrar</x-admin.action>
             </div>
         </form>
 
@@ -75,12 +87,14 @@
             <div class="text-sm font-semibold">
                 Total de registros encontrados: {{ $cursos->total() }}
             </div>
-            <a
-                class="btn btn-primary"
+            <x-admin.action
+                as="a"
+                variant="primary"
+                icon="download"
                 href="{{ route('admin.relatorios.cursos.export', request()->query()) }}"
             >
                 Exportar Excel
-            </a>
+            </x-admin.action>
         </div>
 
         @if ($cursos->count() === 0)

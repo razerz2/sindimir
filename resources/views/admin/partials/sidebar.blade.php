@@ -11,6 +11,15 @@
         </svg>
         Dashboard
     </a>
+    @if (auth()->user()?->role === \App\Enums\UserRole::Admin || auth()->user()?->hasModuleAccess('alunos'))
+        <a class="nav-link {{ request()->routeIs('admin.alunos.*') ? 'active' : '' }}" href="{{ route('admin.alunos.index') }}">
+            <svg class="h-5 w-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M16 11a4 4 0 1 0-8 0" />
+                <path d="M4 20a8 8 0 0 1 16 0" />
+            </svg>
+            Alunos
+        </a>
+    @endif
     @if (auth()->user()?->role === \App\Enums\UserRole::Admin || auth()->user()?->hasModuleAccess('cursos'))
         <a class="nav-link {{ request()->routeIs('admin.cursos.*') ? 'active' : '' }}" href="{{ route('admin.cursos.index') }}">
             <svg class="h-5 w-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
@@ -28,22 +37,22 @@
             Eventos
         </a>
     @endif
-    @if (auth()->user()?->role === \App\Enums\UserRole::Admin || auth()->user()?->hasModuleAccess('alunos'))
-        <a class="nav-link {{ request()->routeIs('admin.alunos.*') ? 'active' : '' }}" href="{{ route('admin.alunos.index') }}">
-            <svg class="h-5 w-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                <path d="M16 11a4 4 0 1 0-8 0" />
-                <path d="M4 20a8 8 0 0 1 16 0" />
-            </svg>
-            Alunos
-        </a>
-    @endif
     @if (auth()->user()?->role === \App\Enums\UserRole::Admin)
         <a class="nav-link {{ request()->routeIs('admin.usuarios.*') ? 'active' : '' }}" href="{{ route('admin.usuarios.index') }}">
             <svg class="h-5 w-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
                 <path d="M16 11a4 4 0 1 0-8 0" />
                 <path d="M20 20a6 6 0 0 0-12 0" />
             </svg>
-            Usuarios
+            Usuários
+        </a>
+    @endif
+    @if (auth()->user()?->role === \App\Enums\UserRole::Admin || auth()->user()?->hasModuleAccess('relatorios'))
+        <a class="nav-link {{ request()->routeIs('admin.relatorios.*') ? 'active' : '' }}" href="{{ route('admin.relatorios.index') }}">
+            <svg class="h-5 w-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M4 5h16v14H4z" />
+                <path d="M8 9h8M8 13h8M8 17h5" />
+            </svg>
+            Relatórios
         </a>
     @endif
     @if (auth()->user()?->role === \App\Enums\UserRole::Admin || auth()->user()?->hasModuleAccess('notificacoes'))
@@ -54,15 +63,6 @@
                 <path d="M4 8l8 5 8-5" />
             </svg>
             Envio de notificações
-        </a>
-    @endif
-    @if (auth()->user()?->role === \App\Enums\UserRole::Admin || auth()->user()?->hasModuleAccess('relatorios'))
-        <a class="nav-link {{ request()->routeIs('admin.relatorios.*') ? 'active' : '' }}" href="{{ route('admin.relatorios.index') }}">
-            <svg class="h-5 w-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                <path d="M4 5h16v14H4z" />
-                <path d="M8 9h8M8 13h8M8 17h5" />
-            </svg>
-            Relatórios
         </a>
     @endif
     @if (auth()->user()?->role === \App\Enums\UserRole::Admin || auth()->user()?->hasModuleAccess('cms'))

@@ -1,11 +1,22 @@
 @extends('admin.layouts.app')
 
-@section('title', 'Notificações')
+@section('title', 'Envio de notificações')
+
+@section('subtitle')
+    Configure o contexto, público e canais para envio manual de notificações.
+@endsection
+
+@section('breadcrumb')
+    <x-admin.breadcrumb :items="[
+        ['label' => 'Dashboard', 'href' => route('admin.dashboard'), 'icon' => 'home'],
+        ['label' => 'Envio de notificações', 'icon' => 'settings', 'current' => true],
+    ]" />
+@endsection
 
 @php
     $eventGroups = $eventos->groupBy('curso_id')->map(fn ($group) => $group->map(fn ($event) => [
         'id' => $event->id,
-        'label' => "{$event->numero_evento} — " . ($event->data_inicio ? $event->data_inicio->format('d/m/Y') : 'sem data'),
+        'label' => "{$event->numero_evento} - " . ($event->data_inicio ? $event->data_inicio->format('d/m/Y') : 'sem data'),
     ]));
 @endphp
 
@@ -33,12 +44,6 @@
             font-size: 0.8rem;
             opacity: 0.7;
         }
-        .pill {
-            border-radius: 999px;
-            border: 1px solid var(--border-color);
-            padding: 6px 10px;
-            font-size: 0.85rem;
-        }
         .preview-tab.active {
             border-bottom: 2px solid var(--color-primary);
             font-weight: 600;
@@ -46,16 +51,11 @@
     </style>
 
     <section class="space-y-6">
-        <header>
-            <h1 class="text-3xl font-semibold text-[var(--content-text)]">Notificações guiadas</h1>
-            <p class="text-sm opacity-70">Organizamos as etapas para garantir clareza, consistência e segurança no disparo.</p>
-        </header>
-
         <form id="notification-flow" class="space-y-6" method="POST" action="{{ route('admin.notificacoes.store') }}">
             @csrf
 
             <div class="section-card space-y-3">
-                <p class="text-xs uppercase tracking-widest opacity-60">Contexto da Notificação</p>
+                <p class="text-xs uppercase tracking-widest opacity-60">Contexto da notificação</p>
                 <h2 class="text-xl font-semibold text-[var(--content-text)]">Identifique o cenário</h2>
                 <p class="text-sm opacity-70">Selecione o curso e, se aplicável, o evento relacionado.</p>
                 <div class="grid gap-4 md:grid-cols-3">
@@ -90,7 +90,7 @@
             </div>
 
             <div class="section-card space-y-3">
-                <p class="text-xs uppercase tracking-widest opacity-60">Público-Alvo</p>
+                <p class="text-xs uppercase tracking-widest opacity-60">Público-alvo</p>
                 <h2 class="text-xl font-semibold text-[var(--content-text)]">Defina quem receberá</h2>
                 <p class="text-sm opacity-70">Defina quais alunos receberão esta notificação.</p>
                 <div class="grid gap-3 md:grid-cols-2">
@@ -117,21 +117,21 @@
             <div class="section-card space-y-3">
                 <p class="text-xs uppercase tracking-widest opacity-60">Mensagem</p>
                 <h2 class="text-xl font-semibold text-[var(--content-text)]">Visualize o conteúdo</h2>
-                <p class="text-sm opacity-70">O conteúdo será usado para Email e/ou WhatsApp.</p>
+                <p class="text-sm opacity-70">O conteúdo será usado para E-mail e/ou WhatsApp.</p>
                 <textarea id="message-preview" class="input-field min-h-[5rem]" placeholder="Ex: Olá {{'{aluno_nome}'}}, temos vagas disponíveis no curso {{'{curso_nome}'}}. Acesse {{'{link}'}}." readonly></textarea>
                 <div class="flex flex-col gap-3 md:flex-row md:items-center">
                     <label class="flex-1 text-sm text-[var(--content-text)]">
-                        Preview para aluno
+                        Prévia para aluno
                         <select id="preview-aluno" class="input-field mt-1">
                             @foreach ($alunos as $aluno)
                                 <option value="{{ $aluno->id }}">{{ $aluno->nome_completo }}</option>
                             @endforeach
                         </select>
                     </label>
-                    <button id="preview-refresh" type="button" class="btn btn-ghost text-sm">Atualizar preview</button>
+                    <x-admin.action id="preview-refresh" variant="ghost" icon="eye" type="button" class="text-sm">Atualizar prévia</x-admin.action>
                 </div>
                 <div class="flex gap-3 border-b border-white/15 text-sm">
-                    <button type="button" data-preview-tab="email" class="preview-tab active px-3 py-2">Email</button>
+                    <button type="button" data-preview-tab="email" class="preview-tab active px-3 py-2">E-mail</button>
                     <button type="button" data-preview-tab="whatsapp" class="preview-tab px-3 py-2 opacity-70">WhatsApp</button>
                 </div>
                 <div id="preview-email" class="preview-panel space-y-3">
@@ -154,16 +154,16 @@
             </div>
 
             <div class="section-card space-y-3">
-                <p class="text-xs uppercase tracking-widest opacity-60">Canais de Envio</p>
+                <p class="text-xs uppercase tracking-widest opacity-60">Canais de envio</p>
                 <h2 class="text-xl font-semibold text-[var(--content-text)]">Defina os canais</h2>
                 <p class="text-sm opacity-70">Selecione por onde os alunos serão notificados.</p>
                 <div class="space-y-3">
-                    <label class="flex items-center gap-3 text-sm text-[var(--content-text)]" title="Email ativo nas configurações">
+                    <label class="flex items-center gap-3 text-sm text-[var(--content-text)]" title="E-mail ativo nas configurações">
                         <input id="canal-email" name="canal_email" {{ $settings['email'] ? '' : 'disabled' }} class="channel-checkbox h-4 w-4 rounded border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--color-primary)]" type="checkbox" checked>
-                        Email
+                        E-mail
                     </label>
                     @unless ($settings['email'])
-                        <div class="rounded-xl border border-orange-500/40 bg-orange-500/10 px-3 py-2 text-xs text-orange-200">Email está desativado nas configurações.</div>
+                        <div class="rounded-xl border border-orange-500/40 bg-orange-500/10 px-3 py-2 text-xs text-orange-200">E-mail está desativado nas configurações.</div>
                     @endunless
                     <label class="flex items-center gap-3 text-sm text-[var(--content-text)]" title="{{ $settings['whatsapp'] ? '' : 'WhatsApp inativo' }}">
                         <input id="canal-whatsapp" name="canal_whatsapp" {{ $settings['whatsapp'] ? '' : 'disabled' }} class="channel-checkbox h-4 w-4 rounded border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--color-primary)]" type="checkbox" checked>
@@ -171,7 +171,7 @@
                     </label>
                     @unless ($settings['whatsapp'])
                         <div class="rounded-xl border border-orange-500/40 bg-orange-500/10 px-3 py-2 text-xs text-orange-200">
-                            WhatsApp está desativado nas configurações. Ative em Configurações → Notificações.
+                            WhatsApp está desativado nas configurações. Ative em Configurações > Notificações.
                         </div>
                     @endunless
                 </div>
@@ -182,33 +182,33 @@
 
             <div class="grid gap-4 lg:grid-cols-[1fr,320px]">
                 <div class="section-card space-y-4">
-                    <p class="text-xs uppercase tracking-widest opacity-60">Resumo do Envio</p>
+                    <p class="text-xs uppercase tracking-widest opacity-60">Resumo do envio</p>
                     <h2 class="text-xl font-semibold text-[var(--content-text)]">Revise antes de confirmar</h2>
-                    <p class="text-sm opacity-70">Revise as informações antes de confirmar.</p>
+                    <p class="text-sm opacity-70">Confira as informações antes de confirmar.</p>
                     <ul class="space-y-2 text-sm text-[var(--content-text)]">
-                        <li>Curso: <span id="summary-curso">—</span></li>
+                        <li>Curso: <span id="summary-curso">-</span></li>
                         <li>Evento: <span id="summary-evento">Nenhum evento</span></li>
-                        <li>Público-alvo: <span id="summary-publico">—</span></li>
+                        <li>Público-alvo: <span id="summary-publico">-</span></li>
                         <li>Total estimado: <span id="summary-total">0</span> alunos</li>
-                        <li>Canais ativos: <span id="summary-canais">—</span></li>
+                        <li>Canais ativos: <span id="summary-canais">-</span></li>
                     </ul>
                     <div class="rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm">
                         Esta notificação será enviada para <strong id="summary-total-inline">0</strong> alunos via
-                        <strong id="summary-channel-inline">—</strong>.
+                        <strong id="summary-channel-inline">-</strong>.
                     </div>
                 </div>
                 <div class="section-card space-y-4">
                     <p class="text-xs uppercase tracking-widest opacity-60">Confirmação</p>
                     <h2 class="text-xl font-semibold text-[var(--content-text)]">Pronto para disparar</h2>
-                    <p class="text-sm opacity-70">Confirme para enfileirar via fila.</p>
+                    <p class="text-sm opacity-70">Confirme para enfileirar o envio.</p>
                     <label class="flex items-center gap-3 text-sm text-[var(--content-text)]">
                         <input id="confirm-checkbox" class="h-4 w-4 rounded border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--color-primary)]" type="checkbox">
                         Confirmo que revisei as informações e desejo enviar esta notificação
                     </label>
-                    <button id="submit-notifications" class="btn btn-primary w-full" type="submit" disabled>
+                    <x-admin.action id="submit-notifications" class="w-full" variant="primary" icon="check" type="submit" disabled>
                         <span class="submit-label">Enfileirar notificações</span>
                         <span class="submit-loading hidden">Enviando...</span>
-                    </button>
+                    </x-admin.action>
                 </div>
             </div>
         </form>
@@ -258,7 +258,7 @@
                     eventSelect.disabled = false;
                     eventSelect.classList.remove('text-white/60');
                     eventSelect.classList.add('text-white');
-                    events[selectedCourse].forEach(event => {
+                    events[selectedCourse].forEach((event) => {
                         const option = document.createElement('option');
                         option.value = event.id;
                         option.textContent = event.label;
@@ -272,8 +272,8 @@
 
             function updateSegmentCounter() {
                 const selected = Array.from(segments)
-                    .filter(checkbox => checkbox.checked)
-                    .map(checkbox => checkbox.value);
+                    .filter((checkbox) => checkbox.checked)
+                    .map((checkbox) => checkbox.value);
                 const total = selected.length
                     ? selected.reduce((sum, key) => sum + (segmentEstimates[key] ?? 0), 0)
                     : 0;
@@ -281,7 +281,7 @@
                 counter.textContent = `Total estimado de alunos: ${total || '0'}`;
                 summaryTotal.textContent = total || '0';
                 document.getElementById('summary-total-inline').textContent = total || '0';
-                summaryPublico.textContent = selected.length ? selected.map(key => {
+                summaryPublico.textContent = selected.length ? selected.map((key) => {
                     switch (key) {
                         case 'all': return 'Todos os alunos';
                         case 'inscritos': return 'Alunos inscritos';
@@ -289,32 +289,32 @@
                         case 'sem_matricula': return 'Sem matrícula ativa';
                         default: return key;
                     }
-                }).join(', ') : '—';
+                }).join(', ') : '-';
             }
 
             function updateSummary() {
-                summaryCurso.textContent = courseSelect.selectedOptions[0]?.textContent ?? '—';
+                summaryCurso.textContent = courseSelect.selectedOptions[0]?.textContent ?? '-';
                 summaryEvento.textContent = eventSelect.selectedOptions[0]?.textContent ?? 'Nenhum evento';
                 const channels = Array.from(channelCheckboxes)
-                    .filter(checkbox => checkbox.checked && !checkbox.disabled)
-                    .map(checkbox => checkbox.id === 'canal-email' ? 'Email' : 'WhatsApp');
+                    .filter((checkbox) => checkbox.checked && !checkbox.disabled)
+                    .map((checkbox) => checkbox.id === 'canal-email' ? 'E-mail' : 'WhatsApp');
                 summaryCanais.textContent = channels.length ? channels.join(' / ') : 'Nenhum canal selecionado';
                 document.getElementById('summary-channel-inline').textContent = channels.length ? channels.join(' / ') : 'nenhum canal';
             }
 
             function toggleSubmitState() {
-                const hasChannel = Array.from(channelCheckboxes).some(checkbox => checkbox.checked && !checkbox.disabled);
+                const hasChannel = Array.from(channelCheckboxes).some((checkbox) => checkbox.checked && !checkbox.disabled);
                 channelWarning.classList.toggle('hidden', hasChannel);
                 submitButton.disabled = !(hasChannel && confirmCheckbox.checked);
             }
 
             function setPreview(tab) {
-                previewTabs.forEach(button => {
+                previewTabs.forEach((button) => {
                     button.classList.toggle('active', button.dataset.previewTab === tab);
                     button.classList.toggle('opacity-100', button.dataset.previewTab === tab);
                     button.classList.toggle('opacity-60', button.dataset.previewTab !== tab);
                 });
-                previewPanels.forEach(panel => {
+                previewPanels.forEach((panel) => {
                     panel.classList.toggle('hidden', panel.id !== `preview-${tab}`);
                 });
             }
@@ -325,9 +325,9 @@
                 const aluno = previewAluno?.value ?? null;
 
                 if (!type || !course || !aluno) {
-                    previewEmailSubject.textContent = 'Selecione o tipo, curso e aluno para gerar o preview.';
-                    previewEmailBody.textContent = 'Selecione o tipo, curso e aluno para gerar o preview.';
-                    previewWhatsApp.textContent = 'Selecione o tipo, curso e aluno para gerar o preview.';
+                    previewEmailSubject.textContent = 'Selecione o tipo, curso e aluno para gerar a prévia.';
+                    previewEmailBody.textContent = 'Selecione o tipo, curso e aluno para gerar a prévia.';
+                    previewWhatsApp.textContent = 'Selecione o tipo, curso e aluno para gerar a prévia.';
                     return;
                 }
 
@@ -351,7 +351,7 @@
                         previewEmailSubject.textContent = data.assunto_email;
                         previewEmailBody.textContent = data.corpo_email;
                     } else {
-                        previewEmailSubject.textContent = 'Email desativado nas configurações.';
+                        previewEmailSubject.textContent = 'E-mail desativado nas configurações.';
                         previewEmailBody.textContent = 'Ative o canal para visualizar o conteúdo.';
                     }
                     if (whatsappAtivo) {
@@ -361,9 +361,9 @@
                     }
                     document.getElementById('message-preview').value = data.corpo_email;
                 } catch (error) {
-                    previewEmailSubject.textContent = 'Não foi possível carregar o preview.';
-                    previewEmailBody.textContent = 'Erro ao gerar o preview.';
-                    previewWhatsApp.textContent = 'Erro ao gerar o preview.';
+                    previewEmailSubject.textContent = 'Não foi possível carregar a prévia.';
+                    previewEmailBody.textContent = 'Erro ao gerar a prévia.';
+                    previewWhatsApp.textContent = 'Erro ao gerar a prévia.';
                 }
             }
 
@@ -379,16 +379,17 @@
             });
             eventSelect.addEventListener('change', updateSummary);
             typeSelect.addEventListener('change', fetchPreview);
-            segments.forEach(checkbox => checkbox.addEventListener('change', () => {
+            segments.forEach((checkbox) => checkbox.addEventListener('change', () => {
                 updateSegmentCounter();
                 updateSummary();
             }));
-            channelCheckboxes.forEach(checkbox => checkbox.addEventListener('change', () => {
+            channelCheckboxes.forEach((checkbox) => checkbox.addEventListener('change', () => {
                 toggleSubmitState();
                 updateSummary();
             }));
             confirmCheckbox.addEventListener('change', toggleSubmitState);
-            previewTabs.forEach(button => button.addEventListener('click', () => setPreview(button.dataset.previewTab)));
+            previewTabs.forEach((button) => button.addEventListener('click', () => setPreview(button.dataset.previewTab)));
+            previewBtn?.addEventListener('click', fetchPreview);
 
             updateEventSelect();
             updateSegmentCounter();

@@ -3,24 +3,27 @@
 @section('title', 'Redefinir senha')
 
 @section('subtitle')
-    Informe uma nova senha para o usuario.
+    Informe uma nova senha para o usuário.
+@endsection
+
+@section('breadcrumb')
+    <x-admin.breadcrumb :items="[
+        ['label' => 'Dashboard', 'href' => route('admin.dashboard'), 'icon' => 'home'],
+        ['label' => 'Usuários', 'href' => route('admin.usuarios.index'), 'icon' => 'user'],
+        ['label' => 'Redefinir senha', 'icon' => 'lock', 'current' => true],
+    ]" />
 @endsection
 
 @section('content')
     <div class="page-actions">
         <div></div>
-        <a class="btn btn-ghost" href="{{ route('admin.usuarios.show', $user) }}">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-            <span>Voltar</span>
-        </a>
+        <x-admin.action as="a" variant="ghost" icon="arrow-left" href="{{ route('admin.usuarios.show', $user) }}">Voltar</x-admin.action>
     </div>
 
     <div class="content-card space-y-6">
         <div>
             <p class="text-sm text-[var(--content-text)] opacity-70">
-                Usuario: <strong>{{ $user->display_name }}</strong> ({{ $user->email }})
+                Usuário: <strong>{{ $user->display_name }}</strong> ({{ $user->email }})
             </p>
         </div>
 
@@ -34,13 +37,8 @@
             </div>
 
             <div class="flex flex-wrap justify-end gap-2">
-                <a class="btn btn-ghost" href="{{ route('admin.usuarios.show', $user) }}">Cancelar</a>
-                <button class="btn btn-primary" type="submit">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 12l5 5L20 7" />
-                    </svg>
-                    <span>Salvar senha</span>
-                </button>
+                <x-admin.action as="a" variant="ghost" icon="x" href="{{ route('admin.usuarios.show', $user) }}">Cancelar</x-admin.action>
+                <x-admin.action variant="primary" icon="check" type="submit">Salvar senha</x-admin.action>
             </div>
         </form>
     </div>

@@ -65,6 +65,16 @@ Por padrão, o Laravel pode salvar `url.intended` na **sessão** quando uma rota
 - Jobs: `SendEmailNotificationJob` e `SendWhatsAppNotificationJob`.
 - Logs e links de notificações persistem em `notificacao_logs` e `notificacao_links`.
 
+## Padrão de interface do admin
+
+- O frontend administrativo adota um padrão único de estrutura visual:
+  1. breadcrumb com ícones
+  2. card/page header (somente título e subtítulo)
+  3. conteúdo principal
+- Breadcrumb fica fora do header e ações operacionais permanecem no conteúdo.
+- Componentes padrão: `x-admin.breadcrumb`, `x-admin.action` e `x-admin.icon`.
+- Referência: `docs/padrao-ui-admin.md`.
+
 ## Agendamentos
 
 - Expirar matriculas vencidas (hora em hora).

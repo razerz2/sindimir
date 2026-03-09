@@ -116,11 +116,57 @@
                 margin-bottom: 0;
             }
             .page-header {
-                margin-bottom: 0;
-                padding-bottom: 2.5rem;
+                margin: 0;
+                padding: 18px 22px;
+                background: var(--card-bg);
+                border: 1px solid var(--border-color);
+                border-radius: 16px;
+                display: grid;
+                gap: 10px;
             }
             .admin-content {
-                padding-top: 2rem;
+                padding-top: 1.25rem;
+                display: grid;
+                gap: 16px;
+            }
+            .page-breadcrumb-wrap {
+                margin: 0;
+            }
+            .page-breadcrumb {
+                font-size: 0.83rem;
+                opacity: 0.78;
+            }
+            .page-breadcrumb__list {
+                margin: 0;
+                padding: 0;
+                list-style: none;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                flex-wrap: wrap;
+            }
+            .page-breadcrumb__item {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .page-breadcrumb__link,
+            .page-breadcrumb__current {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                text-decoration: none;
+                color: inherit;
+            }
+            .page-breadcrumb__link {
+                opacity: 0.9;
+                transition: opacity 0.15s ease;
+            }
+            .page-breadcrumb__link:hover {
+                opacity: 1;
+            }
+            .page-breadcrumb__current {
+                font-weight: 600;
             }
             .page-title {
                 margin: 0;
@@ -150,6 +196,7 @@
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
+                min-height: 40px;
                 padding: 10px 14px;
                 border-radius: 10px;
                 border: 1px solid var(--border-color);
@@ -160,6 +207,17 @@
                 background: transparent;
                 cursor: pointer;
                 transition: transform 0.2s ease;
+                line-height: 1.2;
+                white-space: nowrap;
+            }
+            .btn-icon {
+                gap: 8px;
+            }
+            .btn-icon .btn-icon-svg {
+                width: 16px;
+                height: 16px;
+                flex-shrink: 0;
+                display: block;
             }
             .btn:hover {
                 transform: translateY(-1px);
@@ -206,8 +264,22 @@
             }
             .table-actions {
                 display: inline-flex;
+                align-items: center;
                 flex-wrap: wrap;
-                gap: 8px;
+                gap: 6px;
+            }
+            .table-actions .btn {
+                min-height: 32px;
+                padding: 6px 10px;
+                border-radius: 8px;
+                font-size: 0.84rem;
+            }
+            .table-actions .btn-icon {
+                gap: 6px;
+            }
+            .table-actions .btn-icon .btn-icon-svg {
+                width: 14px;
+                height: 14px;
             }
             .badge {
                 display: inline-flex;
@@ -358,28 +430,18 @@
                                 <div class="absolute right-0 mt-2 w-56 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] p-2 text-sm shadow-lg">
                                     @if (auth()->user()?->role === \App\Enums\UserRole::Admin)
                                         <a class="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-black/5" href="{{ route('admin.usuarios.index') }}">
-                                            <svg class="h-4 w-4 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                                                <path d="M16 11a4 4 0 1 0-8 0" />
-                                                <path d="M4 20a8 8 0 0 1 16 0" />
-                                            </svg>
+                                            <x-admin.icon name="user" class="opacity-70" />
                                             <span>Perfil</span>
                                         </a>
                                     @endif
                                     <a class="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-black/5" href="{{ route('admin.configuracoes.index') }}">
-                                        <svg class="h-4 w-4 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                                            <path d="M12 8a4 4 0 1 0 0 8" />
-                                            <path d="M4 12h2m12 0h2M12 4v2m0 12v2M6.5 6.5l1.4 1.4m8.2 8.2l1.4 1.4m0-11l-1.4 1.4m-8.2 8.2l-1.4 1.4" />
-                                        </svg>
+                                        <x-admin.icon name="settings" class="opacity-70" />
                                         <span>Configuracoes</span>
                                     </a>
                                     <form action="{{ route('admin.logout') }}" method="POST" class="px-3 py-2">
                                         @csrf
                                         <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left hover:bg-black/5" type="submit">
-                                            <svg class="h-4 w-4 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                                                <path d="M10 17l5-5-5-5" />
-                                                <path d="M15 12H3" />
-                                                <path d="M19 4h2v16h-2" />
-                                            </svg>
+                                            <x-admin.icon name="logout" class="opacity-70" />
                                             <span>Logout</span>
                                         </button>
                                     </form>
@@ -389,6 +451,11 @@
                     </div>
                 </div>
                 <div class="admin-content">
+                    @hasSection('breadcrumb')
+                        <div class="page-breadcrumb-wrap">
+                            @yield('breadcrumb')
+                        </div>
+                    @endif
                     <header class="page-header">
                         <h2 class="page-title">@yield('title')</h2>
                         @hasSection('subtitle')

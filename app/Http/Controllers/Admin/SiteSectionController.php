@@ -48,7 +48,7 @@ class SiteSectionController extends Controller
 
         return redirect()
             ->route('admin.site.sections.edit', $section)
-            ->with('status', 'Section criada com sucesso.');
+            ->with('status', 'Seção criada com sucesso.');
     }
 
     public function edit(SiteSection $section): View
@@ -71,7 +71,7 @@ class SiteSectionController extends Controller
 
         return redirect()
             ->route('admin.site.sections.edit', $section)
-            ->with('status', 'Section atualizada com sucesso.');
+            ->with('status', 'Seção atualizada com sucesso.');
     }
 
     public function destroy(SiteSection $section): RedirectResponse
@@ -79,14 +79,14 @@ class SiteSectionController extends Controller
         if (in_array($section->slug, SiteSection::HOME_SLOTS, true)) {
             return redirect()
                 ->route('admin.site.sections.index')
-                ->with('status', 'Esta section faz parte da home e não pode ser removida.');
+                ->with('status', 'Esta seção faz parte da página inicial e não pode ser removida.');
         }
 
         $this->siteSectionService->delete($section);
 
         return redirect()
             ->route('admin.site.sections.index')
-            ->with('status', 'Section removida com sucesso.');
+            ->with('status', 'Seção removida com sucesso.');
     }
 
     public function duplicate(SiteSection $section): RedirectResponse
@@ -95,14 +95,14 @@ class SiteSectionController extends Controller
         if (in_array($section->slug, SiteSection::HOME_SLOTS, true)) {
             return redirect()
                 ->route('admin.site.sections.index')
-                ->with('status', 'Esta section faz parte da home e não pode ser duplicada.');
+                ->with('status', 'Esta seção faz parte da página inicial e não pode ser duplicada.');
         }
 
         $copy = $this->siteSectionService->duplicate($section);
 
         return redirect()
             ->route('admin.site.sections.edit', $copy)
-            ->with('status', 'Section duplicada com sucesso.');
+            ->with('status', 'Seção duplicada com sucesso.');
     }
 
     public function toggle(SiteSection $section): RedirectResponse

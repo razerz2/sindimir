@@ -21,7 +21,11 @@ class EventoCursoUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'curso_id' => ['required', 'integer', 'exists:cursos,id'],
+            'curso_id' => [
+                'required',
+                'integer',
+                Rule::exists('cursos', 'id')->where(fn ($query) => $query->whereNull('deleted_at')),
+            ],
             'numero_evento' => ['required', 'string', 'max:255'],
             'data_inicio' => ['required', 'date'],
             'data_fim' => ['required', 'date', 'after_or_equal:data_inicio'],

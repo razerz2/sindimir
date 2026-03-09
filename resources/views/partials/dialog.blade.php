@@ -70,6 +70,10 @@
         color: #ffffff;
         border-color: transparent;
     }
+    .app-dialog__button--secondary {
+        border-color: var(--color-primary);
+        color: var(--color-primary);
+    }
     .app-dialog__button.is-hidden {
         display: none;
     }
@@ -85,6 +89,7 @@
         <div id="app-dialog-message" class="app-dialog__message" data-dialog-message></div>
         <div class="app-dialog__actions">
             <button class="app-dialog__button" type="button" data-dialog-cancel>Cancelar</button>
+            <button class="app-dialog__button app-dialog__button--secondary is-hidden" type="button" data-dialog-secondary>Mover para espera</button>
             <button class="app-dialog__button app-dialog__button--primary" type="button" data-dialog-confirm>Confirmar</button>
         </div>
     </div>
@@ -100,6 +105,7 @@
         const titleEl = dialog.querySelector('[data-dialog-title]');
         const messageEl = dialog.querySelector('[data-dialog-message]');
         const cancelBtn = dialog.querySelector('[data-dialog-cancel]');
+        const secondaryBtn = dialog.querySelector('[data-dialog-secondary]');
         const confirmBtn = dialog.querySelector('[data-dialog-confirm]');
         const backdrop = dialog.querySelector('[data-dialog-backdrop]');
 
@@ -122,19 +128,25 @@
             }
         };
 
-        const openDialog = ({ title, message, confirmText, cancelText, mode }) => {
+        const openDialog = ({ title, message, confirmText, secondaryText, cancelText, mode }) => {
             currentMode = mode || 'confirm';
             lastActiveElement = document.activeElement;
 
-            titleEl.textContent = title || (currentMode === 'alert' ? 'Aviso' : 'Confirmacao');
+            titleEl.textContent = title || (currentMode === 'alert' ? 'Aviso' : 'Confirmação');
             messageEl.textContent = message || '';
             confirmBtn.textContent = confirmText || (currentMode === 'alert' ? 'OK' : 'Confirmar');
+            secondaryBtn.textContent = secondaryText || 'Mover para espera';
             cancelBtn.textContent = cancelText || 'Cancelar';
 
             if (currentMode === 'alert') {
                 cancelBtn.classList.add('is-hidden');
+                secondaryBtn.classList.add('is-hidden');
+            } else if (currentMode === 'choice') {
+                cancelBtn.classList.remove('is-hidden');
+                secondaryBtn.classList.remove('is-hidden');
             } else {
                 cancelBtn.classList.remove('is-hidden');
+                secondaryBtn.classList.add('is-hidden');
             }
 
             dialog.classList.add('is-open');
@@ -147,10 +159,19 @@
             });
         };
 
-        const onAccept = () => closeDialog(true);
-        const onCancel = () => closeDialog(currentMode === 'alert');
+        const onAccept = () => closeDialog(currentMode === 'choice' ? 'primary' : true);
+        const onSecondary = () => closeDialog('secondary');
+        const onCancel = () => {
+            if (currentMode === 'alert') {
+                closeDialog(true);
+                return;
+            }
+
+            closeDialog(currentMode === 'choice' ? 'cancel' : false);
+        };
 
         confirmBtn.addEventListener('click', onAccept);
+        secondaryBtn.addEventListener('click', onSecondary);
         cancelBtn.addEventListener('click', onCancel);
         backdrop.addEventListener('click', onCancel);
 
@@ -161,13 +182,14 @@
 
             if (event.key === 'Escape') {
                 event.preventDefault();
-                closeDialog(false);
+                closeDialog(currentMode === 'choice' ? 'cancel' : false);
             }
         });
 
         window.AppDialog = {
             alert: (message, options = {}) => openDialog({ ...options, message, mode: 'alert' }),
             confirm: (message, options = {}) => openDialog({ ...options, message, mode: 'confirm' }),
+            choose: (message, options = {}) => openDialog({ ...options, message, mode: 'choice' }),
         };
         window.appAlert = window.AppDialog.alert;
         window.appConfirm = window.AppDialog.confirm;
@@ -185,6 +207,40 @@
 
             if (form.dataset.confirmed === 'true') {
                 form.dataset.confirmed = '';
+                return;
+            }
+
+            if (form.dataset.confirmChoice === 'remove-inscricao') {
+                event.preventDefault();
+                window.AppDialog.choose(message, {
+                    title: form.dataset.confirmTitle || undefined,
+                    confirmText: form.dataset.confirmButton || 'Confirmar',
+                    secondaryText: form.dataset.confirmSecondaryButton || 'Mover para espera',
+                    cancelText: form.dataset.cancelButton || undefined,
+                }).then((choice) => {
+                    if (!choice || choice === 'cancel') {
+                        return;
+                    }
+
+                    const choiceInputName = form.dataset.confirmChoiceInput || 'acao';
+                    let choiceInput = form.querySelector('input[name="' + choiceInputName + '"]');
+
+                    if (!choiceInput) {
+                        choiceInput = document.createElement('input');
+                        choiceInput.type = 'hidden';
+                        choiceInput.name = choiceInputName;
+                        form.appendChild(choiceInput);
+                    }
+
+                    if (choice === 'secondary') {
+                        choiceInput.value = form.dataset.confirmSecondaryValue || 'mover_espera';
+                    } else {
+                        choiceInput.value = form.dataset.confirmPrimaryValue || 'confirmar';
+                    }
+
+                    form.dataset.confirmed = 'true';
+                    form.submit();
+                });
                 return;
             }
 

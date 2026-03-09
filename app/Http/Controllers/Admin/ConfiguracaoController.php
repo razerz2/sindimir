@@ -133,11 +133,11 @@ class ConfiguracaoController extends Controller
             'bot_session_timeout_minutes' => (int) $this->configuracaoService->get('bot.session_timeout_minutes', 15),
             'bot_welcome_message' => (string) $this->configuracaoService->get(
                 'bot.welcome_message',
-                'Bem-vindo ao bot do Sindimir. Escolha uma opcao:'
+                'Bem-vindo ao bot do Sindimir. Escolha uma opção:'
             ),
             'bot_fallback_message' => (string) $this->configuracaoService->get(
                 'bot.fallback_message',
-                'Nao entendi sua mensagem. Escolha uma opcao valida.'
+                'Não entendi sua mensagem. Escolha uma opção válida.'
             ),
             'bot_entry_keywords' => $this->formatBotEntryKeywordsForTextarea(
                 $this->configuracaoService->get('bot.entry_keywords', ['oi', 'ola'])
@@ -148,7 +148,7 @@ class ConfiguracaoController extends Controller
             'bot_reset_keyword' => (string) $this->configuracaoService->get('bot.reset_keyword', 'menu'),
             'bot_close_message' => (string) $this->configuracaoService->get(
                 'bot.close_message',
-                'Atendimento encerrado. Quando precisar, digite *menu* para comecar novamente.'
+                'Atendimento encerrado. Quando precisar, digite *menu* para começar novamente.'
             ),
             'bot_inactive_close_message' => (string) $this->configuracaoService->get(
                 'bot.inactive_close_message',
@@ -568,12 +568,12 @@ class ConfiguracaoController extends Controller
         );
         $this->configuracaoService->set(
             'bot.welcome_message',
-            (string) ($data['bot_welcome_message'] ?? 'Bem-vindo ao bot do Sindimir. Escolha uma opcao:'),
+            (string) ($data['bot_welcome_message'] ?? 'Bem-vindo ao bot do Sindimir. Escolha uma opção:'),
             'Mensagem de boas-vindas do BOT'
         );
         $this->configuracaoService->set(
             'bot.fallback_message',
-            (string) ($data['bot_fallback_message'] ?? 'Nao entendi sua mensagem. Escolha uma opcao valida.'),
+            (string) ($data['bot_fallback_message'] ?? 'Não entendi sua mensagem. Escolha uma opção válida.'),
             'Mensagem de fallback do BOT'
         );
         $this->configuracaoService->set(
@@ -593,7 +593,7 @@ class ConfiguracaoController extends Controller
         );
         $closeMessage = trim((string) ($data['bot_close_message'] ?? ''));
         if ($closeMessage === '') {
-            $closeMessage = 'Atendimento encerrado. Quando precisar, digite *menu* para comecar novamente.';
+            $closeMessage = 'Atendimento encerrado. Quando precisar, digite *menu* para começar novamente.';
         }
         $this->configuracaoService->set(
             'bot.close_message',

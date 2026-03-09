@@ -12,6 +12,7 @@ e área do aluno.
 
 - Público: página institucional, lista de cursos, inscrição por CPF e cadastro com token.
 - Admin: dashboard com indicadores, gestão de cursos, eventos e alunos.
+- Admin: inscricao manual de aluno em evento (busca por nome, CPF, telefone ou email) nas telas do evento.
 - Admin: usuários, configurações do sistema, tema, SMTP e provedores WhatsApp.
 - Admin: gestão de usuários com permissões por módulo e nome de exibição.
 - Admin: envio de notificações (email/WhatsApp) com templates e preview.

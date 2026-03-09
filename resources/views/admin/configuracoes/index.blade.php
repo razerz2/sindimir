@@ -2,6 +2,17 @@
 
 @section('title', 'Configurações')
 
+@section('subtitle')
+    Gerencie parâmetros do sistema, integrações e preferências administrativas.
+@endsection
+
+@section('breadcrumb')
+    <x-admin.breadcrumb :items="[
+        ['label' => 'Dashboard', 'href' => route('admin.dashboard'), 'icon' => 'home'],
+        ['label' => 'Configurações', 'icon' => 'settings', 'current' => true],
+    ]" />
+@endsection
+
 @section('content')
     <form action="{{ route('admin.configuracoes.update') }}" method="POST" class="space-y-6" enctype="multipart/form-data">
         @csrf
@@ -111,14 +122,14 @@
                     <x-admin.input
                         id="tema_cor_primaria"
                         name="tema_cor_primaria"
-                        label="Cor primaria"
+                        label="Cor primária"
                         :value="$theme['cor_primaria'] ?? ''"
                         required
                     />
                     <x-admin.input
                         id="tema_cor_secundaria"
                         name="tema_cor_secundaria"
-                        label="Cor secundaria"
+                        label="Cor secundária"
                         :value="$theme['cor_secundaria'] ?? ''"
                         required
                     />
@@ -237,15 +248,15 @@
                     Gerencie dados auxiliares usados em cadastros e relatórios.
                 </p>
                 <div class="mt-4 flex flex-wrap gap-3">
-                    <a class="btn btn-ghost" href="{{ route('admin.catalogo.categorias.index') }}">
+                    <x-admin.action as="a" variant="ghost" icon="settings" href="{{ route('admin.catalogo.categorias.index') }}">
                         Categorias de curso
-                    </a>
-                    <a class="btn btn-ghost" href="{{ route('admin.catalogo.estados.index') }}">
+                    </x-admin.action>
+                    <x-admin.action as="a" variant="ghost" icon="settings" href="{{ route('admin.catalogo.estados.index') }}">
                         Estados (UF)
-                    </a>
-                    <a class="btn btn-ghost" href="{{ route('admin.catalogo.municipios.index') }}">
+                    </x-admin.action>
+                    <x-admin.action as="a" variant="ghost" icon="settings" href="{{ route('admin.catalogo.municipios.index') }}">
                         Municípios
-                    </a>
+                    </x-admin.action>
                 </div>
             </div>
 
@@ -408,9 +419,9 @@
 
                                 <div class="mt-4 flex items-center justify-between">
                                     <span class="text-xs text-emerald-600" x-show="copyMessage" x-text="copyMessage"></span>
-                                    <button type="submit" name="submit_context" value="template" class="btn btn-primary">
+                                    <x-admin.action variant="primary" icon="check" type="submit" name="submit_context" value="template">
                                         Salvar template deste tipo
-                                    </button>
+                                    </x-admin.action>
                                 </div>
                             </div>
                         </div>
@@ -449,7 +460,7 @@
                 <h3 class="section-title">WhatsApp</h3>
                 <div class="mb-4 flex items-center gap-3">
                     <span class="badge">{{ $whatsappStatus }}</span>
-                    <p class="text-sm text-slate-500">Status da integracao.</p>
+                    <p class="text-sm text-slate-500">Status da integração.</p>
                 </div>
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <x-admin.select
@@ -542,15 +553,16 @@
                         </div>
                     </div>
                     <div class="mt-4 flex justify-end">
-                        <button
+                        <x-admin.action
+                            variant="primary"
+                            icon="check"
                             type="submit"
-                            class="btn btn-primary"
                             formaction="{{ route('admin.configuracoes.whatsapp.testar') }}"
                             formmethod="POST"
-                            @if (! $whatsappReady) disabled @endif
+                            :disabled="! $whatsappReady"
                         >
                             Testar envio
-                        </button>
+                        </x-admin.action>
                     </div>
                 </div>
             </div>
@@ -784,7 +796,7 @@
             </div>
 
             <div class="tab-panel hidden" data-tab-panel="google-contatos">
-                <h3 class="section-title">Google Contacts</h3>
+                <h3 class="section-title">Google Contatos</h3>
                 <p class="text-sm text-slate-500">
                     Conecte a conta Google da empresa para importar contatos do telefone.
                 </p>
@@ -805,29 +817,31 @@
 
                 <div class="mt-6 flex flex-wrap gap-3">
                     @if ($googleConfigured && ! $googleConnected)
-                        <a class="btn btn-primary" href="{{ route('admin.google.contacts.connect') }}">
+                        <x-admin.action as="a" variant="primary" icon="settings" href="{{ route('admin.google.contacts.connect') }}">
                             Conectar conta Google
-                        </a>
+                        </x-admin.action>
                     @endif
 
                     @if ($googleConfigured && $googleConnected)
-                        <button
+                        <x-admin.action
+                            variant="primary"
+                            icon="download"
                             type="submit"
-                            class="btn btn-primary"
                             formaction="{{ route('admin.google.contacts.import') }}"
                             formmethod="POST"
                         >
                             Importar contatos
-                        </button>
-                        <button
+                        </x-admin.action>
+                        <x-admin.action
                             type="submit"
-                            class="btn btn-ghost"
+                            variant="ghost"
+                            icon="x"
                             formaction="{{ route('admin.google.contacts.disconnect') }}"
                             formmethod="POST"
                             onclick="return confirm('Deseja remover a conexão com o Google?')"
                         >
                             Desconectar
-                        </button>
+                        </x-admin.action>
                     @endif
                 </div>
             </div>
@@ -1217,7 +1231,7 @@
         </div>
 
         <div class="flex justify-end gap-2">
-            <button class="btn btn-primary" type="submit" name="submit_context" value="all">Salvar configurações</button>
+            <x-admin.action variant="primary" icon="check" type="submit" name="submit_context" value="all">Salvar configurações</x-admin.action>
         </div>
     </form>
 

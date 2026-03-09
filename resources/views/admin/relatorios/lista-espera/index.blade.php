@@ -1,11 +1,23 @@
 @extends('admin.layouts.app')
 
-@section('title', 'Relatório de Lista de Espera')
+@section('title', 'Relatório de lista de espera')
+
+@section('subtitle')
+    Acompanhe filas, chamadas e conversões em matrícula.
+@endsection
+
+@section('breadcrumb')
+    <x-admin.breadcrumb :items="[
+        ['label' => 'Dashboard', 'href' => route('admin.dashboard'), 'icon' => 'home'],
+        ['label' => 'Relatórios', 'href' => route('admin.relatorios.index'), 'icon' => 'settings'],
+        ['label' => 'Lista de espera', 'icon' => 'filter', 'current' => true],
+    ]" />
+@endsection
 
 @section('content')
     <div class="space-y-6">
         <p class="text-sm text-[var(--content-text)] opacity-70">
-            Este relatório exibe todos os alunos que entraram na lista de espera dos eventos e o status de cada chamada.
+            Este relatório exibe os alunos que entraram na lista de espera dos eventos e o status de cada chamada.
         </p>
 
         <form method="GET" action="{{ route('admin.relatorios.lista-espera.index') }}" class="space-y-4">
@@ -74,8 +86,8 @@
             </div>
 
             <div class="flex flex-wrap items-center justify-end gap-2">
-                <a class="btn btn-ghost" href="{{ route('admin.relatorios.lista-espera.index') }}">Limpar</a>
-                <button class="btn btn-primary" type="submit">Filtrar</button>
+                <x-admin.action as="a" variant="ghost" icon="x" href="{{ route('admin.relatorios.lista-espera.index') }}">Limpar</x-admin.action>
+                <x-admin.action variant="primary" icon="filter" type="submit">Filtrar</x-admin.action>
             </div>
         </form>
 
@@ -83,12 +95,14 @@
             <div class="text-sm font-semibold">
                 Total de registros encontrados: {{ $listaEspera->total() }}
             </div>
-            <a
-                class="btn btn-primary"
+            <x-admin.action
+                as="a"
+                variant="primary"
+                icon="download"
                 href="{{ route('admin.relatorios.lista-espera.export', request()->query()) }}"
             >
                 Exportar Excel
-            </a>
+            </x-admin.action>
         </div>
 
         @if ($listaEspera->count() === 0)

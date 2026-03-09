@@ -38,7 +38,7 @@
     ])->all();
     $simNaoOptions = [
         ['value' => '1', 'label' => 'Sim'],
-        ['value' => '0', 'label' => 'Nao'],
+        ['value' => '0', 'label' => 'Não'],
     ];
     $booleanToOption = fn ($value) => is_null($value) ? null : ($value ? '1' : '0');
     $estadoOptions = $estados->map(fn ($estado) => [
@@ -51,15 +51,15 @@
 
 <div class="space-y-8">
     <div>
-        <h3 class="text-base font-semibold">Identificacao e vinculo</h3>
+        <h3 class="text-base font-semibold">Identificação e vínculo</h3>
         <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             <x-admin.select
                 id="user_id"
                 name="user_id"
-                label="Usuario vinculado"
+                label="Usuário vinculado"
                 :options="$usuarioOptions"
                 :selected="$aluno->user_id ?? null"
-                placeholder="Sem vinculo"
+                placeholder="Sem vínculo"
                 wrapper-class="lg:col-span-2"
             />
             <x-admin.input
@@ -107,7 +107,7 @@
     </div>
 
     <div>
-        <h3 class="text-base font-semibold">Naturalidade e familia</h3>
+        <h3 class="text-base font-semibold">Naturalidade e família</h3>
         <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             <x-admin.input
                 id="naturalidade"
@@ -138,7 +138,7 @@
             <x-admin.input
                 id="nome_mae"
                 name="nome_mae"
-                label="Nome da mae"
+                label="Nome da mãe"
                 :value="$aluno->nome_mae ?? ''"
                 wrapper-class="lg:col-span-2"
             />
@@ -146,12 +146,12 @@
     </div>
 
     <div>
-        <h3 class="text-base font-semibold">Endereco e contato</h3>
+        <h3 class="text-base font-semibold">Endereço e contato</h3>
         <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             <x-admin.input
                 id="endereco"
                 name="endereco"
-                label="Endereco"
+                label="Endereço"
                 :value="$aluno->endereco ?? ''"
                 wrapper-class="lg:col-span-2"
                 required
@@ -166,7 +166,7 @@
             <x-admin.select
                 id="estado_residencia_id"
                 name="estado_residencia_id"
-                label="UF (residencia)"
+                label="UF (residência)"
                 :options="$estadoOptions"
                 :selected="$estadoSelecionado"
                 placeholder="Selecione"
@@ -175,7 +175,7 @@
             <x-admin.select
                 id="municipio_id"
                 name="municipio_id"
-                label="Municipio"
+                label="Município"
                 :options="[]"
                 :selected="$municipioSelecionado"
                 placeholder="Selecione o estado"
@@ -219,7 +219,7 @@
     </div>
 
     <div>
-        <h3 class="text-base font-semibold">Informacoes socioeconomicas</h3>
+        <h3 class="text-base font-semibold">Informações socioeconômicas</h3>
         <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             <x-admin.select
                 id="estado_civil"
@@ -227,15 +227,15 @@
                 label="Estado civil"
                 :options="$estadoCivilOptions"
                 :selected="$aluno->estado_civil?->value ?? null"
-                placeholder="Nao informado"
+                placeholder="Não informado"
             />
             <x-admin.select
                 id="raca_cor"
                 name="raca_cor"
-                label="Raca/Cor"
+                label="Raça/Cor"
                 :options="$racaCorOptions"
                 :selected="$aluno->raca_cor?->value ?? null"
-                placeholder="Nao informado"
+                placeholder="Não informado"
             />
             <x-admin.select
                 id="escolaridade"
@@ -243,7 +243,7 @@
                 label="Escolaridade"
                 :options="$escolaridadeOptions"
                 :selected="$aluno->escolaridade?->value ?? null"
-                placeholder="Nao informado"
+                placeholder="Não informado"
             />
             <x-admin.select
                 id="renda_familiar"
@@ -251,7 +251,7 @@
                 label="Renda familiar"
                 :options="$rendaOptions"
                 :selected="$aluno->renda_familiar?->value ?? null"
-                placeholder="Nao informado"
+                placeholder="Não informado"
             />
             <x-admin.select
                 id="estuda"
@@ -259,7 +259,7 @@
                 label="Estuda?"
                 :options="$simNaoOptions"
                 :selected="$booleanToOption($aluno->estuda ?? null)"
-                placeholder="Nao informado"
+                placeholder="Não informado"
             />
             <x-admin.select
                 id="trabalha"
@@ -267,15 +267,15 @@
                 label="Trabalha?"
                 :options="$simNaoOptions"
                 :selected="$booleanToOption($aluno->trabalha ?? null)"
-                placeholder="Nao informado"
+                placeholder="Não informado"
             />
             <x-admin.select
                 id="situacao_participante"
                 name="situacao_participante"
-                label="Situacao do participante"
+                label="Situação do participante"
                 :options="$situacaoOptions"
                 :selected="$aluno->situacao_participante?->value ?? null"
-                placeholder="Nao informado"
+                placeholder="Não informado"
                 wrapper-class="lg:col-span-2"
             />
             <x-admin.select
@@ -284,36 +284,36 @@
                 label="Tipo de entidade de origem"
                 :options="$tipoEntidadeOptions"
                 :selected="$aluno->tipo_entidade_origem?->value ?? null"
-                placeholder="Nao informado"
+                placeholder="Não informado"
                 wrapper-class="lg:col-span-2"
             />
         </div>
     </div>
 
     <div>
-        <h3 class="text-base font-semibold">Programas e beneficios</h3>
+        <h3 class="text-base font-semibold">Programas e benefícios</h3>
         <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             <x-admin.input
                 id="numero_cadastro_unico"
                 name="numero_cadastro_unico"
-                label="Numero do Cadastro Unico"
+                label="Número do Cadastro Único"
                 :value="$aluno->numero_cadastro_unico ?? ''"
             />
             <x-admin.select
                 id="recebe_bolsa_familia"
                 name="recebe_bolsa_familia"
-                label="Recebe Bolsa Familia?"
+                label="Recebe Bolsa Família?"
                 :options="$simNaoOptions"
                 :selected="$booleanToOption($aluno->recebe_bolsa_familia ?? null)"
-                placeholder="Nao informado"
+                placeholder="Não informado"
             />
             <x-admin.select
                 id="responsavel_menor"
                 name="responsavel_menor"
-                label="Responsavel por menor?"
+                label="Responsável por menor?"
                 :options="$simNaoOptions"
                 :selected="$booleanToOption($aluno->responsavel_menor ?? null)"
-                placeholder="Nao informado"
+                placeholder="Não informado"
             />
             <x-admin.input
                 id="idade_menor_mais_novo"
@@ -328,33 +328,33 @@
                 label="Tem com quem deixar os menores?"
                 :options="$simNaoOptions"
                 :selected="$booleanToOption($aluno->tem_com_quem_deixar_menores ?? null)"
-                placeholder="Nao informado"
+                placeholder="Não informado"
                 wrapper-class="lg:col-span-2"
             />
         </div>
     </div>
 
     <div>
-        <h3 class="text-base font-semibold">Deficiencias</h3>
+        <h3 class="text-base font-semibold">Deficiências</h3>
         <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             <x-admin.select
                 id="possui_deficiencia"
                 name="possui_deficiencia"
-                label="Possui deficiencia?"
+                label="Possui deficiência?"
                 :options="$possuiDeficienciaOptions"
                 :selected="$aluno->possui_deficiencia?->value ?? null"
-                placeholder="Nao informado"
+                placeholder="Não informado"
             />
             <x-admin.input
                 id="deficiencia_descricao"
                 name="deficiencia_descricao"
-                label="Descricao adicional"
+                label="Descrição adicional"
                 :value="old('deficiencia_descricao', $aluno->deficiencia_descricao ?? '')"
                 wrapper-class="md:col-span-2"
             />
         </div>
         <div class="mt-4">
-            <p class="text-sm font-semibold">Deficiencias</p>
+            <p class="text-sm font-semibold">Deficiências</p>
             <div class="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
                 @foreach ($deficiencias as $deficiencia)
                     <label class="flex items-center gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm">

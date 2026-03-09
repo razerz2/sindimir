@@ -91,7 +91,7 @@ class EventoCursoService
             ->where('status', StatusMatricula::Confirmada->value)
             ->count();
 
-        $vagasDisponiveis = max($totalVagas - $totalConfirmadas, 0);
+        $vagasDisponiveis = max($totalVagas - $totalInscritos, 0);
 
         return [
             'total_vagas' => $totalVagas,

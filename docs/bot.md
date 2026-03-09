@@ -132,6 +132,8 @@ Em produção, é obrigatório rodar:
 Jobs relevantes ao BOT:
 
 - `bot:close-inactive` (minutely)
+- `confirmacoes:enviar` (diário, no horário configurado em `app.scheduler.lembrete_horario`)
+- `vagas-disponiveis:enviar` (hourly)
 
 ## Eventos expirados e disponibilidade de cursos
 
@@ -154,3 +156,66 @@ Impacto:
 
 - eventos expirados deixam de aparecer como disponíveis;
 - rotinas que dependem de `evento_cursos.ativo=true` param naturalmente para eventos encerrados.
+
+## Atualizações recentes (2026-03-08)
+
+### Reinscrição após cancelamento (índice único em `matriculas`)
+
+Foi formalizado o comportamento de reinscrição para o mesmo par `aluno_id + evento_curso_id`:
+
+- A tabela `matriculas` possui índice único (`aluno_id`, `evento_curso_id`).
+- Se a matrícula anterior estiver `cancelada` ou `expirada`, a nova inscrição via WhatsApp não cria outro registro.
+- O sistema reutiliza o mesmo registro (mesmo `id`) e altera o status para `pendente`.
+
+Exemplo prático:
+
+1. Aluno cancela a matrícula no evento.
+2. Aluno reinscreve no mesmo evento pelo BOT.
+3. O registro original é reativado para `pendente` (sem novo `id`).
+
+### Contrato interno de status da inscrição (service -> BOT)
+
+`MatriculaService::solicitarInscricao(...)` retorna um status estruturado consumido pelo BOT:
+
+- `created`: inscrição criada ou reativada com sucesso.
+- `already_enrolled`: já existe matrícula ativa (`pendente` ou `confirmada`).
+- `waitlist`: já existe lista de espera ativa (`aguardando` ou `chamado`).
+- `no_vacancies`: sem vagas imediatas; fluxo segue para lista de espera conforme regra.
+
+Resposta esperada no BOT:
+
+- `created`: confirma inscrição concluída com sucesso.
+- `already_enrolled`: "Você já possui inscrição neste curso."
+- `waitlist`: "Você já está na lista de espera deste curso."
+- `no_vacancies`: informa ausência de vaga imediata e inclusão em lista de espera.
+
+### Matriz de bloqueio da inscrição
+
+- Bloqueia inscrição: matrícula `pendente|confirmada`.
+- Não bloqueia inscrição: matrícula `cancelada|expirada`.
+- Lista de espera ativa (`aguardando|chamado`): não trata como matrícula; retorna mensagem específica de lista de espera.
+
+### Confirmação pós-inscrição (link)
+
+Quando a inscrição fica em `pendente` e a configuração automática está ativa:
+
+- o sistema pode enviar mensagem de confirmação com link (incluindo canal WhatsApp);
+- o envio pode ocorrer imediatamente (quando elegível pela regra atual) ou pela rotina agendada `confirmacoes:enviar`.
+
+### Diagnóstico (debug do BOT)
+
+Para investigação em ambiente controlado:
+
+- habilitar `bot.debug=true`;
+- observar logs sanitizados:
+  - `BOT inscrição diagnóstico`
+  - `BOT inscrição falhou`
+- o log inclui, entre outros campos, `selected_event_id`, `target_aluno_id`, `status` retornado e resumo de duplicidade (`matricula_encontrada` / `lista_espera_encontrada`), sem expor tokens.
+
+Comando sugerido:
+
+- `rg -n "BOT inscrição" storage/logs/laravel.log`
+
+### Nota de scheduler
+
+- Rotina de vagas (`vagas-disponiveis:enviar`): corrigido uso da variável `$diasAntes` em `MatriculaService` para evitar erro `Undefined variable $diasAntes`.

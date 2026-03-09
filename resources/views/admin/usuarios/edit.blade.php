@@ -6,15 +6,18 @@
     Atualize as informações de acesso.
 @endsection
 
+@section('breadcrumb')
+    <x-admin.breadcrumb :items="[
+        ['label' => 'Dashboard', 'href' => route('admin.dashboard'), 'icon' => 'home'],
+        ['label' => 'Usuários', 'href' => route('admin.usuarios.index'), 'icon' => 'user'],
+        ['label' => 'Editar usuário', 'icon' => 'edit', 'current' => true],
+    ]" />
+@endsection
+
 @section('content')
     <div class="page-actions">
         <div></div>
-        <a class="btn btn-ghost" href="{{ route('admin.usuarios.show', $user) }}">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-            <span>Voltar</span>
-        </a>
+        <x-admin.action as="a" variant="ghost" icon="arrow-left" href="{{ route('admin.usuarios.show', $user) }}">Voltar</x-admin.action>
     </div>
 
     @if (session('status'))
@@ -29,11 +32,11 @@
             <x-admin.input name="name" label="Nome completo" required value="{{ old('name', $user->name) }}" />
             <x-admin.input
                 name="nome_exibicao"
-                label="Nome de exibicao"
+                label="Nome de exibição"
                 value="{{ old('nome_exibicao', $user->nome_exibicao) }}"
-                hint="Se vazio, o sistema exibira o nome completo."
+                hint="Se vazio, o sistema exibirá o nome completo."
             />
-            <x-admin.input name="email" label="Email" type="email" required value="{{ old('email', $user->email) }}" />
+            <x-admin.input name="email" label="E-mail" type="email" required value="{{ old('email', $user->email) }}" />
             <x-admin.select
                 name="role"
                 label="Perfil"
@@ -50,9 +53,9 @@
 
         <div class="content-card space-y-4" id="module-permissions-section">
             <div>
-                <h3 class="text-base font-semibold">Permissoes por modulo</h3>
+                <h3 class="text-base font-semibold">Permissões por módulo</h3>
                 <p class="text-sm text-[var(--content-text)] opacity-70">
-                    Disponivel apenas para usuarios comuns. Administradores nao tem restricoes.
+                    Disponível apenas para usuários comuns. Administradores não têm restrições.
                 </p>
             </div>
             <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -75,13 +78,8 @@
         </div>
 
         <div class="flex flex-wrap justify-end gap-2">
-            <a class="btn btn-ghost" href="{{ route('admin.usuarios.index') }}">Cancelar</a>
-            <button class="btn btn-primary" type="submit">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 12l5 5L20 7" />
-                </svg>
-                <span>Salvar alterações</span>
-            </button>
+            <x-admin.action as="a" variant="ghost" icon="x" href="{{ route('admin.usuarios.index') }}">Cancelar</x-admin.action>
+            <x-admin.action variant="primary" icon="check" type="submit">Salvar alterações</x-admin.action>
         </div>
     </form>
 
