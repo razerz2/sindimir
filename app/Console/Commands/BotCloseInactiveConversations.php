@@ -144,8 +144,13 @@ class BotCloseInactiveConversations extends Command
     private function resolveActiveProvider(): string
     {
         $provider = mb_strtolower(trim((string) $this->configuracaoService->get('bot.provider', 'meta')));
+        $supported = $this->providerFactory->supportedChannels();
 
-        return in_array($provider, ['meta', 'zapi'], true) ? $provider : 'meta';
+        if (in_array($provider, $supported, true)) {
+            return $provider;
+        }
+
+        return $supported[0] ?? 'meta';
     }
 
     private function getSessionTimeoutMinutes(): int
@@ -210,4 +215,3 @@ class BotCloseInactiveConversations extends Command
         return $this->hasConversationClosedReasonColumn;
     }
 }
-

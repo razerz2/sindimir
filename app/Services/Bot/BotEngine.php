@@ -13,6 +13,7 @@ use App\Models\EventoCurso;
 use App\Models\ListaEspera;
 use App\Models\Matricula;
 use App\Services\AlunoService;
+use App\Services\Bot\Providers\BotProviderFactory;
 use App\Services\ConfiguracaoService;
 use App\Services\EventoCursoService;
 use App\Services\MatriculaService;
@@ -38,7 +39,8 @@ class BotEngine
         private readonly AlunoService $alunoService,
         private readonly MatriculaService $matriculaService,
         private readonly EventoCursoService $eventoCursoService,
-        private readonly NotificationService $notificationService
+        private readonly NotificationService $notificationService,
+        private readonly BotProviderFactory $providerFactory
     ) {
     }
 
@@ -3295,8 +3297,22 @@ class BotEngine
     private function normalizeChannel(string $channel): string
     {
         $channel = mb_strtolower(trim($channel));
+        $supported = $this->providerFactory->supportedChannels();
 
-        return in_array($channel, ['meta', 'zapi'], true) ? $channel : 'meta';
+        if ($supported === []) {
+            return 'meta';
+        }
+
+        if (in_array($channel, $supported, true)) {
+            return $channel;
+        }
+
+        $configured = mb_strtolower(trim((string) $this->configuracaoService->get('bot.provider', 'meta')));
+        if (in_array($configured, $supported, true)) {
+            return $configured;
+        }
+
+        return $supported[0];
     }
 
     private function parseNumericOption(string $text): ?int

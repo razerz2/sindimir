@@ -18,7 +18,9 @@ use App\Http\Controllers\Admin\SiteSectionController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\TwoFactorController;
+use App\Http\Controllers\Webhooks\BotEvolutionWebhookController;
 use App\Http\Controllers\Webhooks\BotMetaWebhookController;
+use App\Http\Controllers\Webhooks\BotWahaWebhookController;
 use App\Http\Controllers\Webhooks\BotZapiWebhookController;
 use App\Http\Controllers\Public\ContatoController;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -69,6 +71,12 @@ Route::post('/webhooks/bot/meta', [BotMetaWebhookController::class, 'handle'])
 Route::post('/webhooks/bot/zapi', [BotZapiWebhookController::class, 'handle'])
     ->withoutMiddleware([ValidateCsrfToken::class])
     ->name('webhooks.bot.zapi');
+Route::post('/webhooks/bot/waha', [BotWahaWebhookController::class, 'handle'])
+    ->withoutMiddleware([ValidateCsrfToken::class])
+    ->name('webhooks.bot.waha');
+Route::post('/webhooks/bot/evolution', [BotEvolutionWebhookController::class, 'handle'])
+    ->withoutMiddleware([ValidateCsrfToken::class])
+    ->name('webhooks.bot.evolution');
 
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware('guest:admin')->group(function () {

@@ -2,60 +2,41 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Http;
+use App\Services\WhatsApp\WhatsAppProviderConfigResolver;
+use App\Services\WhatsApp\WhatsAppProviderResolver;
 use RuntimeException;
 
 class WhatsAppService
 {
-    public function __construct(private readonly ConfiguracaoService $configuracaoService)
+    public function __construct(
+        private readonly WhatsAppProviderResolver $providerResolver,
+        private readonly WhatsAppProviderConfigResolver $configResolver
+    )
     {
     }
 
     public function canSend(): bool
     {
-        $provider = $this->getActiveProvider();
-
-        if ($provider === 'zapi') {
-            $baseUrl = rtrim((string) ($this->configuracaoService->get('whatsapp.base_url')
-                ?? config('services.whatsapp.zapi.base_url')), '/');
-            $token = (string) ($this->configuracaoService->get('whatsapp.token') ?? config('services.whatsapp.zapi.token'));
-            $clientToken = (string) ($this->configuracaoService->get('whatsapp.client_token') ?? config('services.whatsapp.zapi.client_token'));
-            $instance = (string) ($this->configuracaoService->get('whatsapp.instance')
-                ?? config('services.whatsapp.zapi.instance'));
-
-            return $baseUrl !== '' && $token !== '' && $clientToken !== '' && $instance !== '';
+        $provider = $this->providerResolver->resolve($this->configResolver->resolveNotificationProvider());
+        if ($provider === null) {
+            return false;
         }
 
-        if ($provider === 'meta') {
-            $baseUrl = rtrim((string) config('services.whatsapp.meta.base_url'), '/');
-            $token = (string) ($this->configuracaoService->get('whatsapp.token') ?? config('services.whatsapp.meta.token'));
-            $phoneId = (string) ($this->configuracaoService->get('whatsapp.phone_number_id') ?? config('services.whatsapp.meta.phone_number_id'));
-
-            return $baseUrl !== '' && $token !== '' && $phoneId !== '';
-        }
-
-        return false;
+        return $provider->canSend(
+            $this->configResolver->resolveNotificationConfig($provider->key())
+        );
     }
 
     public function canTestSend(): bool
     {
-        $provider = $this->getActiveProvider();
-
-        if ($provider === 'zapi') {
-            $token = (string) ($this->configuracaoService->get('whatsapp.token') ?? '');
-            $clientToken = (string) ($this->configuracaoService->get('whatsapp.client_token') ?? '');
-
-            return $token !== '' && $clientToken !== '';
+        $provider = $this->providerResolver->resolve($this->configResolver->resolveNotificationProvider());
+        if ($provider === null) {
+            return false;
         }
 
-        if ($provider === 'meta') {
-            $token = (string) ($this->configuracaoService->get('whatsapp.token') ?? '');
-            $phoneId = (string) ($this->configuracaoService->get('whatsapp.phone_number_id') ?? '');
-
-            return $token !== '' && $phoneId !== '';
-        }
-
-        return false;
+        return $provider->canTestSend(
+            $this->configResolver->resolveNotificationConfig($provider->key())
+        );
     }
 
     public function send(string $to, string $message): void
@@ -65,170 +46,29 @@ class WhatsAppService
 
     public function sendWithResponse(string $to, string $message): array
     {
-        $provider = $this->getActiveProvider();
-
-        if ($provider === 'zapi') {
-            return $this->sendViaZapi($to, $message, true);
-        }
-
-        if ($provider === 'meta') {
-            return $this->sendViaMeta($to, $message, true);
-        }
-
-        throw new RuntimeException('Nenhum provedor WhatsApp ativo configurado.');
+        return $this->sendUsingActiveProvider($to, $message);
     }
 
     public function sendTest(string $to, string $message): array
     {
-        $provider = $this->getActiveProvider();
-
-        if ($provider === 'zapi') {
-            return $this->sendViaZapi($to, $message, true);
-        }
-
-        if ($provider === 'meta') {
-            return $this->sendViaMeta($to, $message, true);
-        }
-
-        throw new RuntimeException('Nenhum provedor WhatsApp ativo configurado.');
+        return $this->sendUsingActiveProvider($to, $message);
     }
 
-    private function getActiveProvider(): string
+    /**
+     * @return array{provider: string, response: array<string, mixed>}
+     */
+    private function sendUsingActiveProvider(string $to, string $message): array
     {
-        $provider = $this->configuracaoService->get('whatsapp.provedor');
-
-        if (! in_array($provider, ['zapi', 'meta'], true)) {
-            return '';
+        $providerKey = $this->configResolver->resolveNotificationProvider();
+        $provider = $this->providerResolver->resolve($providerKey);
+        if ($provider === null) {
+            throw new RuntimeException('Nenhum provedor WhatsApp ativo configurado.');
         }
 
-        return $provider;
-    }
-
-    private function sendViaZapi(string $to, string $message, bool $returnResponse = false): array
-    {
-        $baseUrl = rtrim((string) ($this->configuracaoService->get('whatsapp.base_url')
-            ?? config('services.whatsapp.zapi.base_url')), '/');
-        $token = (string) ($this->configuracaoService->get('whatsapp.token') ?? config('services.whatsapp.zapi.token'));
-        $clientToken = (string) ($this->configuracaoService->get('whatsapp.client_token') ?? config('services.whatsapp.zapi.client_token'));
-        $instance = (string) ($this->configuracaoService->get('whatsapp.instance')
-            ?? config('services.whatsapp.zapi.instance'));
-        $verifySsl = (bool) config('services.whatsapp.zapi.verify_ssl', true);
-
-        if ($baseUrl === '' || $token === '' || $clientToken === '' || $instance === '') {
-            $missing = [];
-            if ($baseUrl === '') {
-                $missing[] = 'base_url';
-            }
-            if ($instance === '') {
-                $missing[] = 'instance';
-            }
-            if ($token === '') {
-                $missing[] = 'token';
-            }
-            if ($clientToken === '') {
-                $missing[] = 'client_token';
-            }
-
-            $details = $missing ? (' Campos ausentes: ' . implode(', ', $missing) . '.') : '';
-            throw new RuntimeException('Configuração Z-API incompleta.' . $details);
-        }
-
-        $linkUrl = $this->extractLinkUrl($message);
-        $endpoint = $linkUrl
-            ? "{$baseUrl}/instances/{$instance}/token/{$token}/send-link"
-            : "{$baseUrl}/instances/{$instance}/token/{$token}/send-text";
-
-        $http = Http::withHeaders([
-            'Client-Token' => $clientToken,
-            'Content-Type' => 'application/json',
-        ]);
-
-        if (! $verifySsl) {
-            $http = $http->withoutVerifying();
-        }
-
-        $payload = [
-            'phone' => $to,
-            'message' => $message,
-        ];
-
-        if ($linkUrl) {
-            $payload['linkUrl'] = $linkUrl;
-            $payload['title'] = (string) ($this->configuracaoService->get('sistema.nome') ?? config('app.name'));
-            $payload['linkDescription'] = 'Acesse o link para mais detalhes.';
-            $logoPath = (string) ($this->configuracaoService->get('tema.logo') ?? '');
-            if ($logoPath !== '') {
-                $payload['image'] = url($logoPath);
-            }
-        }
-
-        $response = $http->post($endpoint, $payload);
-
-        if (! $response->successful()) {
-            throw new RuntimeException('Falha ao enviar WhatsApp via Z-API.');
-        }
-
-        if (! $returnResponse) {
-            return [];
-        }
-
-        return [
-            'provider' => 'zapi',
-            'response' => $response->json() ?? ['body' => $response->body()],
-        ];
-    }
-
-    private function sendViaMeta(string $to, string $message, bool $returnResponse = false): array
-    {
-        $baseUrl = rtrim((string) config('services.whatsapp.meta.base_url'), '/');
-        $token = (string) ($this->configuracaoService->get('whatsapp.token') ?? config('services.whatsapp.meta.token'));
-        $phoneId = (string) ($this->configuracaoService->get('whatsapp.phone_number_id') ?? config('services.whatsapp.meta.phone_number_id'));
-        $verifySsl = (bool) config('services.whatsapp.meta.verify_ssl', true);
-
-        if ($baseUrl === '' || $token === '' || $phoneId === '') {
-            throw new RuntimeException(
-                'Configuração Meta incompleta. Verifique base_url e phone_number_id em services.whatsapp.meta.'
-            );
-        }
-
-        $http = Http::withToken($token);
-
-        if (! $verifySsl) {
-            $http = $http->withoutVerifying();
-        }
-
-        $response = $http->post(
-            "{$baseUrl}/{$phoneId}/messages",
-            [
-                'messaging_product' => 'whatsapp',
-                'to' => $to,
-                'type' => 'text',
-                'text' => [
-                    'body' => $message,
-                ],
-            ]
+        return $provider->send(
+            $this->configResolver->resolveNotificationConfig($provider->key()),
+            $to,
+            $message
         );
-
-        if (! $response->successful()) {
-            throw new RuntimeException('Falha ao enviar WhatsApp via Meta Cloud API.');
-        }
-
-        if (! $returnResponse) {
-            return [];
-        }
-
-        return [
-            'provider' => 'meta',
-            'response' => $response->json() ?? ['body' => $response->body()],
-        ];
-    }
-
-    private function extractLinkUrl(string $message): ?string
-    {
-        if (preg_match('~https?://\S+~i', $message, $match) !== 1) {
-            return null;
-        }
-
-        return $match[0];
     }
 }

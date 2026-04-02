@@ -467,51 +467,118 @@
                         id="whatsapp_provedor"
                         name="whatsapp_provedor"
                         label="Provedor"
-                        :options="[
-                            ['value' => 'meta', 'label' => 'Meta (Cloud API)'],
-                            ['value' => 'zapi', 'label' => 'Z-API'],
-                        ]"
+                        :options="$whatsAppProviderOptions"
                         :selected="$settings['whatsapp_provedor'] ?? null"
                         placeholder="Selecione"
                     />
-                    <x-admin.input
-                        id="whatsapp_token"
-                        name="whatsapp_token"
-                        label="Token / API Key"
-                        :value="$settings['whatsapp_token'] ?? ''"
-                    />
-                    <div id="whatsapp_client_token_field">
+                    <div id="whatsapp_token_field">
+                        <x-admin.input
+                            id="whatsapp_token"
+                            name="whatsapp_token"
+                            label="Token"
+                            :value="$settings['whatsapp_token'] ?? ''"
+                        />
+                    </div>
+                    <div id="whatsapp-zapi-fields" class="grid grid-cols-1 gap-4 md:grid-cols-2 md:col-span-2">
                         <x-admin.input
                             id="whatsapp_client_token"
                             name="whatsapp_client_token"
                             label="Client-Token (Z-API)"
                             :value="$settings['whatsapp_client_token'] ?? ''"
                         />
+                        <x-admin.input
+                            id="whatsapp_base_url"
+                            name="whatsapp_base_url"
+                            label="Base URL (Z-API)"
+                            :value="$settings['whatsapp_base_url'] ?? ''"
+                        />
+                        <x-admin.input
+                            id="whatsapp_instance"
+                            name="whatsapp_instance"
+                            label="Instance (Z-API)"
+                            :value="$settings['whatsapp_instance'] ?? ''"
+                        />
                     </div>
-                    <x-admin.input
-                        id="whatsapp_base_url"
-                        name="whatsapp_base_url"
-                        label="Base URL (Z-API)"
-                        :value="$settings['whatsapp_base_url'] ?? ''"
-                    />
-                    <x-admin.input
-                        id="whatsapp_instance"
-                        name="whatsapp_instance"
-                        label="Instance (Z-API)"
-                        :value="$settings['whatsapp_instance'] ?? ''"
-                    />
-                    <x-admin.input
-                        id="whatsapp_phone_number_id"
-                        name="whatsapp_phone_number_id"
-                        label="Phone Number ID (Meta)"
-                        :value="$settings['whatsapp_phone_number_id'] ?? ''"
-                    />
-                    <x-admin.input
-                        id="whatsapp_webhook_url"
-                        name="whatsapp_webhook_url"
-                        label="Webhook URL"
-                        :value="$settings['whatsapp_webhook_url'] ?? ''"
-                    />
+                    <div id="whatsapp-meta-fields">
+                        <x-admin.input
+                            id="whatsapp_phone_number_id"
+                            name="whatsapp_phone_number_id"
+                            label="Phone Number ID (Meta)"
+                            :value="$settings['whatsapp_phone_number_id'] ?? ''"
+                        />
+                    </div>
+                    <div id="whatsapp-waha-fields" class="grid grid-cols-1 gap-4 md:grid-cols-2 md:col-span-2">
+                        <x-admin.input
+                            id="whatsapp_waha_api_key"
+                            name="whatsapp_waha_api_key"
+                            label="API Key (WAHA)"
+                            :value="$settings['whatsapp_waha_api_key'] ?? ''"
+                        />
+                        <x-admin.input
+                            id="whatsapp_waha_api_key_header"
+                            name="whatsapp_waha_api_key_header"
+                            label="Header API Key (WAHA)"
+                            :value="$settings['whatsapp_waha_api_key_header'] ?? 'X-Api-Key'"
+                        />
+                        <x-admin.input
+                            id="whatsapp_waha_base_url"
+                            name="whatsapp_waha_base_url"
+                            label="Base URL (WAHA)"
+                            :value="$settings['whatsapp_waha_base_url'] ?? ''"
+                        />
+                        <x-admin.input
+                            id="whatsapp_waha_session"
+                            name="whatsapp_waha_session"
+                            label="Sessão (WAHA)"
+                            :value="$settings['whatsapp_waha_session'] ?? 'default'"
+                        />
+                    </div>
+                    <div id="whatsapp-evolution-fields" class="grid grid-cols-1 gap-4 md:grid-cols-2 md:col-span-2">
+                        <x-admin.input
+                            id="whatsapp_evolution_base_url"
+                            name="whatsapp_evolution_base_url"
+                            label="Base URL (Evolution)"
+                            :value="$settings['whatsapp_evolution_base_url'] ?? ''"
+                        />
+                        <x-admin.input
+                            id="whatsapp_evolution_instance"
+                            name="whatsapp_evolution_instance"
+                            label="Instância (Evolution)"
+                            :value="$settings['whatsapp_evolution_instance'] ?? ''"
+                        />
+                        <x-admin.input
+                            id="whatsapp_evolution_apikey"
+                            name="whatsapp_evolution_apikey"
+                            label="API Key (Evolution)"
+                            :value="$settings['whatsapp_evolution_apikey'] ?? ''"
+                        />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="whatsapp_webhook_url" class="text-sm font-semibold text-[var(--content-text)]">
+                            Webhook URL
+                        </label>
+                        <div class="mt-2 flex flex-col gap-2 sm:flex-row">
+                            <input
+                                id="whatsapp_webhook_url"
+                                name="whatsapp_webhook_url"
+                                type="text"
+                                value="{{ old('whatsapp_webhook_url', $settings['whatsapp_webhook_url'] ?? '') }}"
+                                readonly
+                                class="w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 @error('whatsapp_webhook_url') border-red-500 @enderror"
+                            >
+                            <button
+                                id="copy-whatsapp-webhook-url"
+                                type="button"
+                                class="btn btn-ghost sm:w-auto"
+                            >
+                                Copiar
+                            </button>
+                        </div>
+                        <p id="copy-whatsapp-webhook-feedback" class="mt-1 hidden text-xs text-emerald-600"></p>
+                        @error('whatsapp_webhook_url')
+                            <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
+                        @enderror
+                    </div>
                 </div>
 
                 <div class="mt-6 rounded-xl border border-dashed border-slate-200 bg-white p-4">
@@ -583,10 +650,7 @@
                         id="bot_provider"
                         name="bot_provider"
                         label="Provedor ativo"
-                        :options="[
-                            ['value' => 'meta', 'label' => 'Meta (Cloud API)'],
-                            ['value' => 'zapi', 'label' => 'Z-API'],
-                        ]"
+                        :options="$botProviderOptions"
                         :selected="$settings['bot_provider'] ?? 'meta'"
                     />
                     <x-admin.select
@@ -660,6 +724,54 @@
                             name="bot_zapi_base_url"
                             label="Z-API Base URL (bot)"
                             :value="$settings['bot_zapi_base_url'] ?? ''"
+                        />
+                    </div>
+
+                    <div id="bot-credentials-waha" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <x-admin.input
+                            id="bot_waha_base_url"
+                            name="bot_waha_base_url"
+                            label="WAHA Base URL (bot)"
+                            :value="$settings['bot_waha_base_url'] ?? ''"
+                        />
+                        <x-admin.input
+                            id="bot_waha_session"
+                            name="bot_waha_session"
+                            label="WAHA Sessão (bot)"
+                            :value="$settings['bot_waha_session'] ?? 'default'"
+                        />
+                        <x-admin.input
+                            id="bot_waha_api_key"
+                            name="bot_waha_api_key"
+                            label="WAHA API Key (bot)"
+                            :value="$settings['bot_waha_api_key'] ?? ''"
+                        />
+                        <x-admin.input
+                            id="bot_waha_api_key_header"
+                            name="bot_waha_api_key_header"
+                            label="WAHA Header API Key (bot)"
+                            :value="$settings['bot_waha_api_key_header'] ?? 'X-Api-Key'"
+                        />
+                    </div>
+
+                    <div id="bot-credentials-evolution" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <x-admin.input
+                            id="bot_evolution_base_url"
+                            name="bot_evolution_base_url"
+                            label="Evolution Base URL (bot)"
+                            :value="$settings['bot_evolution_base_url'] ?? ''"
+                        />
+                        <x-admin.input
+                            id="bot_evolution_instance"
+                            name="bot_evolution_instance"
+                            label="Evolution Instância (bot)"
+                            :value="$settings['bot_evolution_instance'] ?? ''"
+                        />
+                        <x-admin.input
+                            id="bot_evolution_apikey"
+                            name="bot_evolution_apikey"
+                            label="Evolution API Key (bot)"
+                            :value="$settings['bot_evolution_apikey'] ?? ''"
                         />
                     </div>
                 </div>
@@ -1324,6 +1436,7 @@
         document.addEventListener('DOMContentLoaded', function () {
             const buttons = Array.from(document.querySelectorAll('.tab-button'));
             const panels = Array.from(document.querySelectorAll('.tab-panel'));
+            const whatsappWebhookRouteMap = @json($whatsappWebhookUrlMap ?? []);
 
             function activateTab(tab) {
                 buttons.forEach((button) => {
@@ -1339,24 +1452,55 @@
             }
 
             const whatsappProvider = document.getElementById('whatsapp_provedor');
-            const whatsappClientTokenField = document.getElementById('whatsapp_client_token_field');
+            const whatsappTokenField = document.getElementById('whatsapp_token_field');
+            const whatsappMetaFields = document.getElementById('whatsapp-meta-fields');
+            const whatsappZapiFields = document.getElementById('whatsapp-zapi-fields');
+            const whatsappWahaFields = document.getElementById('whatsapp-waha-fields');
+            const whatsappEvolutionFields = document.getElementById('whatsapp-evolution-fields');
+            const whatsappWebhookField = document.getElementById('whatsapp_webhook_url');
+            const copyWhatsappWebhookButton = document.getElementById('copy-whatsapp-webhook-url');
+            const copyWhatsappWebhookFeedback = document.getElementById('copy-whatsapp-webhook-feedback');
             const botProvider = document.getElementById('bot_provider');
             const botCredentialsMode = document.getElementById('bot_credentials_mode');
             const botCredentialsCustom = document.getElementById('bot-credentials-custom');
             const botCredentialsMeta = document.getElementById('bot-credentials-meta');
             const botCredentialsZapi = document.getElementById('bot-credentials-zapi');
+            const botCredentialsWaha = document.getElementById('bot-credentials-waha');
+            const botCredentialsEvolution = document.getElementById('bot-credentials-evolution');
 
-            function toggleWhatsappClientToken() {
-                if (!whatsappProvider || !whatsappClientTokenField) {
+            function resolveWhatsappWebhookUrl(provider) {
+                const key = String(provider || '').trim().toLowerCase();
+                if (!key) {
+                    return '';
+                }
+
+                const url = whatsappWebhookRouteMap[key];
+
+                return typeof url === 'string' ? url : '';
+            }
+
+            function setWhatsappWebhookCopyFeedback(message, isError = false) {
+                if (!copyWhatsappWebhookFeedback) {
                     return;
                 }
 
-                whatsappClientTokenField.classList.toggle('hidden', whatsappProvider.value !== 'zapi');
+                copyWhatsappWebhookFeedback.textContent = message;
+                copyWhatsappWebhookFeedback.classList.toggle('hidden', message === '');
+                copyWhatsappWebhookFeedback.classList.toggle('text-emerald-600', message !== '' && !isError);
+                copyWhatsappWebhookFeedback.classList.toggle('text-rose-600', message !== '' && isError);
             }
 
-            if (whatsappProvider) {
-                whatsappProvider.addEventListener('change', toggleWhatsappClientToken);
-                toggleWhatsappClientToken();
+            function updateWhatsappWebhookUrl() {
+                if (!whatsappProvider || !whatsappWebhookField) {
+                    return;
+                }
+
+                whatsappWebhookField.value = resolveWhatsappWebhookUrl(whatsappProvider.value);
+                setWhatsappWebhookCopyFeedback('');
+
+                if (copyWhatsappWebhookButton) {
+                    copyWhatsappWebhookButton.disabled = whatsappWebhookField.value.trim() === '';
+                }
             }
 
             function setSectionVisibility(section, visible) {
@@ -1366,23 +1510,87 @@
 
                 section.hidden = !visible;
                 section.classList.toggle('hidden', !visible);
-                section.querySelectorAll('input, select, textarea').forEach((field) => {
-                    field.disabled = !visible;
-                });
+            }
+
+            function updateWhatsappProviderVisibility() {
+                if (!whatsappProvider) {
+                    return;
+                }
+
+                const provider = whatsappProvider.value;
+                const isMeta = provider === 'meta';
+                const isZapi = provider === 'zapi';
+                const isWaha = provider === 'waha';
+                const isEvolution = provider === 'evolution';
+
+                setSectionVisibility(whatsappTokenField, isMeta || isZapi);
+                setSectionVisibility(whatsappMetaFields, isMeta);
+                setSectionVisibility(whatsappZapiFields, isZapi);
+                setSectionVisibility(whatsappWahaFields, isWaha);
+                setSectionVisibility(whatsappEvolutionFields, isEvolution);
+                updateWhatsappWebhookUrl();
             }
 
             function updateVisibility() {
-                if (!botProvider || !botCredentialsMode || !botCredentialsCustom || !botCredentialsMeta || !botCredentialsZapi) {
+                if (
+                    !botProvider
+                    || !botCredentialsMode
+                    || !botCredentialsCustom
+                    || !botCredentialsMeta
+                    || !botCredentialsZapi
+                    || !botCredentialsWaha
+                    || !botCredentialsEvolution
+                ) {
                     return;
                 }
 
                 const isCustom = botCredentialsMode.value === 'custom';
                 const isMeta = botProvider.value === 'meta';
                 const isZapi = botProvider.value === 'zapi';
+                const isWaha = botProvider.value === 'waha';
+                const isEvolution = botProvider.value === 'evolution';
 
                 setSectionVisibility(botCredentialsCustom, isCustom);
                 setSectionVisibility(botCredentialsMeta, isCustom && isMeta);
                 setSectionVisibility(botCredentialsZapi, isCustom && isZapi);
+                setSectionVisibility(botCredentialsWaha, isCustom && isWaha);
+                setSectionVisibility(botCredentialsEvolution, isCustom && isEvolution);
+            }
+
+            if (whatsappProvider) {
+                whatsappProvider.addEventListener('change', updateWhatsappProviderVisibility);
+            }
+
+            if (copyWhatsappWebhookButton && whatsappWebhookField) {
+                copyWhatsappWebhookButton.addEventListener('click', async function () {
+                    const webhookUrl = whatsappWebhookField.value.trim();
+
+                    if (!webhookUrl) {
+                        setWhatsappWebhookCopyFeedback('Webhook indisponível para o provedor selecionado.', true);
+                        return;
+                    }
+
+                    try {
+                        if (navigator.clipboard?.writeText) {
+                            await navigator.clipboard.writeText(webhookUrl);
+                        } else {
+                            whatsappWebhookField.focus();
+                            whatsappWebhookField.select();
+                            const copied = document.execCommand('copy');
+                            if (!copied) {
+                                throw new Error('copy_failed');
+                            }
+                        }
+
+                        setWhatsappWebhookCopyFeedback('Webhook copiado para a área de transferência.');
+                    } catch (error) {
+                        setWhatsappWebhookCopyFeedback('Não foi possível copiar automaticamente.', true);
+                    }
+
+                    window.setTimeout(() => {
+                        setWhatsappWebhookCopyFeedback('');
+                    }, 2200);
+                });
             }
 
             if (botProvider) {
@@ -1393,6 +1601,7 @@
                 botCredentialsMode.addEventListener('change', updateVisibility);
             }
 
+            updateWhatsappProviderVisibility();
             updateVisibility();
 
             buttons.forEach((button) => {

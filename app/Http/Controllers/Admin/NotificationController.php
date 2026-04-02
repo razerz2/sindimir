@@ -12,6 +12,7 @@ use App\Models\Curso;
 use App\Models\EventoCurso;
 use App\Services\ConfiguracaoService;
 use App\Services\NotificationService;
+use App\Services\WhatsApp\WhatsAppProviderStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -20,7 +21,8 @@ class NotificationController extends Controller
 {
     public function __construct(
         private readonly NotificationService $notificationService,
-        private readonly ConfiguracaoService $configuracaoService
+        private readonly ConfiguracaoService $configuracaoService,
+        private readonly WhatsAppProviderStatusService $providerStatusService
     ) {
     }
 
@@ -36,17 +38,20 @@ class NotificationController extends Controller
         }
 
         if ($alunos->isEmpty() && $destinatarios === 'alunos') {
-            return response()->json(['message' => 'Nenhum aluno válido encontrado.'], 422);
+            return response()->json(['message' => 'Nenhum aluno valido encontrado.'], 422);
         }
 
         $whatsappAtivo = (bool) $this->configuracaoService->get('notificacao.whatsapp_ativo', false);
-        $whatsappProvedor = (string) $this->configuracaoService->get('whatsapp.provedor', '');
-        $whatsappDisponivel = true;
+        $whatsappDisponivel = $this->notificationService->isWhatsAppAvailable();
         $mostrarAviso = false;
+        $avisoDisponibilidade = 'WhatsApp indisponivel no momento.';
 
-        if ($whatsappAtivo && $whatsappProvedor === 'zapi') {
-            $whatsappDisponivel = $this->notificationService->isWhatsAppAvailable();
+        if ($whatsappAtivo) {
+            $status = $this->providerStatusService->getActiveProviderStatus();
             $mostrarAviso = ! $whatsappDisponivel;
+            if (($status['reason'] ?? null) !== null) {
+                $avisoDisponibilidade = (string) $status['reason'];
+            }
         }
 
         $this->notificationService->disparar(
@@ -60,11 +65,11 @@ class NotificationController extends Controller
         if ($mostrarAviso) {
             return response()->json([
                 'status' => 'warning',
-                'message' => 'WhatsApp indisponível no momento: nenhum dispositivo conectado à instância Z-API.',
+                'message' => $avisoDisponibilidade,
             ]);
         }
 
-        return response()->json(['message' => 'Notificações enfileiradas com sucesso.']);
+        return response()->json(['message' => 'Notificacoes enfileiradas com sucesso.']);
     }
 
     public function preview(NotificationPreviewRequest $request): JsonResponse
@@ -132,3 +137,4 @@ class NotificationController extends Controller
         return collect();
     }
 }
+

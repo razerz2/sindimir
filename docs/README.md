@@ -9,6 +9,7 @@ Esta pasta centraliza a documentacao tecnica do sistema de cursos Sindimir.
 - `operacao.md` - Comandos e rotinas de operacao.
 - `arquitetura.md` - Visao geral, camadas e componentes principais.
 - `bot.md` - Fluxos do BOT, webhooks, configuracoes e scheduler.
+- `whatsapp.md` - Arquitetura multi-provedor de WhatsApp (meta, zapi, waha, evolution), webhooks, health e QA.
 - `padrao-acoes-icone-admin.md` - Padrao de icones em acoes admin (botoes/links de acao).
 - `padrao-ui-admin.md` - Padrao estrutural de interface do admin (breadcrumb, header, acoes, icones e texto).
 - Integracoes: Google Contacts para contatos externos e notificacoes configuraveis.

@@ -54,7 +54,8 @@ class BotMetaWebhookController extends Controller
     private function shouldProcess(string $channel): bool
     {
         $enabled = (bool) $this->configuracaoService->get('bot.enabled', false);
-        $activeProvider = (string) $this->configuracaoService->get('bot.provider', 'meta');
+        $activeProvider = mb_strtolower(trim((string) $this->configuracaoService->get('bot.provider', 'meta')));
+        $channel = mb_strtolower(trim($channel));
 
         return $enabled && $activeProvider === $channel;
     }
@@ -86,4 +87,3 @@ class BotMetaWebhookController extends Controller
         return [$from, $text];
     }
 }
-

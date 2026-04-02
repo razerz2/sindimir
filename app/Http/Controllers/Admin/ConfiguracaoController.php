@@ -9,10 +9,12 @@ use App\Models\NotificationTemplate;
 use App\Services\ConfiguracaoService;
 use App\Services\GoogleContactsService;
 use App\Services\WhatsAppService;
+use App\Services\WhatsApp\WhatsAppProviderResolver;
 use App\Services\ThemeService;
 use App\Services\SiteSectionService;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -24,12 +26,24 @@ class ConfiguracaoController extends Controller
         private readonly ConfiguracaoService $configuracaoService,
         private readonly ThemeService $themeService,
         private readonly WhatsAppService $whatsAppService,
-        private readonly GoogleContactsService $googleContactsService
+        private readonly GoogleContactsService $googleContactsService,
+        private readonly WhatsAppProviderResolver $whatsAppProviderResolver
     ) {
     }
 
     public function index(): View
     {
+        $whatsAppProviderKeys = $this->supportedNotificationProviders();
+        $botProviderKeys = $this->supportedBotProviders();
+        $defaultBotProvider = $botProviderKeys[0] ?? 'meta';
+        $configuredWhatsAppProvider = (string) $this->configuracaoService->get('whatsapp.provedor', '');
+        $configuredBotProvider = (string) $this->configuracaoService->get('bot.provider', $defaultBotProvider);
+        $whatsappWebhookUrlMap = $this->buildNotificationWebhookUrlMap($whatsAppProviderKeys);
+        $resolvedWhatsAppWebhookUrl = $this->resolveNotificationWebhookUrl(
+            $configuredWhatsAppProvider,
+            $whatsappWebhookUrlMap
+        );
+
         $smtpHost = $this->resolveSetting('smtp.host', config('mail.mailers.smtp.host'));
         $smtpPort = $this->resolveSetting('smtp.port', config('mail.mailers.smtp.port'));
         $smtpUsername = $this->resolveSetting('smtp.username', config('mail.mailers.smtp.username'));
@@ -39,6 +53,26 @@ class ConfiguracaoController extends Controller
         $smtpFromName = $this->resolveSetting('smtp.from_name', config('mail.from.name'));
         $whatsappBaseUrl = $this->resolveSetting('whatsapp.base_url', config('services.whatsapp.zapi.base_url'));
         $whatsappInstance = $this->resolveSetting('whatsapp.instance', config('services.whatsapp.zapi.instance'));
+        $whatsappWahaBaseUrl = $this->resolveSetting(
+            'whatsapp.waha_base_url',
+            $this->resolveSetting('whatsapp.base_url', config('services.whatsapp.waha.base_url'))
+        );
+        $whatsappWahaSession = $this->resolveSetting(
+            'whatsapp.waha_session',
+            $this->resolveSetting('whatsapp.instance', config('services.whatsapp.waha.session', 'default'))
+        );
+        $whatsappWahaApiKeyHeader = $this->resolveSetting(
+            'whatsapp.waha_api_key_header',
+            config('services.whatsapp.waha.api_key_header', 'X-Api-Key')
+        );
+        $whatsappEvolutionBaseUrl = $this->resolveSetting(
+            'whatsapp.evolution_base_url',
+            $this->resolveSetting('whatsapp.base_url', config('services.whatsapp.evolution.base_url'))
+        );
+        $whatsappEvolutionInstance = $this->resolveSetting(
+            'whatsapp.evolution_instance',
+            $this->resolveSetting('whatsapp.instance', config('services.whatsapp.evolution.instance'))
+        );
 
         $settings = [
             'sistema_nome' => $this->configuracaoService->get('sistema.nome', config('app.name', 'Sindimir')),
@@ -70,13 +104,28 @@ class ConfiguracaoController extends Controller
             'footer_endereco_titulo' => $this->configuracaoService->get('site.footer.endereco_titulo', 'Endereço'),
             'footer_endereco_linha1' => $this->configuracaoService->get('site.footer.endereco_linha1', 'Rua da Industria, 1000'),
             'footer_endereco_linha2' => $this->configuracaoService->get('site.footer.endereco_linha2', 'Distrito Industrial'),
-            'whatsapp_provedor' => $this->configuracaoService->get('whatsapp.provedor', null),
+            'whatsapp_provedor' => in_array($configuredWhatsAppProvider, $whatsAppProviderKeys, true)
+                ? $configuredWhatsAppProvider
+                : null,
             'whatsapp_token' => $this->configuracaoService->get('whatsapp.token', null),
             'whatsapp_client_token' => $this->configuracaoService->get('whatsapp.client_token', null),
             'whatsapp_phone_number_id' => $this->configuracaoService->get('whatsapp.phone_number_id', null),
-            'whatsapp_webhook_url' => $this->configuracaoService->get('whatsapp.webhook_url', null),
+            'whatsapp_webhook_url' => $resolvedWhatsAppWebhookUrl,
             'whatsapp_base_url' => $whatsappBaseUrl,
             'whatsapp_instance' => $whatsappInstance,
+            'whatsapp_waha_base_url' => $whatsappWahaBaseUrl,
+            'whatsapp_waha_session' => $whatsappWahaSession,
+            'whatsapp_waha_api_key' => $this->configuracaoService->get(
+                'whatsapp.waha_api_key',
+                $this->configuracaoService->get('whatsapp.token', null)
+            ),
+            'whatsapp_waha_api_key_header' => $whatsappWahaApiKeyHeader,
+            'whatsapp_evolution_base_url' => $whatsappEvolutionBaseUrl,
+            'whatsapp_evolution_instance' => $whatsappEvolutionInstance,
+            'whatsapp_evolution_apikey' => $this->configuracaoService->get(
+                'whatsapp.evolution_apikey',
+                $this->configuracaoService->get('whatsapp.token', null)
+            ),
             'smtp_host' => $smtpHost,
             'smtp_port' => $smtpPort,
             'smtp_username' => $smtpUsername,
@@ -119,7 +168,9 @@ class ConfiguracaoController extends Controller
             'rate_limit_ativo' => (bool) $this->configuracaoService->get('notificacao.rate_limit.ativo', true),
             'rate_limit_limite_diario' => (int) $this->configuracaoService->get('notificacao.rate_limit.limite_diario', 2),
             'bot_enabled' => (bool) $this->configuracaoService->get('bot.enabled', false),
-            'bot_provider' => (string) $this->configuracaoService->get('bot.provider', 'meta'),
+            'bot_provider' => in_array($configuredBotProvider, $botProviderKeys, true)
+                ? $configuredBotProvider
+                : $defaultBotProvider,
             'bot_credentials_mode' => (string) $this->configuracaoService->get(
                 'bot.credentials_mode',
                 'inherit_notifications'
@@ -130,6 +181,22 @@ class ConfiguracaoController extends Controller
             'bot_zapi_token' => (string) $this->configuracaoService->get('bot.zapi_token', ''),
             'bot_zapi_client_token' => (string) $this->configuracaoService->get('bot.zapi_client_token', ''),
             'bot_zapi_base_url' => (string) $this->configuracaoService->get('bot.zapi_base_url', ''),
+            'bot_waha_base_url' => (string) $this->configuracaoService->get('bot.waha_base_url', ''),
+            'bot_waha_session' => (string) $this->configuracaoService->get(
+                'bot.waha_session',
+                config('services.whatsapp.waha.session', 'default')
+            ),
+            'bot_waha_api_key' => (string) $this->configuracaoService->get('bot.waha_api_key', ''),
+            'bot_waha_api_key_header' => (string) $this->configuracaoService->get(
+                'bot.waha_api_key_header',
+                config('services.whatsapp.waha.api_key_header', 'X-Api-Key')
+            ),
+            'bot_evolution_base_url' => (string) $this->configuracaoService->get('bot.evolution_base_url', ''),
+            'bot_evolution_instance' => (string) $this->configuracaoService->get(
+                'bot.evolution_instance',
+                config('services.whatsapp.evolution.instance', '')
+            ),
+            'bot_evolution_apikey' => (string) $this->configuracaoService->get('bot.evolution_apikey', ''),
             'bot_session_timeout_minutes' => (int) $this->configuracaoService->get('bot.session_timeout_minutes', 15),
             'bot_welcome_message' => (string) $this->configuracaoService->get(
                 'bot.welcome_message',
@@ -182,23 +249,10 @@ class ConfiguracaoController extends Controller
                 ->groupBy('notification_type');
         }
 
-        $whatsappStatus = 'Pendente';
-        if ($settings['whatsapp_provedor'] && $settings['whatsapp_token']) {
-            $whatsappStatus = $settings['whatsapp_provedor'] === 'zapi' && ! $settings['whatsapp_client_token']
-                ? 'Pendente'
-                : 'Ativo';
-        }
-
-        $whatsappReady = false;
-        if ($settings['whatsapp_provedor'] === 'zapi') {
-            $whatsappReady = ! empty($settings['whatsapp_token'])
-                && ! empty($settings['whatsapp_client_token'])
-                && ! empty($settings['whatsapp_base_url'])
-                && ! empty($settings['whatsapp_instance']);
-        }
-        if ($settings['whatsapp_provedor'] === 'meta') {
-            $whatsappReady = ! empty($settings['whatsapp_token']) && ! empty($settings['whatsapp_phone_number_id']);
-        }
+        $whatsappReady = ! empty($settings['whatsapp_provedor']) && $this->whatsAppService->canSend();
+        $whatsappStatus = $whatsappReady ? 'Ativo' : 'Pendente';
+        $whatsAppProviderOptions = $this->buildWhatsAppProviderOptions($whatsAppProviderKeys);
+        $botProviderOptions = $this->buildWhatsAppProviderOptions($botProviderKeys);
 
         $googleConfigured = $this->googleContactsService->isConfigured();
         $googleConnected = $this->googleContactsService->isConnected();
@@ -214,6 +268,9 @@ class ConfiguracaoController extends Controller
             'templateDefaults',
             'templateTypeOptions',
             'templateVariables',
+            'whatsAppProviderOptions',
+            'botProviderOptions',
+            'whatsappWebhookUrlMap',
             'googleConfigured',
             'googleConnected',
             'googleAccount',
@@ -223,6 +280,10 @@ class ConfiguracaoController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
+        $whatsAppProviderKeys = $this->supportedNotificationProviders();
+        $botProviderKeys = $this->supportedBotProviders();
+        $defaultBotProvider = $botProviderKeys[0] ?? 'meta';
+
         $data = $request->validate([
             'sistema_nome' => ['required', 'string', 'max:120'],
             'sistema_email' => ['nullable', 'email', 'max:120'],
@@ -247,13 +308,44 @@ class ConfiguracaoController extends Controller
             'two_factor_canal' => ['nullable', 'string', 'in:email,whatsapp'],
             'two_factor_expiracao_minutos' => ['nullable', 'integer', 'min:1', 'max:60'],
             'two_factor_max_tentativas' => ['nullable', 'integer', 'min:1', 'max:10'],
-            'whatsapp_provedor' => ['nullable', 'string', 'in:meta,zapi'],
+            'whatsapp_provedor' => ['nullable', 'string', Rule::in($whatsAppProviderKeys)],
             'whatsapp_token' => ['nullable', 'string', 'max:200'],
             'whatsapp_client_token' => ['nullable', 'string', 'max:200'],
             'whatsapp_phone_number_id' => ['nullable', 'string', 'max:120'],
-            'whatsapp_webhook_url' => ['nullable', 'url', 'max:200'],
             'whatsapp_base_url' => ['nullable', 'url', 'max:200'],
             'whatsapp_instance' => ['nullable', 'string', 'max:120'],
+            'whatsapp_waha_base_url' => [
+                'nullable',
+                'url',
+                'max:200',
+                Rule::requiredIf(fn () => $request->input('whatsapp_provedor') === 'waha'),
+            ],
+            'whatsapp_waha_session' => [
+                'nullable',
+                'string',
+                'max:120',
+                Rule::requiredIf(fn () => $request->input('whatsapp_provedor') === 'waha'),
+            ],
+            'whatsapp_waha_api_key' => ['nullable', 'string', 'max:200'],
+            'whatsapp_waha_api_key_header' => ['nullable', 'string', 'max:120'],
+            'whatsapp_evolution_base_url' => [
+                'nullable',
+                'url',
+                'max:200',
+                Rule::requiredIf(fn () => $request->input('whatsapp_provedor') === 'evolution'),
+            ],
+            'whatsapp_evolution_instance' => [
+                'nullable',
+                'string',
+                'max:120',
+                Rule::requiredIf(fn () => $request->input('whatsapp_provedor') === 'evolution'),
+            ],
+            'whatsapp_evolution_apikey' => [
+                'nullable',
+                'string',
+                'max:200',
+                Rule::requiredIf(fn () => $request->input('whatsapp_provedor') === 'evolution'),
+            ],
             'smtp_host' => ['nullable', 'string', 'max:120'],
             'smtp_port' => ['nullable', 'numeric'],
             'smtp_username' => ['nullable', 'string', 'max:120'],
@@ -323,21 +415,21 @@ class ConfiguracaoController extends Controller
             'rate_limit_ativo' => ['nullable', 'boolean'],
             'rate_limit_limite_diario' => ['nullable', 'integer', 'min:1', 'max:100'],
             'bot_enabled' => ['nullable', 'boolean'],
-            'bot_provider' => ['nullable', 'string', 'in:meta,zapi'],
+            'bot_provider' => ['nullable', 'string', Rule::in($botProviderKeys)],
             'bot_credentials_mode' => ['nullable', 'string', 'in:inherit_notifications,custom'],
             'bot_meta_phone_number_id' => [
                 'nullable',
                 'string',
                 'max:120',
                 Rule::requiredIf(fn () => $request->input('bot_credentials_mode') === 'custom'
-                    && $request->input('bot_provider', 'meta') === 'meta'),
+                    && $request->input('bot_provider', $defaultBotProvider) === 'meta'),
             ],
             'bot_meta_access_token' => [
                 'nullable',
                 'string',
                 'max:200',
                 Rule::requiredIf(fn () => $request->input('bot_credentials_mode') === 'custom'
-                    && $request->input('bot_provider', 'meta') === 'meta'),
+                    && $request->input('bot_provider', $defaultBotProvider) === 'meta'),
             ],
             'bot_zapi_instance_id' => [
                 'nullable',
@@ -355,6 +447,43 @@ class ConfiguracaoController extends Controller
             ],
             'bot_zapi_client_token' => ['nullable', 'string', 'max:200'],
             'bot_zapi_base_url' => ['nullable', 'url', 'max:200'],
+            'bot_waha_base_url' => [
+                'nullable',
+                'url',
+                'max:200',
+                Rule::requiredIf(fn () => $request->input('bot_credentials_mode') === 'custom'
+                    && $request->input('bot_provider') === 'waha'),
+            ],
+            'bot_waha_session' => [
+                'nullable',
+                'string',
+                'max:120',
+                Rule::requiredIf(fn () => $request->input('bot_credentials_mode') === 'custom'
+                    && $request->input('bot_provider') === 'waha'),
+            ],
+            'bot_waha_api_key' => ['nullable', 'string', 'max:200'],
+            'bot_waha_api_key_header' => ['nullable', 'string', 'max:120'],
+            'bot_evolution_base_url' => [
+                'nullable',
+                'url',
+                'max:200',
+                Rule::requiredIf(fn () => $request->input('bot_credentials_mode') === 'custom'
+                    && $request->input('bot_provider') === 'evolution'),
+            ],
+            'bot_evolution_instance' => [
+                'nullable',
+                'string',
+                'max:120',
+                Rule::requiredIf(fn () => $request->input('bot_credentials_mode') === 'custom'
+                    && $request->input('bot_provider') === 'evolution'),
+            ],
+            'bot_evolution_apikey' => [
+                'nullable',
+                'string',
+                'max:200',
+                Rule::requiredIf(fn () => $request->input('bot_credentials_mode') === 'custom'
+                    && $request->input('bot_provider') === 'evolution'),
+            ],
             'bot_session_timeout_minutes' => ['nullable', 'integer', 'min:1', 'max:1440'],
             'bot_welcome_message' => ['nullable', 'string', 'max:2000'],
             'bot_fallback_message' => ['nullable', 'string', 'max:2000'],
@@ -439,9 +568,19 @@ class ConfiguracaoController extends Controller
         $whatsappToken = (string) ($data['whatsapp_token'] ?? '');
         $whatsappClientToken = (string) ($data['whatsapp_client_token'] ?? '');
         $whatsappPhoneId = (string) ($data['whatsapp_phone_number_id'] ?? '');
-        $whatsappWebhook = (string) ($data['whatsapp_webhook_url'] ?? '');
+        $whatsappWebhook = $this->resolveNotificationWebhookUrl(
+            $whatsappProvedor,
+            $this->buildNotificationWebhookUrlMap($whatsAppProviderKeys)
+        );
         $whatsappBaseUrl = (string) ($data['whatsapp_base_url'] ?? '');
         $whatsappInstance = (string) ($data['whatsapp_instance'] ?? '');
+        $whatsappWahaBaseUrl = (string) ($data['whatsapp_waha_base_url'] ?? '');
+        $whatsappWahaSession = (string) ($data['whatsapp_waha_session'] ?? '');
+        $whatsappWahaApiKey = (string) ($data['whatsapp_waha_api_key'] ?? '');
+        $whatsappWahaApiKeyHeader = (string) ($data['whatsapp_waha_api_key_header'] ?? '');
+        $whatsappEvolutionBaseUrl = (string) ($data['whatsapp_evolution_base_url'] ?? '');
+        $whatsappEvolutionInstance = (string) ($data['whatsapp_evolution_instance'] ?? '');
+        $whatsappEvolutionApiKey = (string) ($data['whatsapp_evolution_apikey'] ?? '');
 
         $this->configuracaoService->set('whatsapp.provedor', $whatsappProvedor, 'Provedor WhatsApp');
         $this->configuracaoService->set('whatsapp.token', $whatsappToken, 'Token WhatsApp');
@@ -450,6 +589,29 @@ class ConfiguracaoController extends Controller
         $this->configuracaoService->set('whatsapp.webhook_url', $whatsappWebhook, 'WhatsApp Webhook URL');
         $this->configuracaoService->set('whatsapp.base_url', $whatsappBaseUrl, 'WhatsApp base URL');
         $this->configuracaoService->set('whatsapp.instance', $whatsappInstance, 'WhatsApp instance');
+        $this->configuracaoService->set('whatsapp.waha_base_url', trim($whatsappWahaBaseUrl), 'WAHA base URL');
+        $this->configuracaoService->set('whatsapp.waha_session', trim($whatsappWahaSession), 'WAHA session');
+        $this->configuracaoService->set('whatsapp.waha_api_key', trim($whatsappWahaApiKey), 'WAHA API key');
+        $this->configuracaoService->set(
+            'whatsapp.waha_api_key_header',
+            trim($whatsappWahaApiKeyHeader),
+            'WAHA API key header'
+        );
+        $this->configuracaoService->set(
+            'whatsapp.evolution_base_url',
+            trim($whatsappEvolutionBaseUrl),
+            'Evolution base URL'
+        );
+        $this->configuracaoService->set(
+            'whatsapp.evolution_instance',
+            trim($whatsappEvolutionInstance),
+            'Evolution instance'
+        );
+        $this->configuracaoService->set(
+            'whatsapp.evolution_apikey',
+            trim($whatsappEvolutionApiKey),
+            'Evolution apikey'
+        );
         $smtpHost = (string) ($data['smtp_host'] ?? '');
         $smtpPort = (string) ($data['smtp_port'] ?? '');
         $smtpUsername = (string) ($data['smtp_username'] ?? '');
@@ -525,7 +687,11 @@ class ConfiguracaoController extends Controller
             'Rate limit diario de notificacoes'
         );
         $this->configuracaoService->set('bot.enabled', (bool) $request->boolean('bot_enabled'), 'BOT ativo');
-        $this->configuracaoService->set('bot.provider', (string) ($data['bot_provider'] ?? 'meta'), 'Provedor ativo do BOT');
+        $this->configuracaoService->set(
+            'bot.provider',
+            (string) ($data['bot_provider'] ?? $defaultBotProvider),
+            'Provedor ativo do BOT'
+        );
         $this->configuracaoService->set(
             'bot.credentials_mode',
             (string) ($data['bot_credentials_mode'] ?? 'inherit_notifications'),
@@ -560,6 +726,41 @@ class ConfiguracaoController extends Controller
             'bot.zapi_base_url',
             trim((string) ($data['bot_zapi_base_url'] ?? '')),
             'BOT Z-API Base URL'
+        );
+        $this->configuracaoService->set(
+            'bot.waha_base_url',
+            trim((string) ($data['bot_waha_base_url'] ?? '')),
+            'BOT WAHA Base URL'
+        );
+        $this->configuracaoService->set(
+            'bot.waha_session',
+            trim((string) ($data['bot_waha_session'] ?? '')),
+            'BOT WAHA Session'
+        );
+        $this->configuracaoService->set(
+            'bot.waha_api_key',
+            trim((string) ($data['bot_waha_api_key'] ?? '')),
+            'BOT WAHA API key'
+        );
+        $this->configuracaoService->set(
+            'bot.waha_api_key_header',
+            trim((string) ($data['bot_waha_api_key_header'] ?? '')),
+            'BOT WAHA API key header'
+        );
+        $this->configuracaoService->set(
+            'bot.evolution_base_url',
+            trim((string) ($data['bot_evolution_base_url'] ?? '')),
+            'BOT Evolution Base URL'
+        );
+        $this->configuracaoService->set(
+            'bot.evolution_instance',
+            trim((string) ($data['bot_evolution_instance'] ?? '')),
+            'BOT Evolution Instance'
+        );
+        $this->configuracaoService->set(
+            'bot.evolution_apikey',
+            trim((string) ($data['bot_evolution_apikey'] ?? '')),
+            'BOT Evolution API key'
         );
         $this->configuracaoService->set(
             'bot.session_timeout_minutes',
@@ -806,6 +1007,110 @@ class ConfiguracaoController extends Controller
         }
 
         return $value;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function supportedNotificationProviders(): array
+    {
+        $providers = $this->whatsAppProviderResolver->notificationProviderKeys();
+
+        return $providers !== [] ? $providers : ['meta', 'zapi', 'waha', 'evolution'];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function supportedBotProviders(): array
+    {
+        $providers = $this->whatsAppProviderResolver->botProviderKeys();
+
+        return $providers !== [] ? $providers : ['meta', 'zapi', 'waha', 'evolution'];
+    }
+
+    /**
+     * @param list<string> $providers
+     * @return list<array{value: string, label: string}>
+     */
+    private function buildWhatsAppProviderOptions(array $providers): array
+    {
+        $options = [];
+
+        foreach ($providers as $provider) {
+            $key = mb_strtolower(trim($provider));
+            if ($key === '') {
+                continue;
+            }
+
+            $options[] = [
+                'value' => $key,
+                'label' => $this->resolveProviderLabel($key),
+            ];
+        }
+
+        return $options;
+    }
+
+    private function resolveProviderLabel(string $provider): string
+    {
+        return match ($provider) {
+            'meta' => 'Meta (Cloud API)',
+            'zapi' => 'Z-API',
+            'waha' => 'WAHA',
+            'evolution' => 'Evolution API',
+            default => strtoupper($provider),
+        };
+    }
+
+    /**
+     * @param list<string> $providers
+     * @return array<string, string>
+     */
+    private function buildNotificationWebhookUrlMap(array $providers): array
+    {
+        $routeMap = $this->notificationWebhookRouteMap();
+        $urls = [];
+
+        foreach ($providers as $provider) {
+            $key = mb_strtolower(trim($provider));
+            if ($key === '') {
+                continue;
+            }
+
+            $routeName = $routeMap[$key] ?? null;
+            $urls[$key] = is_string($routeName) && $routeName !== '' && Route::has($routeName)
+                ? route($routeName)
+                : '';
+        }
+
+        return $urls;
+    }
+
+    /**
+     * @param array<string, string> $webhookMap
+     */
+    private function resolveNotificationWebhookUrl(?string $provider, array $webhookMap): string
+    {
+        $key = mb_strtolower(trim((string) $provider));
+        if ($key === '') {
+            return '';
+        }
+
+        return isset($webhookMap[$key]) ? (string) $webhookMap[$key] : '';
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function notificationWebhookRouteMap(): array
+    {
+        return [
+            'meta' => 'webhooks.bot.meta',
+            'zapi' => 'webhooks.bot.zapi',
+            'waha' => 'webhooks.bot.waha',
+            'evolution' => 'webhooks.bot.evolution',
+        ];
     }
 
     /**

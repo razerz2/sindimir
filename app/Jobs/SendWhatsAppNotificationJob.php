@@ -4,7 +4,7 @@ namespace App\Jobs;
 
 use App\Models\NotificationLog;
 use App\Services\WhatsAppService;
-use App\Services\WhatsApp\ZApiStatusService;
+use App\Services\WhatsApp\WhatsAppProviderStatusService;
 use App\Support\WhatsAppMessageFormatter;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -35,14 +35,17 @@ class SendWhatsAppNotificationJob implements ShouldQueue
     ) {
     }
 
-    public function handle(WhatsAppService $whatsAppService, ZApiStatusService $zApiStatusService): void
+    public function handle(
+        WhatsAppService $whatsAppService,
+        WhatsAppProviderStatusService $providerStatusService
+    ): void
     {
         $formattedMessage = null;
 
         try {
             $formattedMessage = WhatsAppMessageFormatter::format($this->message);
 
-            $status = $zApiStatusService->getStatus();
+            $status = $providerStatusService->getActiveProviderStatus();
             if ($status['applies'] && ! $status['can_send']) {
                 NotificationLog::create([
                     'aluno_id' => $this->destinatarioTipo === 'aluno' ? $this->destinatarioId : null,
@@ -54,7 +57,7 @@ class SendWhatsAppNotificationJob implements ShouldQueue
                     'notification_type' => $this->notificationType,
                     'canal' => 'whatsapp',
                     'status' => 'failed',
-                    'erro' => $status['reason'] ?? 'Instância Z-API desconectada.',
+                    'erro' => $status['reason'] ?? 'Provedor WhatsApp indisponivel no momento.',
                     'mensagem' => $formattedMessage ?? $this->message,
                 ]);
 

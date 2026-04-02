@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('bot_conversations', function (Blueprint $table) {
             $table->id();
-            $table->enum('channel', ['meta', 'zapi']);
+            $table->enum('channel', ['meta', 'zapi', 'waha', 'evolution']);
             $table->string('from', 30);
             $table->string('state', 120)->nullable();
             $table->json('context')->nullable();
@@ -32,4 +32,3 @@ return new class extends Migration
         Schema::dropIfExists('bot_conversations');
     }
 };
-

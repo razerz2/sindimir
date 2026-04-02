@@ -2,6 +2,8 @@
 
 Documento consolidado com visão geral, configuração e operação do sistema.
 
+Detalhes técnicos do módulo WhatsApp multi-provedor estão em `docs/whatsapp.md`.
+
 ## Visão geral
 
 Aplicação Laravel 12 para gerenciamento de cursos, inscrições e alunos. Há

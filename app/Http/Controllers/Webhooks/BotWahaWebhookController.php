@@ -6,24 +6,25 @@ use App\Http\Controllers\Controller;
 use App\Services\Bot\BotEngine;
 use App\Services\Bot\Providers\BotProviderFactory;
 use App\Services\ConfiguracaoService;
-use App\Support\Phone;
+use App\Services\WhatsApp\WahaChatIdResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
-class BotZapiWebhookController extends Controller
+class BotWahaWebhookController extends Controller
 {
     public function __construct(
         private readonly ConfiguracaoService $configuracaoService,
         private readonly BotEngine $engine,
-        private readonly BotProviderFactory $providerFactory
+        private readonly BotProviderFactory $providerFactory,
+        private readonly WahaChatIdResolver $chatIdResolver
     ) {
     }
 
     public function handle(Request $request): JsonResponse
     {
-        if (! $this->shouldProcess('zapi')) {
+        if (! $this->shouldProcess('waha')) {
             return response()->json(['status' => 'ignored'], 200);
         }
 
@@ -35,12 +36,12 @@ class BotZapiWebhookController extends Controller
         }
 
         try {
-            $responseText = $this->engine->handleIncoming('zapi', $from, $text);
+            $responseText = $this->engine->handleIncoming('waha', $from, $text);
             if (trim($responseText) !== '') {
-                $this->providerFactory->make('zapi')->sendText($from, $responseText);
+                $this->providerFactory->make('waha')->sendText($from, $responseText);
             }
         } catch (Throwable $exception) {
-            Log::error('Erro ao processar webhook BOT Z-API', [
+            Log::error('Erro ao processar webhook BOT WAHA', [
                 'message' => $exception->getMessage(),
                 'trace' => $exception->getTraceAsString(),
             ]);
@@ -66,27 +67,31 @@ class BotZapiWebhookController extends Controller
      */
     private function extractIncomingData(array $payload): array
     {
+        $event = mb_strtolower(trim((string) data_get($payload, 'event', '')));
+        if ($event === '' || ! str_starts_with($event, 'message')) {
+            return [null, null];
+        }
+
+        $fromMe = data_get($payload, 'payload.fromMe', null);
+        if ($fromMe === true) {
+            return [null, null];
+        }
+
         $fromCandidates = [
-            data_get($payload, 'phone'),
+            data_get($payload, 'payload.from'),
+            data_get($payload, 'payload.author'),
+            data_get($payload, 'payload.participant'),
+            data_get($payload, 'payload.chatId'),
+            data_get($payload, 'payload.to'),
             data_get($payload, 'from'),
-            data_get($payload, 'sender.phone'),
-            data_get($payload, 'sender.id'),
-            data_get($payload, 'data.phone'),
-            data_get($payload, 'data.from'),
-            data_get($payload, 'data.sender.phone'),
-            data_get($payload, 'message.phone'),
-            data_get($payload, 'message.from'),
         ];
 
         $textCandidates = [
-            data_get($payload, 'text.message'),
-            data_get($payload, 'text.body'),
-            data_get($payload, 'message'),
-            data_get($payload, 'body'),
-            data_get($payload, 'data.text.message'),
-            data_get($payload, 'data.text.body'),
-            data_get($payload, 'data.message'),
-            data_get($payload, 'data.body'),
+            data_get($payload, 'payload.body'),
+            data_get($payload, 'payload.text'),
+            data_get($payload, 'payload.caption'),
+            data_get($payload, 'payload._data.body'),
+            data_get($payload, 'payload._data.caption'),
         ];
 
         $from = null;
@@ -95,9 +100,15 @@ class BotZapiWebhookController extends Controller
                 continue;
             }
 
-            $normalized = Phone::normalize((string) $candidate);
-            if ($normalized !== '') {
-                $from = $normalized;
+            $raw = trim((string) $candidate);
+            $lower = mb_strtolower($raw);
+            if ($raw === '' || str_contains($lower, '@g.us') || str_contains($lower, 'status@broadcast')) {
+                continue;
+            }
+
+            $phone = $this->chatIdResolver->toPhone($raw);
+            if ($phone !== '') {
+                $from = $phone;
                 break;
             }
         }

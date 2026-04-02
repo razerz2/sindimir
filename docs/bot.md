@@ -1,5 +1,7 @@
 # Módulo BOT (WhatsApp)
 
+> Nota: para detalhes atuais do multi-provedor (`meta`, `zapi`, `waha`, `evolution`), consulte `docs/whatsapp.md`.
+
 ## Visão geral
 
 O módulo BOT oferece atendimento automático via WhatsApp com menu de opções para:

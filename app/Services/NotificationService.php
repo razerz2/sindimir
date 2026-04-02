@@ -14,7 +14,7 @@ use App\Models\EventoCurso;
 use App\Models\NotificationLink;
 use App\Models\NotificationLog;
 use App\Models\NotificationTemplate;
-use App\Services\WhatsApp\ZApiStatusService;
+use App\Services\WhatsApp\WhatsAppProviderStatusService;
 use App\Support\WhatsAppMessageFormatter;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -28,23 +28,18 @@ class NotificationService
     public function __construct(
         private readonly ConfiguracaoService $configuracaoService,
         private readonly NotificationLinkService $linkService,
-        private readonly ZApiStatusService $zApiStatusService
+        private readonly WhatsAppProviderStatusService $whatsAppProviderStatusService
     ) {
     }
 
     public function isWhatsAppAvailable(): bool
     {
-        $provider = (string) $this->configuracaoService->get('whatsapp.provedor', '');
-
-        if ($provider === 'meta') {
+        $status = $this->whatsAppProviderStatusService->getActiveProviderStatus();
+        if (! $status['applies']) {
             return true;
         }
 
-        if ($provider === 'zapi') {
-            return $this->zApiStatusService->canSend();
-        }
-
-        return false;
+        return (bool) $status['can_send'];
     }
 
     public function previewTemplate(Aluno $aluno, Curso $curso, NotificationType|string $notificationType): array

@@ -1,5 +1,7 @@
 # Configuração
 
+> Nota: a matriz atual de configuração WhatsApp/BOT por provedor está em `docs/whatsapp.md`.
+
 ## Variáveis de ambiente principais
 
 - ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD
