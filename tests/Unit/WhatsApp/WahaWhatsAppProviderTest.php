@@ -43,6 +43,59 @@ class WahaWhatsAppProviderTest extends TestCase
         });
     }
 
+    public function test_send_bot_text_uses_api_key_header_session_and_normalized_chat_id(): void
+    {
+        Http::fake([
+            'https://waha.test/*' => Http::response(['id' => 'msg_bot_1'], 201),
+        ]);
+
+        $provider = new WahaWhatsAppProvider(new WahaChatIdResolver());
+        $config = new WhatsAppProviderConfig('waha', [
+            'scope' => 'bot',
+            'base_url' => 'https://waha.test',
+            'session' => 'default',
+            'api_key' => 'waha-key',
+            'api_key_header' => 'X-Api-Key',
+            'verify_ssl' => true,
+        ]);
+
+        $provider->sendBotText($config, '5567991112222', 'Resposta bot');
+
+        Http::assertSent(function ($request) {
+            $payload = $request->data();
+
+            return $request->url() === 'https://waha.test/api/sendText'
+                && $request->method() === 'POST'
+                && $request->hasHeader('X-Api-Key', 'waha-key')
+                && ($payload['session'] ?? null) === 'default'
+                && ($payload['chatId'] ?? null) === '5567991112222@c.us'
+                && ($payload['text'] ?? null) === 'Resposta bot';
+        });
+    }
+
+    public function test_send_includes_x_api_key_even_with_custom_api_key_header(): void
+    {
+        Http::fake([
+            'https://waha.test/*' => Http::response(['id' => 'msg_custom_header'], 201),
+        ]);
+
+        $provider = new WahaWhatsAppProvider(new WahaChatIdResolver());
+        $config = new WhatsAppProviderConfig('waha', [
+            'base_url' => 'https://waha.test',
+            'session' => 'default',
+            'api_key' => 'waha-key',
+            'api_key_header' => 'Authorization',
+            'verify_ssl' => true,
+        ]);
+
+        $provider->send($config, '5567999999999', 'Mensagem WAHA');
+
+        Http::assertSent(function ($request) {
+            return $request->hasHeader('Authorization', 'waha-key')
+                && $request->hasHeader('X-Api-Key', 'waha-key');
+        });
+    }
+
     public function test_health_status_returns_can_send_true_when_session_is_working(): void
     {
         Cache::flush();

@@ -9,6 +9,7 @@ use App\Services\WhatsApp\DTO\WhatsAppProviderConfig;
 use App\Services\WhatsApp\WahaChatIdResolver;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class WahaWhatsAppProvider implements
@@ -59,6 +60,16 @@ class WahaWhatsAppProvider implements
             'text' => $message,
         ];
 
+        $logContext = [
+            'base_url' => $resolved['base_url'],
+            'session' => $resolved['session'],
+            'chat_id_masked' => $this->maskChatId($chatId),
+            'has_api_key' => $resolved['api_key'] !== '',
+            'api_key_header' => $resolved['api_key_header'] !== '' ? $resolved['api_key_header'] : 'X-Api-Key',
+            'scope' => $config->getString('scope'),
+        ];
+        Log::info('WAHA sendText request', $logContext);
+
         $http = Http::withHeaders($resolved['headers']);
         if (! $resolved['verify_ssl']) {
             $http = $http->withoutVerifying();
@@ -67,11 +78,22 @@ class WahaWhatsAppProvider implements
         try {
             $response = $http->post($resolved['base_url'] . '/api/sendText', $payload);
         } catch (\Throwable $exception) {
+            Log::error('WAHA sendText request failed', array_merge($logContext, [
+                'error' => $exception->getMessage(),
+            ]));
             throw new RuntimeException('Falha ao enviar WhatsApp via WAHA: erro de conexao.');
         }
 
+        Log::info('WAHA sendText response', array_merge($logContext, [
+            'http_status' => $response->status(),
+        ]));
+
         if (! $response->successful()) {
             $details = $this->extractErrorMessage($response->json(), $response->body());
+            Log::error('WAHA sendText unsuccessful response', array_merge($logContext, [
+                'http_status' => $response->status(),
+                'error_body' => $details !== '' ? $details : mb_substr(trim($response->body()), 0, 500),
+            ]));
             throw new RuntimeException('Falha ao enviar WhatsApp via WAHA.' . ($details !== '' ? ' ' . $details : ''));
         }
 
@@ -198,7 +220,13 @@ class WahaWhatsAppProvider implements
         ];
 
         if ($apiKey !== '') {
-            $headers[$apiKeyHeader !== '' ? $apiKeyHeader : 'X-Api-Key'] = $apiKey;
+            $resolvedHeader = $apiKeyHeader !== '' ? $apiKeyHeader : 'X-Api-Key';
+            $headers[$resolvedHeader] = $apiKey;
+
+            // Keep compatibility with WAHA when a custom header name is configured.
+            if (mb_strtolower($resolvedHeader) !== 'x-api-key') {
+                $headers['X-Api-Key'] = $apiKey;
+            }
         }
 
         return [
@@ -253,5 +281,22 @@ class WahaWhatsAppProvider implements
         ]));
 
         return self::STATUS_CACHE_PREFIX . ':' . $suffix;
+    }
+
+    private function maskChatId(string $chatId): string
+    {
+        $value = trim($chatId);
+        if ($value === '') {
+            return '***';
+        }
+
+        $parts = explode('@', mb_strtolower($value), 2);
+        $local = $parts[0] ?? '';
+        $domain = $parts[1] ?? '';
+        $digits = preg_replace('/\D+/', '', $local) ?? '';
+        $suffix = $digits !== '' ? substr($digits, -4) : mb_substr($local, -4);
+        $domainSuffix = $domain !== '' ? '@' . $domain : '';
+
+        return '***' . $suffix . $domainSuffix;
     }
 }

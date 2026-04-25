@@ -119,6 +119,10 @@ class WhatsAppProviderConfigResolver
         $notificationConfig['scope'] = 'bot';
         $notificationConfig['include_link_image'] = false;
 
+        if ($provider === 'waha') {
+            $notificationConfig = $this->applyInheritedWahaFallback($notificationConfig);
+        }
+
         return new WhatsAppProviderConfig($provider, $notificationConfig);
     }
 
@@ -204,6 +208,32 @@ class WhatsAppProviderConfigResolver
         return in_array($mode, ['inherit_notifications', 'custom'], true)
             ? $mode
             : 'inherit_notifications';
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     * @return array<string, mixed>
+     */
+    private function applyInheritedWahaFallback(array $config): array
+    {
+        $baseUrl = trim((string) ($config['base_url'] ?? ''));
+        if ($baseUrl === '') {
+            $baseUrl = trim((string) ($this->configuracaoService->get('whatsapp.waha_base_url')
+                ?: $this->configuracaoService->get('whatsapp.base_url')
+                ?: config('services.whatsapp.waha.base_url', '')));
+        }
+
+        $session = trim((string) ($config['session'] ?? ''));
+        if ($session === '') {
+            $session = trim((string) ($this->configuracaoService->get('whatsapp.waha_session')
+                ?: $this->configuracaoService->get('whatsapp.instance')
+                ?: config('services.whatsapp.waha.session', 'default')));
+        }
+
+        $config['base_url'] = rtrim($baseUrl, '/');
+        $config['session'] = $session;
+
+        return $config;
     }
 
     private function resolveThemeLogoUrl(): string
