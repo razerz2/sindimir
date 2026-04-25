@@ -11,14 +11,42 @@ class WahaChatIdResolverTest extends TestCase
     {
         $resolver = new WahaChatIdResolver();
 
-        $this->assertSame('5567999999999@c.us', $resolver->toChatId('5567999999999@c.us'));
+        $this->assertSame('556799999999@c.us', $resolver->toChatId('5567999999999@c.us'));
     }
 
     public function test_to_chat_id_adds_c_us_when_input_is_number_only(): void
     {
         $resolver = new WahaChatIdResolver();
 
-        $this->assertSame('5567999999999@c.us', $resolver->toChatId('55 (67) 99999-9999'));
+        $this->assertSame('556799999999@c.us', $resolver->toChatId('55 (67) 99999-9999'));
+    }
+
+    public function test_to_chat_id_handles_brazil_with_ninth_digit(): void
+    {
+        $resolver = new WahaChatIdResolver();
+
+        $this->assertSame('556793087866@c.us', $resolver->toChatId('5567993087866'));
+    }
+
+    public function test_to_chat_id_handles_brazil_without_ninth_digit(): void
+    {
+        $resolver = new WahaChatIdResolver();
+
+        $this->assertSame('556793087866@c.us', $resolver->toChatId('556793087866'));
+    }
+
+    public function test_to_chat_id_handles_local_brazil_mobile_without_country_code(): void
+    {
+        $resolver = new WahaChatIdResolver();
+
+        $this->assertSame('556793087866@c.us', $resolver->toChatId('67993087866'));
+    }
+
+    public function test_to_chat_id_keeps_non_brazil_international_number(): void
+    {
+        $resolver = new WahaChatIdResolver();
+
+        $this->assertSame('14155552671@c.us', $resolver->toChatId('+1 (415) 555-2671'));
     }
 
     public function test_to_chat_id_keeps_group_identifier_without_adding_c_us(): void

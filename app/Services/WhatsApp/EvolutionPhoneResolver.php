@@ -22,6 +22,6 @@ class EvolutionPhoneResolver
             $raw = explode('@', $raw)[0] ?? '';
         }
 
-        return Phone::normalize($raw);
+        return Phone::normalizeForBrazil($raw, false);
     }
 }

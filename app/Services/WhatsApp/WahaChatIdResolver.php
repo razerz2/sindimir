@@ -28,7 +28,7 @@ class WahaChatIdResolver
         }
 
         $localPart = $this->extractLocalPart($lower);
-        $normalized = Phone::normalize($localPart);
+        $normalized = Phone::normalizeForBrazil($localPart, true);
         // Reject internal/LID identifiers that are too long to be valid phone numbers.
         // Real WhatsApp phones have at most 13 digits (e.g. Brazil 55+DDD+9digits=13).
         if (strlen($normalized) < 10 || strlen($normalized) > 13) {

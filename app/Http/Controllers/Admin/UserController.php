@@ -8,18 +8,95 @@ use App\Http\Requests\Admin\StoreUserRequest;
 use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Http\Requests\Admin\UpdateUserPasswordRequest;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class UserController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $users = User::query()
-            ->orderBy('name')
-            ->paginate(15);
+        $perPageOptions = [10, 25, 50, 100];
+        $perPageInput = $request->query('per_page', 10);
+        $perPage = is_numeric($perPageInput) ? (int) $perPageInput : 10;
+        $perPage = in_array($perPage, $perPageOptions, true) ? $perPage : 10;
 
-        return view('admin.usuarios.index', compact('users'));
+        $searchInput = $request->query('search');
+        $search = is_string($searchInput) ? trim($searchInput) : '';
+        $search = mb_substr($search, 0, 100);
+        $normalizedSearch = Str::of($search)->lower()->ascii()->toString();
+
+        $sortOptions = ['name', 'email', 'role', 'status', 'created_at'];
+        $sortInput = $request->query('sort', 'created_at');
+        $sort = is_string($sortInput) && in_array($sortInput, $sortOptions, true) ? $sortInput : 'created_at';
+
+        $directionInput = $request->query('direction', 'desc');
+        $direction = is_string($directionInput) ? strtolower($directionInput) : 'desc';
+        $direction = in_array($direction, ['asc', 'desc'], true) ? $direction : 'desc';
+
+        $usersQuery = User::query()
+            ->when($search !== '', function ($query) use ($search, $normalizedSearch) {
+                $like = '%' . $search . '%';
+
+                $query->where(function ($filterQuery) use ($like, $normalizedSearch) {
+                    $filterQuery
+                        ->where('name', 'like', $like)
+                        ->orWhere('nome_exibicao', 'like', $like)
+                        ->orWhere('email', 'like', $like)
+                        ->orWhere('role', 'like', $like);
+
+                    $roleHints = [
+                        UserRole::Admin->value => ['admin', 'administrador'],
+                        UserRole::Usuario->value => ['usuario', 'user'],
+                        UserRole::Aluno->value => ['aluno'],
+                    ];
+
+                    foreach ($roleHints as $roleValue => $terms) {
+                        foreach ($terms as $term) {
+                            if (str_contains($normalizedSearch, $term)) {
+                                $filterQuery->orWhere('role', $roleValue);
+                                break;
+                            }
+                        }
+                    }
+
+                    $verifiedTerms = ['verificado', 'ativo', 'confirmado'];
+                    foreach ($verifiedTerms as $term) {
+                        if (str_contains($normalizedSearch, $term)) {
+                            $filterQuery->orWhereNotNull('email_verified_at');
+                            break;
+                        }
+                    }
+
+                    $pendingTerms = ['pendente', 'nao verificado', 'nao confirmado', 'inativo'];
+                    foreach ($pendingTerms as $term) {
+                        if (str_contains($normalizedSearch, $term)) {
+                            $filterQuery->orWhereNull('email_verified_at');
+                            break;
+                        }
+                    }
+                });
+            });
+
+        switch ($sort) {
+            case 'name':
+                $usersQuery->orderByRaw("COALESCE(NULLIF(nome_exibicao, ''), name) {$direction}");
+                break;
+            case 'status':
+                $usersQuery->orderByRaw("CASE WHEN email_verified_at IS NULL THEN 0 ELSE 1 END {$direction}");
+                break;
+            default:
+                $usersQuery->orderBy($sort, $direction);
+                break;
+        }
+
+        $users = $usersQuery
+            ->orderByDesc('id')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        return view('admin.usuarios.index', compact('users', 'search', 'perPage', 'perPageOptions', 'sort', 'direction'));
     }
 
     public function create(): View

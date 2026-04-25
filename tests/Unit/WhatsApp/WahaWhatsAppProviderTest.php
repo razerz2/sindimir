@@ -38,7 +38,7 @@ class WahaWhatsAppProviderTest extends TestCase
                 && $request->method() === 'POST'
                 && $request->hasHeader('X-Api-Key', 'waha-key')
                 && ($payload['session'] ?? null) === 'default'
-                && ($payload['chatId'] ?? null) === '5567999999999@c.us'
+                && ($payload['chatId'] ?? null) === '556799999999@c.us'
                 && ($payload['text'] ?? null) === 'Mensagem WAHA';
         });
     }
@@ -68,7 +68,7 @@ class WahaWhatsAppProviderTest extends TestCase
                 && $request->method() === 'POST'
                 && $request->hasHeader('X-Api-Key', 'waha-key')
                 && ($payload['session'] ?? null) === 'default'
-                && ($payload['chatId'] ?? null) === '5567991112222@c.us'
+                && ($payload['chatId'] ?? null) === '556791112222@c.us'
                 && ($payload['text'] ?? null) === 'Resposta bot';
         });
     }

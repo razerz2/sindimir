@@ -15,6 +15,7 @@ use App\Services\EventoCursoService;
 use App\Support\Cpf;
 use App\Support\Phone;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -30,14 +31,61 @@ class EventoCursoController extends Controller
         $this->authorizeResource(EventoCurso::class, 'evento');
     }
 
-    public function index(): View
+    public function index(Request $request): View
     {
-        $eventos = EventoCurso::query()
-            ->with(['curso' => fn ($query) => $query->withTrashed()])
-            ->latest()
-            ->paginate(15);
+        $perPageOptions = [10, 25, 50, 100];
+        $perPageInput = $request->query('per_page', 10);
+        $perPage = is_numeric($perPageInput) ? (int) $perPageInput : 10;
+        $perPage = in_array($perPage, $perPageOptions, true) ? $perPage : 10;
 
-        return view('admin.eventos.index', compact('eventos'));
+        $searchInput = $request->query('search');
+        $search = is_string($searchInput) ? trim($searchInput) : '';
+        $search = mb_substr($search, 0, 100);
+        $turnoSearch = mb_strtolower(str_replace(' ', '_', $search));
+
+        $sortOptions = ['numero_evento', 'curso', 'municipio', 'turno', 'data_inicio', 'created_at'];
+        $sortInput = $request->query('sort', 'created_at');
+        $sort = is_string($sortInput) && in_array($sortInput, $sortOptions, true) ? $sortInput : 'created_at';
+
+        $directionInput = $request->query('direction', 'desc');
+        $direction = is_string($directionInput) ? strtolower($directionInput) : 'desc';
+        $direction = in_array($direction, ['asc', 'desc'], true) ? $direction : 'desc';
+
+        $eventosQuery = EventoCurso::query()
+            ->with(['curso' => fn ($query) => $query->withTrashed()])
+            ->when($search !== '', function ($query) use ($search, $turnoSearch) {
+                $like = '%' . $search . '%';
+
+                $query->where(function ($filterQuery) use ($like, $turnoSearch) {
+                    $filterQuery
+                        ->where('numero_evento', 'like', $like)
+                        ->orWhere('municipio', 'like', $like)
+                        ->orWhereRaw('LOWER(turno) LIKE ?', ['%' . $turnoSearch . '%'])
+                        ->orWhereHas('curso', fn ($cursoQuery) => $cursoQuery->withTrashed()->where('nome', 'like', $like));
+                });
+            });
+
+        switch ($sort) {
+            case 'curso':
+                $eventosQuery->orderBy(
+                    Curso::withTrashed()
+                        ->select('nome')
+                        ->whereColumn('cursos.id', 'evento_cursos.curso_id')
+                        ->limit(1),
+                    $direction
+                );
+                break;
+            default:
+                $eventosQuery->orderBy($sort, $direction);
+                break;
+        }
+
+        $eventos = $eventosQuery
+            ->orderByDesc('id')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        return view('admin.eventos.index', compact('eventos', 'search', 'perPage', 'perPageOptions', 'sort', 'direction'));
     }
 
     public function create(): View
