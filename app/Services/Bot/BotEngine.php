@@ -23,6 +23,7 @@ use App\Support\Phone;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
 
@@ -76,6 +77,11 @@ class BotEngine
             'text' => $text,
         ]);
 
+        // Any new message to an ENDED conversation reopens it so the user can start a fresh session.
+        if (! $conversation->wasRecentlyCreated && (string) ($conversation->state ?? '') === BotState::ENDED) {
+            $this->reopenConversation($conversation);
+        }
+
         if ($this->isResetKeyword($text) || $this->isEntryKeyword($text)) {
             $response = $this->respondWithMenu($conversation, true);
             $this->logMessage($conversation, 'out', ['text' => $response]);
@@ -126,6 +132,46 @@ class BotEngine
         $this->logMessage($conversation, 'out', ['text' => $response]);
 
         return $response;
+    }
+
+    /**
+     * Stores the verified reply JID in context so background commands (e.g. bot:close-inactive)
+     * can send messages to the correct destination when `from` holds an internal/LID identifier.
+     */
+    public function persistReplyChatId(string $channel, string $from, string $replyChatId): void
+    {
+        $channel = $this->normalizeChannel($channel);
+        $from = Phone::normalize($from);
+        $replyChatId = trim($replyChatId);
+
+        if ($from === '' || $replyChatId === '' || ! Schema::hasTable('bot_conversations')) {
+            return;
+        }
+
+        $conversation = BotConversation::query()
+            ->where('channel', $channel)
+            ->where('from', $from)
+            ->first();
+
+        if ($conversation === null) {
+            return;
+        }
+
+        $context = $this->getConversationContext($conversation);
+        if (($context['reply_chat_id'] ?? '') === $replyChatId) {
+            return;
+        }
+
+        $context['reply_chat_id'] = $replyChatId;
+        $this->logConversationContextAudit(
+            $conversation,
+            'bot_engine.persist_reply_chat_id',
+            (string) ($conversation->state ?? ''),
+            $conversation->closed_reason !== null ? (string) $conversation->closed_reason : null,
+            $conversation->context,
+            $context
+        );
+        $conversation->updateWithContextPolicy(['context' => $context], false, __METHOD__);
     }
 
     private function handleMenuInput(BotConversation $conversation, string $text): string
@@ -2673,7 +2719,9 @@ class BotEngine
 
     private function respondWithMenu(BotConversation $conversation, bool $includeWelcome, ?string $prefix = null): string
     {
-        $this->setConversationState($conversation, BotState::MENU, []);
+        // Keep current context and let setConversationState merge updates by default.
+        $context = $this->getConversationContext($conversation);
+        $this->setConversationState($conversation, BotState::MENU, $context);
 
         $parts = [];
         if ($prefix !== null && trim($prefix) !== '') {
@@ -2926,11 +2974,30 @@ class BotEngine
         return $state;
     }
 
-    private function setConversationState(BotConversation $conversation, string $state, array $context): void
+    private function reopenConversation(BotConversation $conversation): void
     {
+        $context = $this->getConversationContext($conversation);
+        // Preserve only the reply JID so WAHA can still reach the user.
+        $preserved = [];
+        if (isset($context['reply_chat_id']) && trim((string) $context['reply_chat_id']) !== '') {
+            $preserved['reply_chat_id'] = $context['reply_chat_id'];
+        }
+
+        $this->setConversationState($conversation, BotState::MENU, $preserved);
+    }
+
+    private function setConversationState(
+        BotConversation $conversation,
+        string $state,
+        array $context,
+        bool $clearContext = false
+    ): void
+    {
+        $resolvedContext = $this->preserveConversationContext($conversation, $context, $clearContext);
+
         $payload = [
             'state' => $state,
-            'context' => $context,
+            'context' => $resolvedContext,
             'last_activity_at' => now(),
         ];
 
@@ -2950,7 +3017,16 @@ class BotEngine
                 : null;
         }
 
-        $conversation->update($payload);
+        $this->logConversationContextAudit(
+            $conversation,
+            'bot_engine.set_conversation_state',
+            $state,
+            isset($payload['closed_reason']) ? (string) $payload['closed_reason'] : null,
+            $conversation->context,
+            $resolvedContext
+        );
+
+        $conversation->updateWithContextPolicy($payload, $clearContext, __METHOD__);
     }
 
     /**
@@ -2958,9 +3034,169 @@ class BotEngine
      */
     private function getConversationContext(BotConversation $conversation): array
     {
-        $context = $conversation->context;
+        return $this->normalizeConversationContext($conversation->context);
+    }
 
-        return is_array($context) ? $context : [];
+    /**
+     * @return array<string, mixed>
+     */
+    private function normalizeConversationContext(mixed $context): array
+    {
+        if (is_array($context)) {
+            return $context;
+        }
+
+        if ($context === null) {
+            return [];
+        }
+
+        if (! is_string($context)) {
+            return [];
+        }
+
+        $value = trim($context);
+        if ($value === '') {
+            return [];
+        }
+
+        $decoded = json_decode($value, true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * @param mixed $nextContext
+     * @return array<string, mixed>
+     */
+    private function preserveConversationContext(
+        BotConversation $conversation,
+        mixed $nextContext,
+        bool $clearContext = false
+    ): array {
+        $normalizedNextContext = $this->normalizeConversationContext($nextContext);
+        if ($clearContext) {
+            return $normalizedNextContext;
+        }
+
+        $existingContext = $this->normalizeConversationContext($conversation->context);
+        if ($normalizedNextContext === []) {
+            return $existingContext;
+        }
+
+        return array_replace($existingContext, $normalizedNextContext);
+    }
+
+    /**
+     * @param mixed $previousContext
+     * @param array<string, mixed> $nextContext
+     */
+    private function logConversationContextAudit(
+        BotConversation $conversation,
+        string $origin,
+        string $nextState,
+        ?string $nextClosedReason,
+        mixed $previousContext,
+        array $nextContext
+    ): void {
+        if (! $this->shouldLogContextAudit()) {
+            return;
+        }
+
+        $payload = [
+            'conversation_id' => (int) $conversation->id,
+            'origin' => $origin,
+            'previous_state' => (string) ($conversation->state ?? ''),
+            'next_state' => $nextState,
+            'previous_closed_reason' => $conversation->closed_reason,
+            'next_closed_reason' => $nextClosedReason,
+            'previous_context_type' => gettype($previousContext),
+            'previous_context_summary' => $this->summarizeConversationContextForAudit(
+                $this->normalizeConversationContext($previousContext)
+            ),
+            'next_context_summary' => $this->summarizeConversationContextForAudit($nextContext),
+        ];
+
+        if ($this->shouldIncludeContextAuditTrace()) {
+            $payload['stack'] = $this->buildContextAuditStackTrace();
+        }
+
+        Log::info('BOT context audit', $payload);
+    }
+
+    private function shouldLogContextAudit(): bool
+    {
+        return app()->environment(['local', 'testing'])
+            || (bool) $this->configuracaoService->get('bot.audit_context_updates', false);
+    }
+
+    private function shouldIncludeContextAuditTrace(): bool
+    {
+        return app()->environment(['local', 'testing']);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function buildContextAuditStackTrace(): array
+    {
+        $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 8);
+        $frames = [];
+
+        foreach (array_slice($trace, 1, 5) as $frame) {
+            $class = (string) ($frame['class'] ?? '');
+            $type = (string) ($frame['type'] ?? '');
+            $function = (string) ($frame['function'] ?? '');
+            $file = isset($frame['file']) ? basename((string) $frame['file']) : 'unknown';
+            $line = isset($frame['line']) ? (int) $frame['line'] : 0;
+
+            $frames[] = trim($class . $type . $function, ':') . '@' . $file . ':' . $line;
+        }
+
+        return $frames;
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @return array{
+     *   keys: list<string>,
+     *   size: int,
+     *   has_reply_chat_id: bool,
+     *   reply_chat_id_masked: ?string
+     * }
+     */
+    private function summarizeConversationContextForAudit(array $context): array
+    {
+        $replyChatId = trim((string) ($context['reply_chat_id'] ?? ''));
+
+        return [
+            'keys' => array_values(array_map(
+                static fn ($key): string => (string) $key,
+                array_keys($context)
+            )),
+            'size' => count($context),
+            'has_reply_chat_id' => $replyChatId !== '',
+            'reply_chat_id_masked' => $replyChatId !== '' ? $this->maskIdentifierForAudit($replyChatId) : null,
+        ];
+    }
+
+    private function maskIdentifierForAudit(string $value): string
+    {
+        $clean = trim($value);
+        if ($clean === '') {
+            return '***';
+        }
+
+        $local = explode('@', $clean)[0] ?? $clean;
+        $digits = preg_replace('/\D+/', '', $local) ?? '';
+        if ($digits !== '') {
+            return '***' . substr($digits, -4);
+        }
+
+        if (mb_strlen($local) <= 4) {
+            return '***';
+        }
+
+        return mb_substr($local, 0, 2) . '***' . mb_substr($local, -2);
     }
 
     /**
@@ -3243,7 +3479,13 @@ class BotEngine
 
     private function closeConversation(BotConversation $conversation): string
     {
-        $this->setConversationState($conversation, BotState::ENDED, []);
+        $context = $this->getConversationContext($conversation);
+        $preserved = [];
+        if (isset($context['reply_chat_id']) && trim((string) $context['reply_chat_id']) !== '') {
+            $preserved['reply_chat_id'] = $context['reply_chat_id'];
+        }
+
+        $this->setConversationState($conversation, BotState::ENDED, $preserved);
 
         return $this->getCloseMessage();
     }
@@ -3376,4 +3618,3 @@ class BotEngine
         ]);
     }
 }
-

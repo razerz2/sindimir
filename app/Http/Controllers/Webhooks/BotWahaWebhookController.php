@@ -91,6 +91,15 @@ class BotWahaWebhookController extends Controller
             return response()->json(['status' => 'error'], 500);
         }
 
+        // Persist the verified reply JID so commands like bot:close-inactive can use it.
+        try {
+            $this->engine->persistReplyChatId('waha', $fromIdentity, $replyChatId);
+        } catch (Throwable $exception) {
+            Log::warning('BOT WAHA: falha ao persistir reply_chat_id no contexto da conversa', [
+                'error' => $exception->getMessage(),
+            ]);
+        }
+
         return response()->json(['status' => 'ok'], 200);
     }
 

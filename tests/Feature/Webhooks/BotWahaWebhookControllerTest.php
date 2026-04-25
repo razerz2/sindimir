@@ -24,6 +24,7 @@ class BotWahaWebhookControllerTest extends TestCase
             ->once()
             ->with('waha', '5567999999999', 'Ola WAHA')
             ->andReturn('Resposta WAHA');
+        $engine->shouldReceive('persistReplyChatId')->once();
         $this->app->instance(BotEngine::class, $engine);
 
         $provider = Mockery::mock(BotProviderInterface::class);
@@ -62,6 +63,7 @@ class BotWahaWebhookControllerTest extends TestCase
             ->once()
             ->with('waha', '5567988887777', 'Mensagem 2')
             ->andReturn('Resposta 2');
+        $engine->shouldReceive('persistReplyChatId')->once();
         $this->app->instance(BotEngine::class, $engine);
 
         $provider = Mockery::mock(BotProviderInterface::class);
@@ -177,6 +179,7 @@ class BotWahaWebhookControllerTest extends TestCase
             ->once()
             ->with('waha', '5567991112222', 'menu')
             ->andReturn('ok');
+        $engine->shouldReceive('persistReplyChatId')->once();
         $this->app->instance(BotEngine::class, $engine);
 
         $provider = Mockery::mock(BotProviderInterface::class);
@@ -215,6 +218,9 @@ class BotWahaWebhookControllerTest extends TestCase
             ->once()
             ->with('waha', '215084110503978', 'menu')
             ->andReturn('Resposta real');
+        $engine->shouldReceive('persistReplyChatId')
+            ->once()
+            ->with('waha', '215084110503978', '556793087866@c.us');
         $this->app->instance(BotEngine::class, $engine);
 
         $provider = Mockery::mock(BotProviderInterface::class);
@@ -258,6 +264,9 @@ class BotWahaWebhookControllerTest extends TestCase
             ->once()
             ->with('waha', '215084110503978', 'oi')
             ->andReturn('Resposta participante');
+        $engine->shouldReceive('persistReplyChatId')
+            ->once()
+            ->with('waha', '215084110503978', '556793087866@c.us');
         $this->app->instance(BotEngine::class, $engine);
 
         $provider = Mockery::mock(BotProviderInterface::class);
@@ -297,6 +306,9 @@ class BotWahaWebhookControllerTest extends TestCase
             ->once()
             ->with('waha', '215084110503978', 'menu')
             ->andReturn('Resposta SenderAlt');
+        $engine->shouldReceive('persistReplyChatId')
+            ->once()
+            ->with('waha', '215084110503978', '556793087866@c.us');
         $this->app->instance(BotEngine::class, $engine);
 
         $provider = Mockery::mock(BotProviderInterface::class);
