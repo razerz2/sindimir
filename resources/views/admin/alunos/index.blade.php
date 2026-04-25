@@ -72,6 +72,7 @@
                     <th class="whitespace-nowrap"><a href="{{ $sortUrl('cpf') }}" style="color:inherit;text-decoration:none;">CPF{{ $sortIndicator('cpf') }}</a></th>
                     <th><a href="{{ $sortUrl('email') }}" style="color:inherit;text-decoration:none;">E-mail{{ $sortIndicator('email') }}</a></th>
                     <th class="w-48"><a href="{{ $sortUrl('municipio') }}" style="color:inherit;text-decoration:none;">Município{{ $sortIndicator('municipio') }}</a></th>
+                    <th class="w-40 whitespace-nowrap">Celular</th>
                     <th class="w-40 whitespace-nowrap">Telefone</th>
                     <th class="text-right whitespace-nowrap">Ações</th>
                 </tr>
@@ -80,10 +81,11 @@
                 @forelse ($alunos as $aluno)
                     <tr>
                         <td>{{ $aluno->nome_completo }}</td>
-                        <td>{{ \App\Support\Cpf::format($aluno->cpf) ?: '-' }}</td>
+                        <td>{{ $aluno->cpf_formatado ?: '-' }}</td>
                         <td>{{ $aluno->email ?: '-' }}</td>
                         <td>{{ $aluno->municipio?->nome ?? '-' }}</td>
-                        <td class="whitespace-nowrap">{{ \App\Support\Phone::format($aluno->celular ?? $aluno->telefone) ?: '-' }}</td>
+                        <td class="whitespace-nowrap">{{ $aluno->celular_formatado ?: '-' }}</td>
+                        <td class="whitespace-nowrap">{{ $aluno->telefone_formatado ?: '-' }}</td>
                         <td class="text-right whitespace-nowrap">
                             <div class="table-actions" style="flex-wrap: nowrap; justify-content: flex-end;">
                                 <x-admin.action as="a" variant="ghost" icon="eye" href="{{ route('admin.alunos.show', $aluno) }}">Ver</x-admin.action>
@@ -98,7 +100,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6">Nenhum registro encontrado.</td>
+                        <td colspan="7">Nenhum registro encontrado.</td>
                     </tr>
                 @endforelse
             </tbody>

@@ -5,6 +5,7 @@ namespace App\Http\Requests\Admin;
 use App\Http\Requests\AlunoBaseRequest;
 use App\Models\Aluno;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Unique;
 
 class AlunoUpdateRequest extends AlunoBaseRequest
 {
@@ -24,28 +25,28 @@ class AlunoUpdateRequest extends AlunoBaseRequest
         ]);
     }
 
-    protected function cpfUniqueRule(): Rule
+    protected function cpfUniqueRule(): Unique
     {
         $aluno = $this->route('aluno');
 
         return Rule::unique('alunos', 'cpf')->ignore($aluno?->id);
     }
 
-    protected function emailUniqueRule(): Rule
+    protected function emailUniqueRule(): Unique
     {
         $aluno = $this->route('aluno');
 
         return Rule::unique('alunos', 'email')->ignore($aluno?->id);
     }
 
-    protected function celularUniqueRule(): Rule
+    protected function celularUniqueRule(): Unique
     {
         $aluno = $this->route('aluno');
 
         return Rule::unique('alunos', 'celular')->ignore($aluno?->id);
     }
 
-    protected function telefoneUniqueRule(): Rule
+    protected function telefoneUniqueRule(): Unique
     {
         $aluno = $this->route('aluno');
 

@@ -129,6 +129,13 @@ class Aluno extends Model
         );
     }
 
+    protected function cpfFormatado(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => Cpf::format($this->cpf),
+        );
+    }
+
     protected function celular(): Attribute
     {
         return Attribute::make(
@@ -136,10 +143,24 @@ class Aluno extends Model
         );
     }
 
+    protected function celularFormatado(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => Phone::format($this->celular),
+        );
+    }
+
     protected function telefone(): Attribute
     {
         return Attribute::make(
             set: fn (?string $value) => Phone::normalize($value),
+        );
+    }
+
+    protected function telefoneFormatado(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => Phone::format($this->telefone),
         );
     }
 
