@@ -45,4 +45,8 @@ app()->booted(function () {
     $schedule->command('eventos:encerrar-expirados')
         ->dailyAt('00:05')
         ->name('eventos:encerrar-expirados');
+
+    $schedule->command('cursos:enviar-resumo-diario')
+        ->everyMinute()
+        ->name('cursos:enviar-resumo-diario');
 });

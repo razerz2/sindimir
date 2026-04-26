@@ -29,7 +29,7 @@
             ]));
         };
         $sortIndicator = fn (string $column): string => $currentSort === $column
-            ? ($currentDirection === 'asc' ? ' ↑' : ' ↓')
+            ? ($currentDirection === 'asc' ? ' (A-Z)' : ' (Z-A)')
             : '';
     @endphp
 
@@ -41,7 +41,7 @@
                 type="text"
                 name="search"
                 value="{{ $search }}"
-                placeholder="Buscar por nome, e-mail, perfil ou status"
+                placeholder="Buscar por nome, e-mail, WhatsApp, perfil ou status"
                 maxlength="100"
                 class="min-h-[40px] min-w-[280px] flex-1 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40"
             >
@@ -74,6 +74,7 @@
                 <tr>
                     <th><a href="{{ $sortUrl('name') }}" style="color:inherit;text-decoration:none;">Nome{{ $sortIndicator('name') }}</a></th>
                     <th><a href="{{ $sortUrl('email') }}" style="color:inherit;text-decoration:none;">E-mail{{ $sortIndicator('email') }}</a></th>
+                    <th class="whitespace-nowrap">WhatsApp</th>
                     <th class="w-40 whitespace-nowrap"><a href="{{ $sortUrl('role') }}" style="color:inherit;text-decoration:none;">Perfil{{ $sortIndicator('role') }}</a></th>
                     <th class="w-40 whitespace-nowrap"><a href="{{ $sortUrl('status') }}" style="color:inherit;text-decoration:none;">Status{{ $sortIndicator('status') }}</a></th>
                     <th class="text-right whitespace-nowrap">Ações</th>
@@ -84,6 +85,7 @@
                     <tr>
                         <td>{{ $user->display_name }}</td>
                         <td>{{ $user->email }}</td>
+                        <td class="whitespace-nowrap">{{ $user->whatsapp_formatado ?: '-' }}</td>
                         <td>
                             <span class="badge neutral">
                                 {{ $user->role?->label() ?? '-' }}
@@ -109,7 +111,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5">Nenhum registro encontrado.</td>
+                        <td colspan="6">Nenhum registro encontrado.</td>
                     </tr>
                 @endforelse
             </tbody>

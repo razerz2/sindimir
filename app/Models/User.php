@@ -4,6 +4,8 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\UserRole;
+use App\Support\Phone;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -24,6 +26,7 @@ class User extends Authenticatable
         'name',
         'nome_exibicao',
         'email',
+        'whatsapp',
         'password',
         'role',
         'module_permissions',
@@ -77,6 +80,42 @@ class User extends Authenticatable
         $permissions = $this->module_permissions ?? [];
 
         return in_array($module, $permissions, true);
+    }
+
+    protected function whatsapp(): Attribute
+    {
+        return Attribute::make(
+            set: function (?string $value): ?string {
+                $normalized = Phone::normalize($value);
+                if ($normalized === '') {
+                    return null;
+                }
+
+                if (str_starts_with($normalized, '55') && strlen($normalized) === 13) {
+                    return substr($normalized, 2);
+                }
+
+                return $normalized;
+            }
+        );
+    }
+
+    protected function whatsappFormatado(): Attribute
+    {
+        return Attribute::make(
+            get: function (): string {
+                $whatsapp = (string) ($this->whatsapp ?? '');
+                if ($whatsapp === '') {
+                    return '';
+                }
+
+                if (str_starts_with($whatsapp, '55') && strlen($whatsapp) === 13) {
+                    $whatsapp = substr($whatsapp, 2);
+                }
+
+                return Phone::format($whatsapp);
+            }
+        );
     }
 
     public function aluno(): HasOne

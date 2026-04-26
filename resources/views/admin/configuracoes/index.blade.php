@@ -1171,6 +1171,83 @@
                     </div>
 
                     <div class="rounded-xl border border-slate-200 bg-white p-4">
+                        <h4 class="text-sm font-semibold text-slate-700">Usuário - Nova inscrição em curso</h4>
+                        <p class="text-xs text-slate-500">Usa o tipo <code>USUARIO_INSCRICAO_CURSO</code>.</p>
+                        <p class="text-xs text-slate-500">Prepara o envio interno para usuários administrativos quando houver nova inscrição de aluno.</p>
+                        <div class="mt-3 grid gap-4 md:grid-cols-3">
+                            <x-admin.checkbox
+                                name="auto_usuario_inscricao_ativo"
+                                label="Ativar"
+                                :checked="$settings['auto_usuario_inscricao_ativo'] ?? false"
+                            />
+                            <x-admin.checkbox
+                                name="auto_usuario_inscricao_email"
+                                label="E-mail"
+                                :checked="$settings['auto_usuario_inscricao_email'] ?? true"
+                            />
+                            <x-admin.checkbox
+                                name="auto_usuario_inscricao_whatsapp"
+                                label="WhatsApp"
+                                :checked="$settings['auto_usuario_inscricao_whatsapp'] ?? false"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-200 bg-white p-4">
+                        <h4 class="text-sm font-semibold text-slate-700">Usuário - Cancelamento de inscrição/matrícula</h4>
+                        <p class="text-xs text-slate-500">Usa o tipo <code>USUARIO_CANCELAMENTO_CURSO</code>.</p>
+                        <p class="text-xs text-slate-500">Prepara o envio interno para usuários administrativos quando houver cancelamento de inscrição/matrícula de aluno.</p>
+                        <div class="mt-3 grid gap-4 md:grid-cols-3">
+                            <x-admin.checkbox
+                                name="auto_usuario_cancelamento_ativo"
+                                label="Ativar"
+                                :checked="$settings['auto_usuario_cancelamento_ativo'] ?? false"
+                            />
+                            <x-admin.checkbox
+                                name="auto_usuario_cancelamento_email"
+                                label="E-mail"
+                                :checked="$settings['auto_usuario_cancelamento_email'] ?? true"
+                            />
+                            <x-admin.checkbox
+                                name="auto_usuario_cancelamento_whatsapp"
+                                label="WhatsApp"
+                                :checked="$settings['auto_usuario_cancelamento_whatsapp'] ?? false"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-200 bg-white p-4">
+                        <h4 class="text-sm font-semibold text-slate-700">Usuário - Resumo diário de cursos ativos</h4>
+                        <p class="text-xs text-slate-500">Usa o tipo <code>USUARIO_RESUMO_DIARIO_CURSOS</code>.</p>
+                        <p class="text-xs text-slate-500">Envia diariamente um resumo consolidado dos cursos/eventos ativos para usuários administrativos.</p>
+                        <div class="mt-3 grid gap-4 md:grid-cols-3">
+                            <x-admin.checkbox
+                                name="auto_usuario_resumo_diario_ativo"
+                                label="Ativar"
+                                :checked="$settings['auto_usuario_resumo_diario_ativo'] ?? false"
+                            />
+                            <x-admin.checkbox
+                                name="auto_usuario_resumo_diario_email"
+                                label="E-mail"
+                                :checked="$settings['auto_usuario_resumo_diario_email'] ?? true"
+                            />
+                            <x-admin.checkbox
+                                name="auto_usuario_resumo_diario_whatsapp"
+                                label="WhatsApp"
+                                :checked="$settings['auto_usuario_resumo_diario_whatsapp'] ?? false"
+                            />
+                            <x-admin.input
+                                id="auto_usuario_resumo_diario_horario"
+                                name="auto_usuario_resumo_diario_horario"
+                                label="Horário de envio"
+                                type="time"
+                                :value="$settings['auto_usuario_resumo_diario_horario'] ?? '08:00'"
+                                hint="Envia apenas uma vez por dia no horário configurado."
+                            />
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-200 bg-white p-4">
                         <h4 class="text-sm font-semibold text-slate-700">Curso disponível</h4>
                         <p class="text-xs text-slate-500">Usa o tipo <code>CURSO_DISPONIVEL</code>.</p>
                         <p class="text-xs text-slate-500">Divulga a abertura de inscrições para cursos disponíveis.</p>

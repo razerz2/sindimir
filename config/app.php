@@ -119,6 +119,7 @@ return [
         'name' => env('ADMIN_NAME', 'Administrador'),
         'email' => env('ADMIN_EMAIL', 'admin@sindimir.local'),
         'password' => env('ADMIN_PASSWORD', 'admin123'),
+        'whatsapp' => env('ADMIN_WHATSAPP', '67999999999'),
     ],
 
     /*

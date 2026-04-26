@@ -15,6 +15,7 @@ class AdminUserSeeder extends Seeder
             'name' => 'Administrador',
             'email' => 'admin@sindimir.local',
             'password' => 'admin123',
+            'whatsapp' => '67999999999',
         ]);
 
         User::updateOrCreate(
@@ -22,6 +23,7 @@ class AdminUserSeeder extends Seeder
             [
                 'name' => $adminConfig['name'],
                 'password' => Hash::make($adminConfig['password']),
+                'whatsapp' => $adminConfig['whatsapp'] ?? '67999999999',
                 'role' => UserRole::Admin,
             ]
         );

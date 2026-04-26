@@ -37,6 +37,16 @@
                 hint="Se vazio, o sistema exibirá o nome completo."
             />
             <x-admin.input name="email" label="E-mail" type="email" required value="{{ old('email', $user->email) }}" />
+            <x-admin.input
+                name="whatsapp"
+                label="WhatsApp"
+                required
+                value="{{ old('whatsapp', $user->whatsapp_formatado) }}"
+                hint="Informe um celular com DDD."
+                placeholder="(67) 99999-9999"
+                maxlength="15"
+                data-mask="phone"
+            />
             <x-admin.select
                 name="role"
                 label="Perfil"
@@ -106,4 +116,6 @@
             }
         });
     </script>
+
+    @include('partials.input-masks')
 @endsection

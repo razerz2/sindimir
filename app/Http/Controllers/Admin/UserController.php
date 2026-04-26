@@ -5,11 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreUserRequest;
-use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Http\Requests\Admin\UpdateUserPasswordRequest;
+use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Models\User;
-use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -26,6 +26,10 @@ class UserController extends Controller
         $search = is_string($searchInput) ? trim($searchInput) : '';
         $search = mb_substr($search, 0, 100);
         $normalizedSearch = Str::of($search)->lower()->ascii()->toString();
+        $normalizedSearchPhone = preg_replace('/\D+/', '', $search) ?? '';
+        if (str_starts_with($normalizedSearchPhone, '55') && strlen($normalizedSearchPhone) === 13) {
+            $normalizedSearchPhone = substr($normalizedSearchPhone, 2);
+        }
 
         $sortOptions = ['name', 'email', 'role', 'status', 'created_at'];
         $sortInput = $request->query('sort', 'created_at');
@@ -36,15 +40,20 @@ class UserController extends Controller
         $direction = in_array($direction, ['asc', 'desc'], true) ? $direction : 'desc';
 
         $usersQuery = User::query()
-            ->when($search !== '', function ($query) use ($search, $normalizedSearch) {
+            ->when($search !== '', function ($query) use ($search, $normalizedSearch, $normalizedSearchPhone) {
                 $like = '%' . $search . '%';
+                $phoneLike = '%' . $normalizedSearchPhone . '%';
 
-                $query->where(function ($filterQuery) use ($like, $normalizedSearch) {
+                $query->where(function ($filterQuery) use ($like, $phoneLike, $normalizedSearch, $normalizedSearchPhone) {
                     $filterQuery
                         ->where('name', 'like', $like)
                         ->orWhere('nome_exibicao', 'like', $like)
                         ->orWhere('email', 'like', $like)
                         ->orWhere('role', 'like', $like);
+
+                    if ($normalizedSearchPhone !== '') {
+                        $filterQuery->orWhere('whatsapp', 'like', $phoneLike);
+                    }
 
                     $roleHints = [
                         UserRole::Admin->value => ['admin', 'administrador'],
@@ -116,7 +125,7 @@ class UserController extends Controller
 
         return redirect()
             ->route('admin.usuarios.show', $user)
-            ->with('status', 'Usuario criado com sucesso.');
+            ->with('status', 'Usuário criado com sucesso.');
     }
 
     public function show(User $user): View

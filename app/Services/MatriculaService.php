@@ -20,7 +20,8 @@ class MatriculaService
 {
     public function __construct(
         private readonly ConfiguracaoService $configuracaoService,
-        private readonly NotificationService $notificationService
+        private readonly NotificationService $notificationService,
+        private readonly UserCourseNotificationService $userCourseNotificationService
     ) {
     }
 
@@ -160,6 +161,8 @@ class MatriculaService
                     $this->notificarConfirmacaoInscricao($matricula, $evento, $tempoLimiteHoras);
                 }
 
+                $this->userCourseNotificationService->notifyEnrollment($matricula, $evento);
+
                 return [
                     'status' => 'created',
                     'tipo' => 'matricula',
@@ -241,13 +244,21 @@ class MatriculaService
                 ->lockForUpdate()
                 ->findOrFail($matricula->id);
 
-            if ($matricula->status === StatusMatricula::Cancelada) {
-                return $matricula;
-            }
+            $statusAlterado = $matricula->status !== StatusMatricula::Cancelada;
 
-            $matricula->update([
-                'status' => StatusMatricula::Cancelada,
-            ]);
+            if ($statusAlterado) {
+                $matricula->update([
+                    'status' => StatusMatricula::Cancelada,
+                ]);
+
+                $evento = EventoCurso::query()
+                    ->with('curso')
+                    ->find($matricula->evento_curso_id);
+
+                if ($evento) {
+                    $this->userCourseNotificationService->notifyCancellation($matricula, $evento);
+                }
+            }
 
             return $matricula;
         });
@@ -260,7 +271,9 @@ class MatriculaService
                 ->lockForUpdate()
                 ->findOrFail($matricula->id);
 
-            if ($matricula->status !== StatusMatricula::Cancelada) {
+            $statusAlterado = $matricula->status !== StatusMatricula::Cancelada;
+
+            if ($statusAlterado) {
                 $matricula->update([
                     'status' => StatusMatricula::Cancelada,
                 ]);
@@ -299,6 +312,16 @@ class MatriculaService
                     'status' => StatusListaEspera::Aguardando,
                     'posicao' => $novaPosicao,
                 ]);
+            }
+
+            if ($statusAlterado) {
+                $evento = EventoCurso::query()
+                    ->with('curso')
+                    ->find($eventoId);
+
+                if ($evento) {
+                    $this->userCourseNotificationService->notifyCancellation($matricula, $evento);
+                }
             }
 
             return $matricula;

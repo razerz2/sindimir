@@ -160,6 +160,16 @@ class ConfiguracaoController extends Controller
             'auto_evento_cancelado_ativo' => (bool) $this->configuracaoService->get('notificacao.auto.evento_cancelado.ativo', true),
             'auto_evento_cancelado_email' => (bool) $this->configuracaoService->get('notificacao.auto.evento_cancelado.canal.email', true),
             'auto_evento_cancelado_whatsapp' => (bool) $this->configuracaoService->get('notificacao.auto.evento_cancelado.canal.whatsapp', false),
+            'auto_usuario_inscricao_ativo' => (bool) $this->configuracaoService->get('notificacao.auto.usuario_inscricao_curso.ativo', false),
+            'auto_usuario_inscricao_email' => (bool) $this->configuracaoService->get('notificacao.auto.usuario_inscricao_curso.canal.email', true),
+            'auto_usuario_inscricao_whatsapp' => (bool) $this->configuracaoService->get('notificacao.auto.usuario_inscricao_curso.canal.whatsapp', false),
+            'auto_usuario_cancelamento_ativo' => (bool) $this->configuracaoService->get('notificacao.auto.usuario_cancelamento_curso.ativo', false),
+            'auto_usuario_cancelamento_email' => (bool) $this->configuracaoService->get('notificacao.auto.usuario_cancelamento_curso.canal.email', true),
+            'auto_usuario_cancelamento_whatsapp' => (bool) $this->configuracaoService->get('notificacao.auto.usuario_cancelamento_curso.canal.whatsapp', false),
+            'auto_usuario_resumo_diario_ativo' => (bool) $this->configuracaoService->get('notificacao.auto.usuario_resumo_diario_cursos.ativo', false),
+            'auto_usuario_resumo_diario_email' => (bool) $this->configuracaoService->get('notificacao.auto.usuario_resumo_diario_cursos.canal.email', true),
+            'auto_usuario_resumo_diario_whatsapp' => (bool) $this->configuracaoService->get('notificacao.auto.usuario_resumo_diario_cursos.canal.whatsapp', false),
+            'auto_usuario_resumo_diario_horario' => $this->configuracaoService->get('notificacao.auto.usuario_resumo_diario_cursos.horario_envio', '08:00'),
             'auto_curso_ativo' => (bool) $this->configuracaoService->get('notificacao.auto.curso_disponivel.ativo', false),
             'auto_curso_email' => (bool) $this->configuracaoService->get('notificacao.auto.curso_disponivel.canal.email', true),
             'auto_curso_whatsapp' => (bool) $this->configuracaoService->get('notificacao.auto.curso_disponivel.canal.whatsapp', false),
@@ -407,6 +417,16 @@ class ConfiguracaoController extends Controller
             'auto_evento_cancelado_ativo' => ['nullable', 'boolean'],
             'auto_evento_cancelado_email' => ['nullable', 'boolean'],
             'auto_evento_cancelado_whatsapp' => ['nullable', 'boolean'],
+            'auto_usuario_inscricao_ativo' => ['nullable', 'boolean'],
+            'auto_usuario_inscricao_email' => ['nullable', 'boolean'],
+            'auto_usuario_inscricao_whatsapp' => ['nullable', 'boolean'],
+            'auto_usuario_cancelamento_ativo' => ['nullable', 'boolean'],
+            'auto_usuario_cancelamento_email' => ['nullable', 'boolean'],
+            'auto_usuario_cancelamento_whatsapp' => ['nullable', 'boolean'],
+            'auto_usuario_resumo_diario_ativo' => ['nullable', 'boolean'],
+            'auto_usuario_resumo_diario_email' => ['nullable', 'boolean'],
+            'auto_usuario_resumo_diario_whatsapp' => ['nullable', 'boolean'],
+            'auto_usuario_resumo_diario_horario' => ['nullable', 'string', 'max:10'],
             'auto_curso_ativo' => ['nullable', 'boolean'],
             'auto_curso_email' => ['nullable', 'boolean'],
             'auto_curso_whatsapp' => ['nullable', 'boolean'],
@@ -665,6 +685,22 @@ class ConfiguracaoController extends Controller
         $this->configuracaoService->set('notificacao.auto.evento_cancelado.ativo', (bool) $request->boolean('auto_evento_cancelado_ativo'), 'Auto evento cancelado ativo');
         $this->configuracaoService->set('notificacao.auto.evento_cancelado.canal.email', (bool) $request->boolean('auto_evento_cancelado_email'), 'Auto evento cancelado email');
         $this->configuracaoService->set('notificacao.auto.evento_cancelado.canal.whatsapp', (bool) $request->boolean('auto_evento_cancelado_whatsapp'), 'Auto evento cancelado WhatsApp');
+
+        $this->configuracaoService->set('notificacao.auto.usuario_inscricao_curso.ativo', (bool) $request->boolean('auto_usuario_inscricao_ativo'), 'Auto usuario inscricao em curso ativo');
+        $this->configuracaoService->set('notificacao.auto.usuario_inscricao_curso.canal.email', (bool) $request->boolean('auto_usuario_inscricao_email'), 'Auto usuario inscricao em curso email');
+        $this->configuracaoService->set('notificacao.auto.usuario_inscricao_curso.canal.whatsapp', (bool) $request->boolean('auto_usuario_inscricao_whatsapp'), 'Auto usuario inscricao em curso WhatsApp');
+
+        $this->configuracaoService->set('notificacao.auto.usuario_cancelamento_curso.ativo', (bool) $request->boolean('auto_usuario_cancelamento_ativo'), 'Auto usuario cancelamento em curso ativo');
+        $this->configuracaoService->set('notificacao.auto.usuario_cancelamento_curso.canal.email', (bool) $request->boolean('auto_usuario_cancelamento_email'), 'Auto usuario cancelamento em curso email');
+        $this->configuracaoService->set('notificacao.auto.usuario_cancelamento_curso.canal.whatsapp', (bool) $request->boolean('auto_usuario_cancelamento_whatsapp'), 'Auto usuario cancelamento em curso WhatsApp');
+        $this->configuracaoService->set('notificacao.auto.usuario_resumo_diario_cursos.ativo', (bool) $request->boolean('auto_usuario_resumo_diario_ativo'), 'Auto usuario resumo diário de cursos ativo');
+        $this->configuracaoService->set('notificacao.auto.usuario_resumo_diario_cursos.canal.email', (bool) $request->boolean('auto_usuario_resumo_diario_email'), 'Auto usuario resumo diário de cursos email');
+        $this->configuracaoService->set('notificacao.auto.usuario_resumo_diario_cursos.canal.whatsapp', (bool) $request->boolean('auto_usuario_resumo_diario_whatsapp'), 'Auto usuario resumo diário de cursos WhatsApp');
+        $this->configuracaoService->set(
+            'notificacao.auto.usuario_resumo_diario_cursos.horario_envio',
+            (string) ($data['auto_usuario_resumo_diario_horario'] ?? '08:00'),
+            'Auto usuario resumo diário de cursos horário envio'
+        );
 
         $this->configuracaoService->set('notificacao.auto.curso_disponivel.ativo', (bool) $request->boolean('auto_curso_ativo'), 'Auto curso disponivel ativo');
         $this->configuracaoService->set('notificacao.auto.curso_disponivel.canal.email', (bool) $request->boolean('auto_curso_email'), 'Auto curso disponivel email');
@@ -1318,6 +1354,9 @@ class ConfiguracaoController extends Controller
         $inscricaoConfirmarConteudo = "Olá {{aluno_nome}},\n\nSua inscrição no curso {{curso_nome}} precisa ser confirmada.\nDatas: {{datas}}\nHorário: {{horario}}\nCarga horária: {{carga_horaria}}\nTurno: {{turno}}\nConfirme sua participação: {{link}}";
         $inscricaoCanceladaConteudo = "Olá {{aluno_nome}},\n\nSua inscrição no curso {{curso_nome}} foi cancelada.\nDatas: {{datas}}\nHorário: {{horario}}\nCarga horária: {{carga_horaria}}\nTurno: {{turno}}";
         $eventoCanceladoConteudo = "Olá {{aluno_nome}},\n\nO evento do curso {{curso_nome}} foi cancelado.\nDatas: {{datas}}\nHorário: {{horario}}\nCarga horária: {{carga_horaria}}\nTurno: {{turno}}";
+        $usuarioInscricaoCursoConteudo = "Olá,\n\nNova inscrição registrada.\nAluno: {{aluno_nome}}\nCPF: {{aluno_cpf}}\nCurso: {{curso_nome}}\nData(s): {{datas}}\nHorário: {{horario}}\nStatus da matrícula: {{status_matricula}}\nData/Hora da inscrição: {{data_inscricao}}\nAcesse no administrativo: {{link_admin}}";
+        $usuarioCancelamentoCursoConteudo = "Olá,\n\nCancelamento registrado.\nAluno: {{aluno_nome}}\nCPF: {{aluno_cpf}}\nCurso: {{curso_nome}}\nData(s): {{datas}}\nHorário: {{horario}}\nStatus da matrícula: {{status_matricula}}\nData/Hora do cancelamento: {{data_cancelamento}}\nAcesse no administrativo: {{link_admin}}";
+        $usuarioResumoDiarioCursosConteudo = "Olá,\n\nResumo diário de cursos ativos em {{data_resumo}}.\nTotal de eventos ativos: {{total_eventos}}\n\n{{resumo_cursos}}";
         return [
             ['type' => NotificationType::CURSO_DISPONIVEL->value, 'canal' => 'email', 'subject' => 'Curso disponível: {{curso_nome}}', 'content' => $baseConteudo],
             ['type' => NotificationType::CURSO_DISPONIVEL->value, 'canal' => 'whatsapp', 'subject' => null, 'content' => $baseConteudo],
@@ -1339,6 +1378,12 @@ class ConfiguracaoController extends Controller
             ['type' => NotificationType::LISTA_ESPERA->value, 'canal' => 'whatsapp', 'subject' => null, 'content' => "Lista de espera: {{curso_nome}}. {{link}}"],
             ['type' => LegacyNotificationType::LISTA_ESPERA_CHAMADA, 'canal' => 'email', 'subject' => 'Lista de espera chamada para {{curso_nome}}', 'content' => "Olá {{aluno_nome}},\nVocê foi chamado da lista de espera para {{curso_nome}} ({{datas}}). Acesse {{link}}"],
             ['type' => LegacyNotificationType::LISTA_ESPERA_CHAMADA, 'canal' => 'whatsapp', 'subject' => null, 'content' => "Lista de espera chamada: {{curso_nome}}. {{link}}"],
+            ['type' => LegacyNotificationType::USUARIO_INSCRICAO_CURSO, 'canal' => 'email', 'subject' => 'Nova inscrição em curso: {{curso_nome}}', 'content' => $usuarioInscricaoCursoConteudo],
+            ['type' => LegacyNotificationType::USUARIO_INSCRICAO_CURSO, 'canal' => 'whatsapp', 'subject' => null, 'content' => $usuarioInscricaoCursoConteudo],
+            ['type' => LegacyNotificationType::USUARIO_CANCELAMENTO_CURSO, 'canal' => 'email', 'subject' => 'Cancelamento de inscrição/matrícula: {{curso_nome}}', 'content' => $usuarioCancelamentoCursoConteudo],
+            ['type' => LegacyNotificationType::USUARIO_CANCELAMENTO_CURSO, 'canal' => 'whatsapp', 'subject' => null, 'content' => $usuarioCancelamentoCursoConteudo],
+            ['type' => LegacyNotificationType::USUARIO_RESUMO_DIARIO_CURSOS, 'canal' => 'email', 'subject' => 'Resumo diário de cursos ativos - {{data_resumo}}', 'content' => $usuarioResumoDiarioCursosConteudo],
+            ['type' => LegacyNotificationType::USUARIO_RESUMO_DIARIO_CURSOS, 'canal' => 'whatsapp', 'subject' => null, 'content' => $usuarioResumoDiarioCursosConteudo],
         ];
     }
 
@@ -1366,6 +1411,9 @@ class ConfiguracaoController extends Controller
             LegacyNotificationType::LEMBRETE_CURSO => 'Lembrete de curso',
             LegacyNotificationType::MATRICULA_CONFIRMADA => 'Matrícula confirmada',
             LegacyNotificationType::LISTA_ESPERA_CHAMADA => 'Lista de espera chamada',
+            LegacyNotificationType::USUARIO_INSCRICAO_CURSO => 'Usuário - inscrição em curso',
+            LegacyNotificationType::USUARIO_CANCELAMENTO_CURSO => 'Usuário - cancelamento de inscrição/matrícula',
+            LegacyNotificationType::USUARIO_RESUMO_DIARIO_CURSOS => 'Usuário - resumo diário de cursos ativos',
         ];
 
         return array_map(function (string $value) use ($legacyLabels): array {
@@ -1392,6 +1440,7 @@ class ConfiguracaoController extends Controller
     {
         return [
             ['variable' => '{{aluno_nome}}', 'description' => 'Nome do aluno'],
+            ['variable' => '{{aluno_cpf}}', 'description' => 'CPF do aluno'],
             ['variable' => '{{curso_nome}}', 'description' => 'Nome do curso'],
             ['variable' => '{{datas}}', 'description' => 'Datas do curso/evento'],
             ['variable' => '{{horario}}', 'description' => 'Horário'],
@@ -1399,6 +1448,13 @@ class ConfiguracaoController extends Controller
             ['variable' => '{{turno}}', 'description' => 'Turno'],
             ['variable' => '{{vagas}}', 'description' => 'Quantidade de vagas'],
             ['variable' => '{{link}}', 'description' => 'Link da inscrição/detalhes'],
+            ['variable' => '{{status_matricula}}', 'description' => 'Status da matrícula'],
+            ['variable' => '{{data_inscricao}}', 'description' => 'Data/hora da inscrição'],
+            ['variable' => '{{data_cancelamento}}', 'description' => 'Data/hora do cancelamento'],
+            ['variable' => '{{link_admin}}', 'description' => 'Link administrativo para matrícula/curso'],
+            ['variable' => '{{data_resumo}}', 'description' => 'Data de referência do resumo diário'],
+            ['variable' => '{{total_eventos}}', 'description' => 'Quantidade total de cursos/eventos ativos'],
+            ['variable' => '{{resumo_cursos}}', 'description' => 'Resumo consolidado de cursos ativos'],
         ];
     }
 }

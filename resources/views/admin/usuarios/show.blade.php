@@ -34,6 +34,10 @@
                 <p class="text-lg font-semibold">{{ $user->email }}</p>
             </div>
             <div>
+                <p class="text-xs font-semibold uppercase text-[var(--content-text)] opacity-70">WhatsApp</p>
+                <p class="text-lg font-semibold">{{ $user->whatsapp_formatado ?: '-' }}</p>
+            </div>
+            <div>
                 <p class="text-xs font-semibold uppercase text-[var(--content-text)] opacity-70">Perfil</p>
                 <p class="text-lg font-semibold">
                     <span class="badge neutral">{{ $user->role?->label() ?? '-' }}</span>
