@@ -3,17 +3,21 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendWhatsAppTestMessageJob;
 use App\Enums\LegacyNotificationType;
 use App\Enums\NotificationType;
 use App\Models\NotificationTemplate;
 use App\Services\ConfiguracaoService;
 use App\Services\GoogleContactsService;
+use App\Services\WhatsAppSendThrottleService;
 use App\Services\WhatsAppService;
+use App\Services\WhatsApp\WhatsAppProviderConfigResolver;
 use App\Services\WhatsApp\WhatsAppProviderResolver;
 use App\Services\ThemeService;
 use App\Services\SiteSectionService;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,7 +31,9 @@ class ConfiguracaoController extends Controller
         private readonly ThemeService $themeService,
         private readonly WhatsAppService $whatsAppService,
         private readonly GoogleContactsService $googleContactsService,
-        private readonly WhatsAppProviderResolver $whatsAppProviderResolver
+        private readonly WhatsAppProviderResolver $whatsAppProviderResolver,
+        private readonly WhatsAppProviderConfigResolver $whatsAppProviderConfigResolver,
+        private readonly WhatsAppSendThrottleService $whatsAppSendThrottleService
     ) {
     }
 
@@ -126,6 +132,16 @@ class ConfiguracaoController extends Controller
                 'whatsapp.evolution_apikey',
                 $this->configuracaoService->get('whatsapp.token', null)
             ),
+            'whatsapp_unofficial_throttle_enabled' => (bool) $this->configuracaoService->get('whatsapp.unofficial_throttle_enabled', false),
+            'whatsapp_unofficial_delay_min_seconds' => (int) $this->configuracaoService->get('whatsapp.unofficial_delay_min_seconds', 2),
+            'whatsapp_unofficial_delay_max_seconds' => (int) $this->configuracaoService->get('whatsapp.unofficial_delay_max_seconds', 8),
+            'whatsapp_unofficial_max_per_minute' => (int) $this->configuracaoService->get('whatsapp.unofficial_max_per_minute', 20),
+            'whatsapp_unofficial_max_per_hour' => (int) $this->configuracaoService->get('whatsapp.unofficial_max_per_hour', 400),
+            'whatsapp_unofficial_send_window_start' => (string) $this->configuracaoService->get('whatsapp.unofficial_send_window_start', '00:00'),
+            'whatsapp_unofficial_send_window_end' => (string) $this->configuracaoService->get('whatsapp.unofficial_send_window_end', '23:59'),
+            'whatsapp_unofficial_pause_every' => (int) $this->configuracaoService->get('whatsapp.unofficial_pause_every', 0),
+            'whatsapp_unofficial_pause_min_seconds' => (int) $this->configuracaoService->get('whatsapp.unofficial_pause_min_seconds', 8),
+            'whatsapp_unofficial_pause_max_seconds' => (int) $this->configuracaoService->get('whatsapp.unofficial_pause_max_seconds', 20),
             'smtp_host' => $smtpHost,
             'smtp_port' => $smtpPort,
             'smtp_username' => $smtpUsername,
@@ -356,6 +372,16 @@ class ConfiguracaoController extends Controller
                 'max:200',
                 Rule::requiredIf(fn () => $request->input('whatsapp_provedor') === 'evolution'),
             ],
+            'whatsapp_unofficial_throttle_enabled' => ['nullable', 'boolean'],
+            'whatsapp_unofficial_delay_min_seconds' => ['nullable', 'integer', 'min:0', 'max:3600'],
+            'whatsapp_unofficial_delay_max_seconds' => ['nullable', 'integer', 'min:0', 'max:3600'],
+            'whatsapp_unofficial_max_per_minute' => ['nullable', 'integer', 'min:0', 'max:5000'],
+            'whatsapp_unofficial_max_per_hour' => ['nullable', 'integer', 'min:0', 'max:100000'],
+            'whatsapp_unofficial_send_window_start' => ['nullable', 'date_format:H:i'],
+            'whatsapp_unofficial_send_window_end' => ['nullable', 'date_format:H:i'],
+            'whatsapp_unofficial_pause_every' => ['nullable', 'integer', 'min:0', 'max:100000'],
+            'whatsapp_unofficial_pause_min_seconds' => ['nullable', 'integer', 'min:0', 'max:3600'],
+            'whatsapp_unofficial_pause_max_seconds' => ['nullable', 'integer', 'min:0', 'max:3600'],
             'smtp_host' => ['nullable', 'string', 'max:120'],
             'smtp_port' => ['nullable', 'numeric'],
             'smtp_username' => ['nullable', 'string', 'max:120'],
@@ -631,6 +657,56 @@ class ConfiguracaoController extends Controller
             'whatsapp.evolution_apikey',
             trim($whatsappEvolutionApiKey),
             'Evolution apikey'
+        );
+        $this->configuracaoService->set(
+            'whatsapp.unofficial_throttle_enabled',
+            (bool) $request->boolean('whatsapp_unofficial_throttle_enabled'),
+            'Throttle anti-ban para provedores nao oficiais'
+        );
+        $this->configuracaoService->set(
+            'whatsapp.unofficial_delay_min_seconds',
+            (int) ($data['whatsapp_unofficial_delay_min_seconds'] ?? 2),
+            'Delay minimo (segundos) para provedores nao oficiais'
+        );
+        $this->configuracaoService->set(
+            'whatsapp.unofficial_delay_max_seconds',
+            (int) ($data['whatsapp_unofficial_delay_max_seconds'] ?? 8),
+            'Delay maximo (segundos) para provedores nao oficiais'
+        );
+        $this->configuracaoService->set(
+            'whatsapp.unofficial_max_per_minute',
+            (int) ($data['whatsapp_unofficial_max_per_minute'] ?? 20),
+            'Limite por minuto para provedores nao oficiais'
+        );
+        $this->configuracaoService->set(
+            'whatsapp.unofficial_max_per_hour',
+            (int) ($data['whatsapp_unofficial_max_per_hour'] ?? 400),
+            'Limite por hora para provedores nao oficiais'
+        );
+        $this->configuracaoService->set(
+            'whatsapp.unofficial_send_window_start',
+            trim((string) ($data['whatsapp_unofficial_send_window_start'] ?? '00:00')),
+            'Inicio da janela de envio para provedores nao oficiais'
+        );
+        $this->configuracaoService->set(
+            'whatsapp.unofficial_send_window_end',
+            trim((string) ($data['whatsapp_unofficial_send_window_end'] ?? '23:59')),
+            'Fim da janela de envio para provedores nao oficiais'
+        );
+        $this->configuracaoService->set(
+            'whatsapp.unofficial_pause_every',
+            (int) ($data['whatsapp_unofficial_pause_every'] ?? 0),
+            'Pausa inteligente a cada X mensagens para provedores nao oficiais'
+        );
+        $this->configuracaoService->set(
+            'whatsapp.unofficial_pause_min_seconds',
+            (int) ($data['whatsapp_unofficial_pause_min_seconds'] ?? 8),
+            'Pausa minima (segundos) para provedores nao oficiais'
+        );
+        $this->configuracaoService->set(
+            'whatsapp.unofficial_pause_max_seconds',
+            (int) ($data['whatsapp_unofficial_pause_max_seconds'] ?? 20),
+            'Pausa maxima (segundos) para provedores nao oficiais'
         );
         $smtpHost = (string) ($data['smtp_host'] ?? '');
         $smtpPort = (string) ($data['smtp_port'] ?? '');
@@ -912,6 +988,53 @@ class ConfiguracaoController extends Controller
             'whatsapp_test_numero' => ['required', 'string', 'max:30'],
             'whatsapp_test_mensagem' => ['required', 'string', 'max:1000'],
         ]);
+
+        $provider = $this->whatsAppProviderConfigResolver->resolveNotificationProvider();
+        if ($this->whatsAppSendThrottleService->shouldThrottle($provider)) {
+            try {
+                $delaySeconds = $this->whatsAppSendThrottleService->getRandomDelay($provider);
+                if (! $this->whatsAppSendThrottleService->canSendNow(provider: $provider)) {
+                    $delaySeconds += max(1, $this->whatsAppSendThrottleService->secondsUntilNextWindow(provider: $provider));
+                }
+
+                $dispatch = SendWhatsAppTestMessageJob::dispatch(
+                    $data['whatsapp_test_numero'],
+                    $data['whatsapp_test_mensagem']
+                );
+
+                if ($delaySeconds > 0) {
+                    $dispatch->delay(now()->addSeconds($delaySeconds));
+                }
+
+                Log::info('WhatsApp throttle aplicado no teste de envio.', [
+                    'provider' => $provider,
+                    'delay_seconds' => $delaySeconds,
+                ]);
+
+                $message = $delaySeconds > 0
+                    ? "Mensagem de teste agendada com delay de {$delaySeconds} segundo(s)."
+                    : 'Mensagem de teste enfileirada para envio imediato (throttle ativo).';
+
+                return redirect()
+                    ->route('admin.configuracoes.index')
+                    ->with('whatsapp_test_status', [
+                        'type' => 'success',
+                        'message' => $message,
+                    ]);
+            } catch (\RuntimeException $exception) {
+                return redirect()
+                    ->route('admin.configuracoes.index')
+                    ->with('whatsapp_test_status', [
+                        'type' => 'error',
+                        'message' => $exception->getMessage(),
+                    ]);
+            } catch (\Throwable $exception) {
+                Log::warning('Falha ao aplicar throttle no teste de WhatsApp. Fallback para envio imediato.', [
+                    'provider' => $provider,
+                    'erro' => $exception->getMessage(),
+                ]);
+            }
+        }
 
         try {
             $payload = $this->whatsAppService->sendTest(

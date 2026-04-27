@@ -14,11 +14,13 @@ use App\Models\EventoCurso;
 use App\Models\NotificationLink;
 use App\Models\NotificationLog;
 use App\Models\NotificationTemplate;
+use App\Services\WhatsApp\WhatsAppProviderConfigResolver;
 use App\Services\WhatsApp\WhatsAppProviderStatusService;
 use App\Support\WhatsAppMessageFormatter;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class NotificationService
 {
@@ -28,7 +30,9 @@ class NotificationService
     public function __construct(
         private readonly ConfiguracaoService $configuracaoService,
         private readonly NotificationLinkService $linkService,
-        private readonly WhatsAppProviderStatusService $whatsAppProviderStatusService
+        private readonly WhatsAppProviderStatusService $whatsAppProviderStatusService,
+        private readonly WhatsAppSendThrottleService $whatsAppSendThrottleService,
+        private readonly WhatsAppProviderConfigResolver $whatsAppProviderConfigResolver
     ) {
     }
 
@@ -145,6 +149,7 @@ class NotificationService
 
         $emailsEnviados = [];
         $telefonesEnviados = [];
+        $whatsappProvider = $this->whatsAppProviderConfigResolver->resolveNotificationProvider();
 
         foreach ($destinatarios as $destinatario) {
             $destinatarioNome = (string) ($destinatario['nome'] ?? '');
@@ -239,7 +244,7 @@ class NotificationService
                 } elseif ($this->isRateLimited($destinatario, $curso, $destinoEvento, $notificationType, 'whatsapp')) {
                     $this->logAttempt('whatsapp', 'blocked', 'Limite diário atingido.', $destinatario, $curso, $destinoEvento, $link, $notificationType);
                 } else {
-                    SendWhatsAppNotificationJob::dispatch(
+                    $this->dispatchWhatsAppNotificationJob(
                         $destinatario['tipo'],
                         $destinatario['id'],
                         $destinatarioNome,
@@ -248,7 +253,8 @@ class NotificationService
                         $destinoEvento?->id,
                         $link?->id,
                         $notificationType,
-                        $mensagemWhatsApp
+                        $mensagemWhatsApp,
+                        $whatsappProvider
                     );
                     $telefonesEnviados[$numeroNormalizado] = true;
                 }
@@ -771,6 +777,56 @@ class NotificationService
         }
 
         return '55' . $numeroSemPais;
+    }
+
+    private function dispatchWhatsAppNotificationJob(
+        string $destinatarioTipo,
+        ?int $destinatarioId,
+        string $destinatarioNome,
+        string $celular,
+        int $cursoId,
+        ?int $eventoCursoId,
+        ?int $notificacaoLinkId,
+        string $notificationType,
+        string $mensagem,
+        string $provider
+    ): void {
+        $dispatch = SendWhatsAppNotificationJob::dispatch(
+            $destinatarioTipo,
+            $destinatarioId,
+            $destinatarioNome,
+            $celular,
+            $cursoId,
+            $eventoCursoId,
+            $notificacaoLinkId,
+            $notificationType,
+            $mensagem
+        );
+
+        try {
+            if (! $this->whatsAppSendThrottleService->shouldThrottle($provider)) {
+                return;
+            }
+
+            $delay = $this->whatsAppSendThrottleService->getRandomDelay($provider);
+            if ($delay <= 0) {
+                return;
+            }
+
+            $dispatch->delay(now()->addSeconds($delay));
+
+            Log::info('WhatsApp throttle aplicado no agendamento inicial.', [
+                'provider' => $provider,
+                'notification_type' => $notificationType,
+                'delay_seconds' => $delay,
+            ]);
+        } catch (Throwable $exception) {
+            Log::warning('Falha ao aplicar throttle no agendamento inicial de WhatsApp. Fallback para envio normal.', [
+                'provider' => $provider,
+                'notification_type' => $notificationType,
+                'erro' => $exception->getMessage(),
+            ]);
+        }
     }
 
     private function isRateLimited(

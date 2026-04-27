@@ -11,6 +11,7 @@ use App\Models\EventoCurso;
 use App\Models\Matricula;
 use App\Models\NotificationTemplate;
 use App\Models\User;
+use App\Services\WhatsApp\WhatsAppProviderConfigResolver;
 use App\Support\Cpf;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -23,7 +24,9 @@ class UserCourseNotificationService
     private const RESUMO_DIARIO_CONFIG_ROOT = 'notificacao.auto.usuario_resumo_diario_cursos';
 
     public function __construct(
-        private readonly ConfiguracaoService $configuracaoService
+        private readonly ConfiguracaoService $configuracaoService,
+        private readonly WhatsAppSendThrottleService $whatsAppSendThrottleService,
+        private readonly WhatsAppProviderConfigResolver $whatsAppProviderConfigResolver
     ) {
     }
 
@@ -96,6 +99,7 @@ class UserCourseNotificationService
 
         $emailsEnviados = [];
         $whatsAppsEnviados = [];
+        $whatsappProvider = $this->whatsAppProviderConfigResolver->resolveNotificationProvider();
 
         foreach ($destinatarios as $usuario) {
             if ($emailAtivo) {
@@ -115,7 +119,8 @@ class UserCourseNotificationService
                     $notificationType,
                     $eventoReferencia,
                     $mensagemWhatsApp,
-                    $whatsAppsEnviados
+                    $whatsAppsEnviados,
+                    $whatsappProvider
                 );
             }
         }
@@ -189,6 +194,7 @@ class UserCourseNotificationService
 
             $emailsEnviados = [];
             $whatsAppsEnviados = [];
+            $whatsappProvider = $this->whatsAppProviderConfigResolver->resolveNotificationProvider();
 
             foreach ($destinatarios as $usuario) {
                 if ($emailAtivo) {
@@ -208,7 +214,8 @@ class UserCourseNotificationService
                         $notificationType,
                         $evento,
                         $mensagemWhatsApp,
-                        $whatsAppsEnviados
+                        $whatsAppsEnviados,
+                        $whatsappProvider
                     );
                 }
             }
@@ -304,7 +311,8 @@ class UserCourseNotificationService
         string $notificationType,
         EventoCurso $evento,
         string $mensagem,
-        array &$whatsAppsEnviados
+        array &$whatsAppsEnviados,
+        string $provider
     ): void {
         $numero = $this->normalizeWhatsapp($usuario->whatsapp);
         if (! $numero) {
@@ -321,7 +329,7 @@ class UserCourseNotificationService
         }
 
         try {
-            SendWhatsAppNotificationJob::dispatch(
+            $dispatch = SendWhatsAppNotificationJob::dispatch(
                 self::DESTINATARIO_USUARIO,
                 null,
                 $usuario->display_name,
@@ -332,6 +340,29 @@ class UserCourseNotificationService
                 $notificationType,
                 $mensagem
             );
+
+            try {
+                if ($this->whatsAppSendThrottleService->shouldThrottle($provider)) {
+                    $delay = $this->whatsAppSendThrottleService->getRandomDelay($provider);
+                    if ($delay > 0) {
+                        $dispatch->delay(now()->addSeconds($delay));
+
+                        Log::info('WhatsApp throttle aplicado no agendamento inicial de notificação interna.', [
+                            'provider' => $provider,
+                            'notification_type' => $notificationType,
+                            'user_id' => $usuario->id,
+                            'delay_seconds' => $delay,
+                        ]);
+                    }
+                }
+            } catch (Throwable $exception) {
+                Log::warning('Falha ao aplicar throttle no envio interno de WhatsApp. Fallback para envio normal.', [
+                    'provider' => $provider,
+                    'notification_type' => $notificationType,
+                    'user_id' => $usuario->id,
+                    'erro' => $exception->getMessage(),
+                ]);
+            }
 
             $whatsAppsEnviados[$numero] = true;
         } catch (Throwable $exception) {

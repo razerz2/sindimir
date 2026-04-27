@@ -462,174 +462,269 @@
                     <span class="badge">{{ $whatsappStatus }}</span>
                     <p class="text-sm text-slate-500">Status da integração.</p>
                 </div>
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <x-admin.select
-                        id="whatsapp_provedor"
-                        name="whatsapp_provedor"
-                        label="Provedor"
-                        :options="$whatsAppProviderOptions"
-                        :selected="$settings['whatsapp_provedor'] ?? null"
-                        placeholder="Selecione"
-                    />
-                    <div id="whatsapp_token_field">
-                        <x-admin.input
-                            id="whatsapp_token"
-                            name="whatsapp_token"
-                            label="Token"
-                            :value="$settings['whatsapp_token'] ?? ''"
-                        />
-                    </div>
-                    <div id="whatsapp-zapi-fields" class="grid grid-cols-1 gap-4 md:grid-cols-2 md:col-span-2">
-                        <x-admin.input
-                            id="whatsapp_client_token"
-                            name="whatsapp_client_token"
-                            label="Client-Token (Z-API)"
-                            :value="$settings['whatsapp_client_token'] ?? ''"
-                        />
-                        <x-admin.input
-                            id="whatsapp_base_url"
-                            name="whatsapp_base_url"
-                            label="Base URL (Z-API)"
-                            :value="$settings['whatsapp_base_url'] ?? ''"
-                        />
-                        <x-admin.input
-                            id="whatsapp_instance"
-                            name="whatsapp_instance"
-                            label="Instance (Z-API)"
-                            :value="$settings['whatsapp_instance'] ?? ''"
-                        />
-                    </div>
-                    <div id="whatsapp-meta-fields">
-                        <x-admin.input
-                            id="whatsapp_phone_number_id"
-                            name="whatsapp_phone_number_id"
-                            label="Phone Number ID (Meta)"
-                            :value="$settings['whatsapp_phone_number_id'] ?? ''"
-                        />
-                    </div>
-                    <div id="whatsapp-waha-fields" class="grid grid-cols-1 gap-4 md:grid-cols-2 md:col-span-2">
-                        <x-admin.input
-                            id="whatsapp_waha_api_key"
-                            name="whatsapp_waha_api_key"
-                            label="API Key (WAHA)"
-                            :value="$settings['whatsapp_waha_api_key'] ?? ''"
-                        />
-                        <x-admin.input
-                            id="whatsapp_waha_api_key_header"
-                            name="whatsapp_waha_api_key_header"
-                            label="Header API Key (WAHA)"
-                            :value="$settings['whatsapp_waha_api_key_header'] ?? 'X-Api-Key'"
-                        />
-                        <x-admin.input
-                            id="whatsapp_waha_base_url"
-                            name="whatsapp_waha_base_url"
-                            label="Base URL (WAHA)"
-                            :value="$settings['whatsapp_waha_base_url'] ?? ''"
-                        />
-                        <x-admin.input
-                            id="whatsapp_waha_session"
-                            name="whatsapp_waha_session"
-                            label="Sessão (WAHA)"
-                            :value="$settings['whatsapp_waha_session'] ?? 'default'"
-                        />
-                    </div>
-                    <div id="whatsapp-evolution-fields" class="grid grid-cols-1 gap-4 md:grid-cols-2 md:col-span-2">
-                        <x-admin.input
-                            id="whatsapp_evolution_base_url"
-                            name="whatsapp_evolution_base_url"
-                            label="Base URL (Evolution)"
-                            :value="$settings['whatsapp_evolution_base_url'] ?? ''"
-                        />
-                        <x-admin.input
-                            id="whatsapp_evolution_instance"
-                            name="whatsapp_evolution_instance"
-                            label="Instância (Evolution)"
-                            :value="$settings['whatsapp_evolution_instance'] ?? ''"
-                        />
-                        <x-admin.input
-                            id="whatsapp_evolution_apikey"
-                            name="whatsapp_evolution_apikey"
-                            label="API Key (Evolution)"
-                            :value="$settings['whatsapp_evolution_apikey'] ?? ''"
-                        />
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="whatsapp_webhook_url" class="text-sm font-semibold text-[var(--content-text)]">
-                            Webhook URL
-                        </label>
-                        <div class="mt-2 flex flex-col gap-2 sm:flex-row">
-                            <input
-                                id="whatsapp_webhook_url"
-                                name="whatsapp_webhook_url"
-                                type="text"
-                                value="{{ old('whatsapp_webhook_url', $settings['whatsapp_webhook_url'] ?? '') }}"
-                                readonly
-                                class="w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 @error('whatsapp_webhook_url') border-red-500 @enderror"
-                            >
-                            <button
-                                id="copy-whatsapp-webhook-url"
-                                type="button"
-                                class="btn btn-ghost sm:w-auto"
-                            >
-                                Copiar
-                            </button>
-                        </div>
-                        <p id="copy-whatsapp-webhook-feedback" class="mt-1 hidden text-xs text-emerald-600"></p>
-                        @error('whatsapp_webhook_url')
-                            <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
-                        @enderror
-                    </div>
-                </div>
 
-                <div class="mt-6 rounded-xl border border-dashed border-slate-200 bg-white p-4">
-                    <h4 class="text-sm font-semibold text-slate-700">Teste de envio</h4>
-                    <p class="text-xs text-slate-500">
-                        Envie uma mensagem rápida para validar a configuração do provedor.
-                    </p>
-                    @if (! $whatsappReady)
-                        <p class="mt-2 text-xs text-amber-600">
-                            Configure o provedor e salve antes de testar o envio.
+                <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
+                    <div class="rounded-xl border border-slate-200 bg-white p-4 lg:col-span-8">
+                        <h4 class="text-sm font-semibold text-slate-700">Credenciais da API</h4>
+                        <p class="mt-1 text-xs text-slate-500">
+                            Selecione o provedor e preencha os dados necessários para autenticação.
                         </p>
-                    @endif
-                    @if (session('whatsapp_test_status'))
-                        @php($testStatus = session('whatsapp_test_status'))
-                        <div class="mt-3 rounded-xl border p-3 text-xs {{ $testStatus['type'] === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700' }}">
-                            {{ $testStatus['message'] }}
+
+                        <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <x-admin.select
+                                id="whatsapp_provedor"
+                                name="whatsapp_provedor"
+                                label="Provedor"
+                                :options="$whatsAppProviderOptions"
+                                :selected="$settings['whatsapp_provedor'] ?? null"
+                                placeholder="Selecione"
+                            />
+                            <div id="whatsapp_token_field">
+                                <x-admin.input
+                                    id="whatsapp_token"
+                                    name="whatsapp_token"
+                                    label="Token"
+                                    :value="$settings['whatsapp_token'] ?? ''"
+                                />
+                            </div>
+                            <div id="whatsapp-zapi-fields" class="grid grid-cols-1 gap-4 md:grid-cols-2 md:col-span-2">
+                                <x-admin.input
+                                    id="whatsapp_client_token"
+                                    name="whatsapp_client_token"
+                                    label="Client-Token (Z-API)"
+                                    :value="$settings['whatsapp_client_token'] ?? ''"
+                                />
+                                <x-admin.input
+                                    id="whatsapp_base_url"
+                                    name="whatsapp_base_url"
+                                    label="Base URL (Z-API)"
+                                    :value="$settings['whatsapp_base_url'] ?? ''"
+                                />
+                                <x-admin.input
+                                    id="whatsapp_instance"
+                                    name="whatsapp_instance"
+                                    label="Instance (Z-API)"
+                                    :value="$settings['whatsapp_instance'] ?? ''"
+                                />
+                            </div>
+                            <div id="whatsapp-meta-fields" class="md:col-span-2">
+                                <x-admin.input
+                                    id="whatsapp_phone_number_id"
+                                    name="whatsapp_phone_number_id"
+                                    label="Phone Number ID (Meta)"
+                                    :value="$settings['whatsapp_phone_number_id'] ?? ''"
+                                />
+                            </div>
+                            <div id="whatsapp-waha-fields" class="grid grid-cols-1 gap-4 md:grid-cols-2 md:col-span-2">
+                                <x-admin.input
+                                    id="whatsapp_waha_api_key"
+                                    name="whatsapp_waha_api_key"
+                                    label="API Key (WAHA)"
+                                    :value="$settings['whatsapp_waha_api_key'] ?? ''"
+                                />
+                                <x-admin.input
+                                    id="whatsapp_waha_api_key_header"
+                                    name="whatsapp_waha_api_key_header"
+                                    label="Header API Key (WAHA)"
+                                    :value="$settings['whatsapp_waha_api_key_header'] ?? 'X-Api-Key'"
+                                />
+                                <x-admin.input
+                                    id="whatsapp_waha_base_url"
+                                    name="whatsapp_waha_base_url"
+                                    label="Base URL (WAHA)"
+                                    :value="$settings['whatsapp_waha_base_url'] ?? ''"
+                                />
+                                <x-admin.input
+                                    id="whatsapp_waha_session"
+                                    name="whatsapp_waha_session"
+                                    label="Sessão (WAHA)"
+                                    :value="$settings['whatsapp_waha_session'] ?? 'default'"
+                                />
+                            </div>
+                            <div id="whatsapp-evolution-fields" class="grid grid-cols-1 gap-4 md:grid-cols-2 md:col-span-2">
+                                <x-admin.input
+                                    id="whatsapp_evolution_base_url"
+                                    name="whatsapp_evolution_base_url"
+                                    label="Base URL (Evolution)"
+                                    :value="$settings['whatsapp_evolution_base_url'] ?? ''"
+                                />
+                                <x-admin.input
+                                    id="whatsapp_evolution_instance"
+                                    name="whatsapp_evolution_instance"
+                                    label="Instância (Evolution)"
+                                    :value="$settings['whatsapp_evolution_instance'] ?? ''"
+                                />
+                                <x-admin.input
+                                    id="whatsapp_evolution_apikey"
+                                    name="whatsapp_evolution_apikey"
+                                    label="API Key (Evolution)"
+                                    :value="$settings['whatsapp_evolution_apikey'] ?? ''"
+                                />
+                            </div>
                         </div>
-                    @endif
-                    <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <x-admin.input
-                            id="whatsapp_test_numero"
-                            name="whatsapp_test_numero"
-                            label="Número"
-                            placeholder="Ex: 5567999999999"
-                            :disabled="! $whatsappReady"
-                        />
-                        <div class="flex flex-col gap-2 md:col-span-2">
-                            <label for="whatsapp_test_mensagem" class="text-sm font-semibold text-[var(--content-text)]">Mensagem</label>
-                            <textarea
-                                id="whatsapp_test_mensagem"
-                                name="whatsapp_test_mensagem"
-                                rows="3"
-                                @if (! $whatsappReady) disabled @endif
-                                class="w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 @error('whatsapp_test_mensagem') border-red-500 @enderror"
-                            >{{ old('whatsapp_test_mensagem') }}</textarea>
-                            @error('whatsapp_test_mensagem')
-                                <p class="text-xs text-red-500">{{ $message }}</p>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-200 bg-white p-4 lg:col-span-4">
+                        <h4 class="text-sm font-semibold text-slate-700">Webhook</h4>
+                        <p class="mt-1 text-xs text-slate-500">
+                            Configure esta URL no painel do provedor para receber os eventos corretamente.
+                        </p>
+
+                        <div class="mt-4">
+                            <label for="whatsapp_webhook_url" class="text-sm font-semibold text-[var(--content-text)]">
+                                Webhook URL
+                            </label>
+                            <div class="mt-2 flex flex-col gap-2">
+                                <input
+                                    id="whatsapp_webhook_url"
+                                    name="whatsapp_webhook_url"
+                                    type="text"
+                                    value="{{ old('whatsapp_webhook_url', $settings['whatsapp_webhook_url'] ?? '') }}"
+                                    readonly
+                                    class="w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 @error('whatsapp_webhook_url') border-red-500 @enderror"
+                                >
+                                <button
+                                    id="copy-whatsapp-webhook-url"
+                                    type="button"
+                                    class="btn btn-ghost sm:w-auto"
+                                >
+                                    Copiar
+                                </button>
+                            </div>
+                            <p id="copy-whatsapp-webhook-feedback" class="mt-1 hidden text-xs text-emerald-600"></p>
+                            @error('whatsapp_webhook_url')
+                                <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                             @enderror
                         </div>
                     </div>
-                    <div class="mt-4 flex justify-end">
-                        <x-admin.action
-                            variant="primary"
-                            icon="check"
-                            type="submit"
-                            formaction="{{ route('admin.configuracoes.whatsapp.testar') }}"
-                            formmethod="POST"
-                            :disabled="! $whatsappReady"
-                        >
-                            Testar envio
-                        </x-admin.action>
+
+                    <div id="whatsapp-unofficial-throttle-fields" class="hidden rounded-xl border border-slate-200 bg-white p-4 lg:col-span-12">
+                        <h4 class="text-sm font-semibold text-slate-700">Controle de envio (anti-ban)</h4>
+                        <p class="mt-1 text-xs text-slate-500">
+                            Aplicável apenas para provedores não oficiais: WAHA, Evolution e Z-API.
+                        </p>
+                        <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            <x-admin.checkbox
+                                name="whatsapp_unofficial_throttle_enabled"
+                                label="Ativar controle anti-ban"
+                                :checked="$settings['whatsapp_unofficial_throttle_enabled'] ?? false"
+                            />
+                            <x-admin.input
+                                id="whatsapp_unofficial_delay_min_seconds"
+                                name="whatsapp_unofficial_delay_min_seconds"
+                                label="Delay mínimo (segundos)"
+                                type="number"
+                                :value="$settings['whatsapp_unofficial_delay_min_seconds'] ?? 2"
+                            />
+                            <x-admin.input
+                                id="whatsapp_unofficial_delay_max_seconds"
+                                name="whatsapp_unofficial_delay_max_seconds"
+                                label="Delay máximo (segundos)"
+                                type="number"
+                                :value="$settings['whatsapp_unofficial_delay_max_seconds'] ?? 8"
+                            />
+                            <x-admin.input
+                                id="whatsapp_unofficial_max_per_minute"
+                                name="whatsapp_unofficial_max_per_minute"
+                                label="Máximo por minuto"
+                                type="number"
+                                :value="$settings['whatsapp_unofficial_max_per_minute'] ?? 20"
+                            />
+                            <x-admin.input
+                                id="whatsapp_unofficial_max_per_hour"
+                                name="whatsapp_unofficial_max_per_hour"
+                                label="Máximo por hora"
+                                type="number"
+                                :value="$settings['whatsapp_unofficial_max_per_hour'] ?? 400"
+                            />
+                            <x-admin.input
+                                id="whatsapp_unofficial_send_window_start"
+                                name="whatsapp_unofficial_send_window_start"
+                                label="Início da janela (HH:mm)"
+                                type="time"
+                                :value="$settings['whatsapp_unofficial_send_window_start'] ?? '00:00'"
+                            />
+                            <x-admin.input
+                                id="whatsapp_unofficial_send_window_end"
+                                name="whatsapp_unofficial_send_window_end"
+                                label="Fim da janela (HH:mm)"
+                                type="time"
+                                :value="$settings['whatsapp_unofficial_send_window_end'] ?? '23:59'"
+                            />
+                            <x-admin.input
+                                id="whatsapp_unofficial_pause_every"
+                                name="whatsapp_unofficial_pause_every"
+                                label="Pausar a cada X mensagens"
+                                type="number"
+                                :value="$settings['whatsapp_unofficial_pause_every'] ?? 0"
+                            />
+                            <x-admin.input
+                                id="whatsapp_unofficial_pause_min_seconds"
+                                name="whatsapp_unofficial_pause_min_seconds"
+                                label="Pausa mínima (segundos)"
+                                type="number"
+                                :value="$settings['whatsapp_unofficial_pause_min_seconds'] ?? 8"
+                            />
+                            <x-admin.input
+                                id="whatsapp_unofficial_pause_max_seconds"
+                                name="whatsapp_unofficial_pause_max_seconds"
+                                label="Pausa máxima (segundos)"
+                                type="number"
+                                :value="$settings['whatsapp_unofficial_pause_max_seconds'] ?? 20"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-dashed border-slate-200 bg-white p-4 lg:col-span-12">
+                        <h4 class="text-sm font-semibold text-slate-700">Teste de envio</h4>
+                        <p class="text-xs text-slate-500">
+                            Envie uma mensagem rápida para validar a configuração do provedor.
+                        </p>
+                        @if (! $whatsappReady)
+                            <p class="mt-2 text-xs text-amber-600">
+                                Configure o provedor e salve antes de testar o envio.
+                            </p>
+                        @endif
+                        @if (session('whatsapp_test_status'))
+                            @php($testStatus = session('whatsapp_test_status'))
+                            <div class="mt-3 rounded-xl border p-3 text-xs {{ $testStatus['type'] === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700' }}">
+                                {{ $testStatus['message'] }}
+                            </div>
+                        @endif
+                        <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <x-admin.input
+                                id="whatsapp_test_numero"
+                                name="whatsapp_test_numero"
+                                label="Número"
+                                placeholder="Ex: 5567999999999"
+                                :disabled="! $whatsappReady"
+                            />
+                            <div class="flex flex-col gap-2 md:col-span-2">
+                                <label for="whatsapp_test_mensagem" class="text-sm font-semibold text-[var(--content-text)]">Mensagem</label>
+                                <textarea
+                                    id="whatsapp_test_mensagem"
+                                    name="whatsapp_test_mensagem"
+                                    rows="3"
+                                    @if (! $whatsappReady) disabled @endif
+                                    class="w-full rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 @error('whatsapp_test_mensagem') border-red-500 @enderror"
+                                >{{ old('whatsapp_test_mensagem') }}</textarea>
+                                @error('whatsapp_test_mensagem')
+                                    <p class="text-xs text-red-500">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
+                        <div class="mt-4 flex justify-end">
+                            <x-admin.action
+                                variant="primary"
+                                icon="check"
+                                type="submit"
+                                formaction="{{ route('admin.configuracoes.whatsapp.testar') }}"
+                                formmethod="POST"
+                                :disabled="! $whatsappReady"
+                            >
+                                Testar envio
+                            </x-admin.action>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1534,6 +1629,7 @@
             const whatsappZapiFields = document.getElementById('whatsapp-zapi-fields');
             const whatsappWahaFields = document.getElementById('whatsapp-waha-fields');
             const whatsappEvolutionFields = document.getElementById('whatsapp-evolution-fields');
+            const whatsappUnofficialThrottleFields = document.getElementById('whatsapp-unofficial-throttle-fields');
             const whatsappWebhookField = document.getElementById('whatsapp_webhook_url');
             const copyWhatsappWebhookButton = document.getElementById('copy-whatsapp-webhook-url');
             const copyWhatsappWebhookFeedback = document.getElementById('copy-whatsapp-webhook-feedback');
@@ -1605,6 +1701,7 @@
                 setSectionVisibility(whatsappZapiFields, isZapi);
                 setSectionVisibility(whatsappWahaFields, isWaha);
                 setSectionVisibility(whatsappEvolutionFields, isEvolution);
+                setSectionVisibility(whatsappUnofficialThrottleFields, isZapi || isWaha || isEvolution);
                 updateWhatsappWebhookUrl();
             }
 
