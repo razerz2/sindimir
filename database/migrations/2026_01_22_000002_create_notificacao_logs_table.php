@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\NotificationType;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -17,9 +18,11 @@ return new class extends Migration
             $table->foreignId('curso_id')->constrained('cursos')->cascadeOnDelete();
             $table->foreignId('evento_curso_id')->nullable()->constrained('evento_cursos')->nullOnDelete();
             $table->foreignId('notificacao_link_id')->nullable()->constrained('notificacao_links')->nullOnDelete();
+            $table->string('notification_type')->default(NotificationType::CURSO_DISPONIVEL->value);
             $table->enum('canal', ['email', 'whatsapp']);
             $table->enum('status', ['success', 'failed']);
             $table->text('erro')->nullable();
+            $table->text('mensagem')->nullable();
             $table->timestamps();
         });
     }

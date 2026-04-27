@@ -18,6 +18,8 @@ return new class extends Migration
             $table->string('state', 120)->nullable();
             $table->json('context')->nullable();
             $table->timestamp('last_activity_at')->nullable()->index();
+            $table->timestamp('closed_at')->nullable()->index();
+            $table->string('closed_reason', 50)->nullable()->index();
             $table->timestamps();
 
             $table->unique(['channel', 'from']);

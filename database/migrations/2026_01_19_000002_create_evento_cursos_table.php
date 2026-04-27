@@ -17,6 +17,8 @@ return new class extends Migration
             $table->string('numero_evento');
             $table->date('data_inicio');
             $table->date('data_fim');
+            $table->time('horario_inicio')->nullable();
+            $table->time('horario_fim')->nullable();
             $table->unsignedInteger('carga_horaria')->default(0);
             $table->string('municipio');
             $table->string('local_realizacao');

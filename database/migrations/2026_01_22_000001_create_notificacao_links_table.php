@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\NotificationType;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -17,6 +18,7 @@ return new class extends Migration
             $table->foreignId('curso_id')->constrained('cursos')->cascadeOnDelete();
             $table->foreignId('evento_curso_id')->nullable()->constrained('evento_cursos')->nullOnDelete();
             $table->string('token')->unique();
+            $table->string('notification_type')->default(NotificationType::CURSO_DISPONIVEL->value);
             $table->timestamp('expires_at');
             $table->timestamps();
             $table->unique(['aluno_id', 'curso_id', 'evento_curso_id']);
